@@ -51,7 +51,7 @@ class ProfileAgent:
     def run(self, history: list[dict[str, Any]], total_sessions: int) -> ProfileResponse:
         if not history:
             return ProfileResponse(
-                preferences="Not enough data yet — complete a few analyses to build your profile.",
+                preferences="Not enough data yet. Complete a few analyses to build your profile.",
                 common_mistakes="Not enough data yet.",
                 next_week_focus="Start by submitting works for analysis and critique.",
                 total_sessions=0,
@@ -78,9 +78,4 @@ class ProfileAgent:
         raw = completion.choices[0].message.content or ""
         data = _parse_json_response(raw)
 
-        return ProfileResponse(
-            preferences=data.get("preferences", ""),
-            common_mistakes=data.get("common_mistakes", ""),
-            next_week_focus=data.get("next_week_focus", ""),
-            total_sessions=total_sessions,
-        )
+        return ProfileResponse.model_validate({**data, "total_sessions": total_sessions})

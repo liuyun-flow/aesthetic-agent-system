@@ -1,9 +1,12 @@
 """FastAPI application — aesthetic training agent system MVP."""
 
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Annotated, Callable, TypeVar
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
+from openai import OpenAIError
+from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.agents.analyzer import AnalyzerAgent
@@ -22,10 +25,13 @@ from app.schemas.responses import (
     CritiqueResponse,
     IterateResponse,
     ProfileResponse,
+    RecordType,
     SessionRecord,
     SessionsResponse,
 )
 from app.services import session_service
+
+AgentResultT = TypeVar("AgentResultT")
 
 
 # ── Lifespan ──────────────────────────────────────────────────────────
@@ -49,7 +55,13 @@ app = FastAPI(
 # ── Agent dependencies ────────────────────────────────────────────────
 
 def _get_client():
-    return get_deepseek_client()
+    try:
+        return get_deepseek_client()
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="DeepSeek API key is not configured. Set DEEPSEEK_API_KEY.",
+        ) from exc
 
 
 def _get_model():
@@ -88,6 +100,56 @@ def get_profile_agent(
     return ProfileAgent(client=client, model=reasoning_model)
 
 
+def _run_agent(operation: str, runner: Callable[[], AgentResultT]) -> AgentResultT:
+    try:
+        return runner()
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"{operation} returned an invalid structured response.",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"{operation} returned invalid JSON.",
+        ) from exc
+    except OpenAIError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"{operation} failed while contacting DeepSeek.",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"{operation} failed. Please try again later.",
+        ) from exc
+
+
+def _save_record(
+    db: Session,
+    record_type: RecordType,
+    work_description: str,
+    result: AgentResultT,
+) -> None:
+    try:
+        session_service.save_record(
+            db,
+            record_type=record_type,
+            work_description=work_description,
+            result=result,
+        )
+    except SQLAlchemyError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not save the training session.",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Could not save the training session.",
+        ) from exc
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────
 
 @app.post("/analyze", response_model=AnalyzeResponse)
@@ -97,17 +159,8 @@ def analyze(
     db: Session = Depends(get_db),
 ) -> AnalyzeResponse:
     """Analyze a work description across 9 aesthetic dimensions."""
-    try:
-        result = agent.run(request.work_description)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM analysis failed: {exc}")
-
-    session_service.save_record(
-        db,
-        record_type="analyze",
-        work_description=request.work_description,
-        result=result,
-    )
+    result = _run_agent("LLM analysis", lambda: agent.run(request.work_description))
+    _save_record(db, "analyze", request.work_description, result)
     return result
 
 
@@ -118,17 +171,8 @@ def critique(
     db: Session = Depends(get_db),
 ) -> CritiqueResponse:
     """Critique a work with dimension scores, issues, and priority fixes."""
-    try:
-        result = agent.run(request.work_description)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM critique failed: {exc}")
-
-    session_service.save_record(
-        db,
-        record_type="critique",
-        work_description=request.work_description,
-        result=result,
-    )
+    result = _run_agent("LLM critique", lambda: agent.run(request.work_description))
+    _save_record(db, "critique", request.work_description, result)
     return result
 
 
@@ -139,17 +183,8 @@ def iterate(
     db: Session = Depends(get_db),
 ) -> IterateResponse:
     """Generate 3-5 distinct iteration directions for a work."""
-    try:
-        result = agent.run(request.work_description)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM iteration failed: {exc}")
-
-    session_service.save_record(
-        db,
-        record_type="iterate",
-        work_description=request.work_description,
-        result=result,
-    )
+    result = _run_agent("LLM iteration", lambda: agent.run(request.work_description))
+    _save_record(db, "iterate", request.work_description, result)
     return result
 
 
@@ -162,21 +197,21 @@ def profile(
     total = session_service.get_record_count(db)
     history = session_service.get_history_for_profile(db)
 
-    try:
-        return agent.run(history, total_sessions=total)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"LLM profile failed: {exc}")
+    return _run_agent("LLM profile", lambda: agent.run(history, total_sessions=total))
 
 
 @app.get("/sessions", response_model=SessionsResponse)
 def sessions(
-    record_type: Optional[str] = None,
-    limit: int = 50,
+    record_type: Annotated[
+        RecordType | None,
+        Query(description="Optional filter: analyze, critique, or iterate."),
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
     db: Session = Depends(get_db),
 ) -> SessionsResponse:
     """Return recent training session records."""
     records = session_service.get_recent_records(
-        db, limit=min(limit, 200), record_type=record_type
+        db, limit=limit, record_type=record_type
     )
     session_records = [
         SessionRecord(

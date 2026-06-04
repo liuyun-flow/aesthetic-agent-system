@@ -1,11 +1,20 @@
 """API endpoint tests — uses mocked agents and in-memory SQLite."""
 
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from sqlalchemy import create_engine, StaticPool
 from sqlalchemy.orm import sessionmaker
 
+from app.agents.critic import CriticAgent
 from app.db.database import Base, get_db
+from app.llm.deepseek_client import (
+    get_deepseek_client,
+    get_default_model,
+    get_reasoning_model,
+)
 from app.main import app
 from app.main import (
     get_analyzer,
@@ -21,6 +30,7 @@ from app.schemas.responses import (
     IterationDirection,
     ProfileResponse,
 )
+from app.services import session_service
 
 # ── Test database ────────────────────────────────────────────────────
 
@@ -33,6 +43,18 @@ test_engine = create_engine(
     poolclass=StaticPool,
 )
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+
+def make_chat_client(content: str) -> SimpleNamespace:
+    """Return a minimal fake OpenAI-compatible client."""
+    completion = SimpleNamespace(
+        choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
+    )
+    return SimpleNamespace(
+        chat=SimpleNamespace(
+            completions=SimpleNamespace(create=lambda **kwargs: completion)
+        )
+    )
 
 
 def override_get_db():
@@ -141,6 +163,11 @@ class MockProfileAgent:
             next_week_focus=MOCK_PROFILE_RESULT.next_week_focus,
             total_sessions=total_sessions,
         )
+
+
+class FailingAnalyzerAgent:
+    def run(self, work_description: str) -> AnalyzeResponse:
+        raise RuntimeError("secret-token-value should not be exposed")
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
@@ -264,6 +291,47 @@ class TestCritiqueEndpoint:
     def test_rejects_invalid_description(self, client):
         resp = client.post("/critique", json={"work_description": "ab"})
         assert resp.status_code == 422
+
+
+class TestCriticAgent:
+    def test_returns_structured_critique_response(self):
+        raw = """
+        {
+          "total_score": 7.5,
+          "dimensions": {
+            "color": 8,
+            "composition": 7,
+            "typography": 7,
+            "material": 8,
+            "emotion": 7,
+            "brand_sense": 8
+          },
+          "main_issues": ["The hierarchy needs more contrast."],
+          "cheapness_sources": [],
+          "priority_fixes": ["Increase title/body size contrast."]
+        }
+        """
+        agent = CriticAgent(client=make_chat_client(raw), model="test-model")
+
+        result = agent.run("A clean landing page with restrained palette and simple layout.")
+
+        assert isinstance(result, CritiqueResponse)
+        assert result.total_score == 7.5
+        assert result.dimensions.color == 8
+
+    def test_rejects_incomplete_structured_json(self):
+        raw = """
+        {
+          "total_score": 7.5,
+          "main_issues": ["The hierarchy needs more contrast."],
+          "cheapness_sources": [],
+          "priority_fixes": ["Increase title/body size contrast."]
+        }
+        """
+        agent = CriticAgent(client=make_chat_client(raw), model="test-model")
+
+        with pytest.raises(ValidationError):
+            agent.run("A clean landing page with restrained palette and simple layout.")
 
 
 # ── Tests: /iterate ──────────────────────────────────────────────────
@@ -393,6 +461,17 @@ class TestSessionsEndpoint:
         assert len(data["sessions"]) == 3
         assert data["total"] == 3
 
+    def test_rejects_unknown_record_type(self, client):
+        resp = client.get("/sessions?record_type=unknown")
+        assert resp.status_code == 422
+
+    def test_rejects_limit_outside_allowed_range(self, client):
+        too_small = client.get("/sessions?limit=0")
+        too_large = client.get("/sessions?limit=201")
+
+        assert too_small.status_code == 422
+        assert too_large.status_code == 422
+
     def test_session_record_has_required_fields(self, client):
         client.post("/analyze", json={"work_description": "Field check test work description."})
 
@@ -413,6 +492,27 @@ class TestHealthEndpoint:
         resp = client.get("/health")
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}
+
+
+class TestDeepSeekClient:
+    def test_rejects_missing_api_key(self, monkeypatch):
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+        with pytest.raises(ValueError):
+            get_deepseek_client()
+
+    def test_rejects_placeholder_api_key(self, monkeypatch):
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "your_deepseek_api_key_here")
+
+        with pytest.raises(ValueError):
+            get_deepseek_client()
+
+    def test_reads_model_names_at_call_time(self, monkeypatch):
+        monkeypatch.setenv("DEEPSEEK_DEFAULT_MODEL", "custom-default-model")
+        monkeypatch.setenv("DEEPSEEK_REASONING_MODEL", "custom-reasoning-model")
+
+        assert get_default_model() == "custom-default-model"
+        assert get_reasoning_model() == "custom-reasoning-model"
 
 
 # ── Tests: Cross-cutting ────────────────────────────────────────────
@@ -443,3 +543,32 @@ class TestCrossCutting:
             resp = client.get(f"/sessions?record_type={rtype}")
             assert resp.json()["total"] == 1
             assert resp.json()["sessions"][0]["record_type"] == rtype
+
+    def test_llm_error_response_does_not_leak_exception_details(self, client):
+        app.dependency_overrides[get_analyzer] = lambda: FailingAnalyzerAgent()
+
+        resp = client.post(
+            "/analyze",
+            json={"work_description": "A valid description that triggers a mocked failure."},
+        )
+
+        assert resp.status_code == 502
+        detail = resp.json()["detail"]
+        assert detail == "LLM analysis failed. Please try again later."
+        assert "secret-token-value" not in detail
+
+    def test_profile_history_includes_saved_result_json(self, client):
+        resp = client.post(
+            "/critique",
+            json={"work_description": "A poster with weak hierarchy and uneven spacing."},
+        )
+        assert resp.status_code == 200
+
+        db = TestSessionLocal()
+        try:
+            history = session_service.get_history_for_profile(db)
+        finally:
+            db.close()
+
+        assert history[0]["type"] == "critique"
+        assert history[0]["result"]["total_score"] == MOCK_CRITIQUE_RESULT.total_score

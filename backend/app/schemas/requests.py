@@ -1,10 +1,12 @@
 """Pydantic request schemas."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class WorkDescriptionRequest(BaseModel):
     """Request body for /analyze, /critique, /iterate."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
 
     work_description: str = Field(
         ...,

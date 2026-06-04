@@ -6,7 +6,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from app.schemas.responses import IterateResponse, IterationDirection
+from app.schemas.responses import IterateResponse
 
 
 ITERATOR_SYSTEM_PROMPT = (
@@ -70,14 +70,7 @@ class IteratorAgent:
         raw = completion.choices[0].message.content or ""
         data = _parse_json_response(raw)
 
-        raw_directions = data.get("directions", [])
-        directions = [
-            IterationDirection(
-                title=d.get("title", ""),
-                description=d.get("description", ""),
-                expected_impact=d.get("expected_impact", ""),
-            )
-            for d in raw_directions
-        ]
+        if isinstance(data.get("directions"), list):
+            data = {**data, "directions": data["directions"][:5]}
 
-        return IterateResponse(directions=directions[:5])
+        return IterateResponse.model_validate(data)

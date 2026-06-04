@@ -1,11 +1,14 @@
 """Session service — persists and retrieves training records."""
 
-from datetime import datetime
 from typing import Any, Optional
 
+from fastapi.encoders import jsonable_encoder
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.db.models import TrainingRecord
+
+VALID_RECORD_TYPES = {"analyze", "critique", "iterate"}
 
 
 def save_record(
@@ -15,13 +18,10 @@ def save_record(
     result: Any,
 ) -> TrainingRecord:
     """Persist a training record (analyze / critique / iterate)."""
-    # Convert Pydantic model to dict for JSON storage
-    if hasattr(result, "model_dump"):
-        result_json = result.model_dump()
-    elif hasattr(result, "dict"):
-        result_json = result.dict()
-    else:
-        result_json = result
+    if record_type not in VALID_RECORD_TYPES:
+        raise ValueError(f"Unsupported record type: {record_type}")
+
+    result_json = jsonable_encoder(result)
 
     record = TrainingRecord(
         record_type=record_type,
@@ -29,8 +29,12 @@ def save_record(
         result_json=result_json,
     )
     db.add(record)
-    db.commit()
-    db.refresh(record)
+    try:
+        db.commit()
+        db.refresh(record)
+    except SQLAlchemyError:
+        db.rollback()
+        raise
     return record
 
 
@@ -62,6 +66,7 @@ def get_history_for_profile(db: Session, limit: int = 50) -> list[dict[str, Any]
             "id": r.id,
             "type": r.record_type,
             "work_description": r.work_description,
+            "result": r.result_json,
             "created_at": r.created_at.isoformat() if r.created_at else None,
         }
         for r in records

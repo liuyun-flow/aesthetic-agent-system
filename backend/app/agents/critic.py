@@ -6,7 +6,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from app.schemas.responses import CritiqueResponse, DimensionScores
+from app.schemas.responses import CritiqueResponse
 
 
 CRITIC_SYSTEM_PROMPT = (
@@ -71,20 +71,4 @@ class CriticAgent:
         raw = completion.choices[0].message.content or ""
         data = _parse_json_response(raw)
 
-        dims = data.get("dimensions", {})
-        dimensions = DimensionScores(
-            color=float(dims.get("color", 5)),
-            composition=float(dims.get("composition", 5)),
-            typography=float(dims.get("typography", 5)),
-            material=float(dims.get("material", 5)),
-            emotion=float(dims.get("emotion", 5)),
-            brand_sense=float(dims.get("brand_sense", 5)),
-        )
-
-        return CritiqueResponse(
-            total_score=float(data.get("total_score", 5)),
-            dimensions=dimensions,
-            main_issues=data.get("main_issues", []),
-            cheapness_sources=data.get("cheapness_sources", []),
-            priority_fixes=data.get("priority_fixes", []),
-        )
+        return CritiqueResponse.model_validate(data)

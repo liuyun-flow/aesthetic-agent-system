@@ -76,14 +76,4 @@ class AnalyzerAgent:
         raw = completion.choices[0].message.content or ""
         data = _parse_json_response(raw)
 
-        return AnalyzeResponse(
-            color=data.get("color", ""),
-            composition=data.get("composition", ""),
-            typography=data.get("typography", ""),
-            material=data.get("material", ""),
-            emotion=data.get("emotion", ""),
-            brand_sense=data.get("brand_sense", ""),
-            premium_sources=data.get("premium_sources", ""),
-            cheapness_sources=data.get("cheapness_sources", ""),
-            improvement_suggestions=data.get("improvement_suggestions", ""),
-        )
+        return AnalyzeResponse.model_validate(data)
