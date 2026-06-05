@@ -3,6 +3,7 @@
 from openai import OpenAI
 
 from app.agents.analyzer import AnalyzerAgent
+from app.agents.comparator import ComparatorAgent
 from app.agents.critic import CriticAgent
 from app.agents.iterator import IteratorAgent
 from app.agents.profile import ProfileAgent
@@ -13,6 +14,8 @@ class OrchestratorAgent:
 
     In the MVP this is a thin container; as the system grows the orchestrator
     can chain agents together (e.g. analyze → critique → iterate in one call).
+
+    V1.1: Includes ComparatorAgent for user-vs-AI judgment gap analysis.
     """
 
     def __init__(self, client: OpenAI, model: str, reasoning_model: str) -> None:
@@ -20,3 +23,4 @@ class OrchestratorAgent:
         self.critic = CriticAgent(client=client, model=model)
         self.iterator = IteratorAgent(client=client, model=model)
         self.profile = ProfileAgent(client=client, model=reasoning_model)
+        self.comparator = ComparatorAgent(client=client, model=reasoning_model)

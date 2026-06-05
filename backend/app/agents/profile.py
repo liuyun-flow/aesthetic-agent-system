@@ -22,9 +22,17 @@ an aesthetic training system. Based on the patterns you observe, produce a profi
 Training history (JSON array of records):
 {history_json}
 
+When judgment gap data (user_score, ai_score, judgment_gap_summary, training_focus_tags)
+is present, pay special attention to:
+- What issues does the user consistently miss?
+- What do they frequently misjudge?
+- Do they over-focus on color, style, or surface-level "premium" feel?
+- Do they neglect price band, target audience, or commercial fit?
+- What should they train on next week?
+
 Return a JSON object with exactly these keys:
 - preferences: string (summarize the user's apparent design preferences — styles, colors, moods they gravitate toward)
-- common_mistakes: string (patterns of weaknesses or recurring issues across their work)
+- common_mistakes: string (patterns of weaknesses or recurring issues across their work, including judgment gaps)
 - next_week_focus: string (specific, actionable focus areas for the coming week's training)
 
 Be constructive and encouraging. Ground every observation in the provided history."""

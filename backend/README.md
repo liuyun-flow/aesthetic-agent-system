@@ -58,11 +58,26 @@ API docs: http://127.0.0.1:8000/docs
 | `POST` | `/analyze` | Multi-dimensional aesthetic analysis. |
 | `POST` | `/critique` | Structured scored critique with issues and fixes. |
 | `POST` | `/iterate` | 3-5 alternative design directions. |
+| `POST` | `/upload` | Upload an image (jpg, png, webp). Stores on disk, returns metadata. |
 | `GET` | `/profile` | User aesthetic profile summary from saved sessions. |
 | `GET` | `/sessions` | Recent training records. Supports `record_type` and `limit`. |
 | `GET` | `/health` | Health check. |
 
 `/sessions` accepts `record_type=analyze`, `record_type=critique`, or `record_type=iterate`. `limit` must be between 1 and 200.
+
+`/analyze` also accepts optional `image_id` (from `/upload`) and `image_description`:
+
+```bash
+curl -X POST http://127.0.0.1:8000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "work_description": "A landing page with a hero section.",
+    "image_id": 1,
+    "image_description": "White background, navy header, three cards with icons."
+  }'
+```
+
+When `image_id` is provided without `image_description`, the endpoint returns 400 because the default ManualAdapter requires a human-written description. Once a real vision model adapter is plugged in, `image_description` becomes optional.
 
 ## Example Requests
 
@@ -109,6 +124,26 @@ curl -X POST http://127.0.0.1:8000/iterate \
   -d '{"work_description": "An e-commerce product card with a shadow effect, rounded corners, and a price tag in red."}'
 ```
 
+### Upload
+
+```bash
+curl -X POST http://127.0.0.1:8000/upload \
+  -F "file=@photo.jpg"
+```
+
+Response:
+
+```json
+{
+  "image_id": 1,
+  "filename": "a1b2c3d4e5f6.jpg",
+  "created_at": "2026-06-04T12:00:00.000000"
+}
+```
+
+Supported formats: `jpg`, `jpeg`, `png`, `webp`. Max file size: 10 MiB.  
+Files are stored in `backend/data/uploads/` with UUID-based names to avoid collisions.
+
 ## Running Tests
 
 ```bash
@@ -132,9 +167,12 @@ backend/
       iterator.py         # Divergent design direction generator
       profile.py          # Training history to user profile
       orchestrator.py     # Agent container for future compound workflows
+    vision/
+      base.py             # VisionAdapter abstract protocol
+      manual_adapter.py   # Manual (user-provided) image description
     db/
       database.py         # SQLAlchemy engine and session
-      models.py           # TrainingRecord ORM model
+      models.py           # TrainingRecord + UploadedImage ORM models
     schemas/
       requests.py         # Pydantic request models
       responses.py        # Pydantic response models
@@ -142,10 +180,27 @@ backend/
       session_service.py  # Record persistence and retrieval
     tests/
       test_api.py         # API and agent tests with mocked LLM calls
+  data/uploads/           # Uploaded images (git-ignored)
   requirements.txt
   .env.example
   README.md
 ```
+
+## Vision Adapters
+
+Image understanding is handled by a **pluggable adapter** system. The MVP ships with `ManualAdapter` (user writes the description), leaving a clear extension point for real vision models.
+
+To add a new vision backend:
+
+1. Subclass `VisionAdapter` in `app/vision/`
+2. Implement `describe_image(image_path, hint)` → `str`
+3. Update `get_vision_adapter()` in `app/main.py` to return your adapter
+
+Planned future adapters:
+
+- `OpenAIVisionAdapter` — calls GPT-4o / GPT-4V
+- `ClaudeVisionAdapter` — calls Claude Vision
+- `OllamaVisionAdapter` — local vision model via Ollama
 
 ## Notes
 

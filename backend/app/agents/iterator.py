@@ -22,7 +22,7 @@ meaningfully different creative strategy — not minor tweaks of the same idea.
 
 Work description:
 {work_description}
-
+{image_block}
 Return a JSON object with exactly this key:
 - directions: array of objects, each with:
     - title: string (a short, punchy name for this direction)
@@ -50,13 +50,22 @@ class IteratorAgent:
         self.client = client
         self.model = model
 
-    def run(self, work_description: str) -> IterateResponse:
+    def run(
+        self,
+        work_description: str,
+        image_description: str | None = None,
+    ) -> IterateResponse:
+        image_block = ""
+        if image_description:
+            image_block = f"\nAttached image description:\n{image_description}\n"
+
         messages = [
             {"role": "system", "content": ITERATOR_SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": ITERATOR_USER_PROMPT_TEMPLATE.format(
-                    work_description=work_description
+                    work_description=work_description,
+                    image_block=image_block,
                 ),
             },
         ]

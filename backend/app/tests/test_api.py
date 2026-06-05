@@ -1,5 +1,6 @@
 """API endpoint tests — uses mocked agents and in-memory SQLite."""
 
+import io
 from types import SimpleNamespace
 
 import pytest
@@ -18,17 +19,22 @@ from app.llm.deepseek_client import (
 from app.main import app
 from app.main import (
     get_analyzer,
+    get_comparator,
     get_critic,
     get_iterator,
     get_profile_agent,
+    get_vision_adapter,
 )
+from app.vision.manual_adapter import ManualAdapter
 from app.schemas.responses import (
     AnalyzeResponse,
     CritiqueResponse,
     DimensionScores,
     IterateResponse,
     IterationDirection,
+    JudgmentGap,
     ProfileResponse,
+    VisionDescription,
 )
 from app.services import session_service
 
@@ -141,17 +147,27 @@ MOCK_PROFILE_RESULT = ProfileResponse(
 # ── Mock agents (classes that match the real agent interface) ────────
 
 class MockAnalyzerAgent:
-    def run(self, work_description: str) -> AnalyzeResponse:
+    def run(
+        self,
+        work_description: str,
+        image_description: str | None = None,
+    ) -> AnalyzeResponse:
         return MOCK_ANALYZE_RESULT
 
 
 class MockCriticAgent:
-    def run(self, work_description: str) -> CritiqueResponse:
+    def run(
+        self,
+        work_description: str,
+        image_description: str | None = None,
+    ) -> CritiqueResponse:
         return MOCK_CRITIQUE_RESULT
-
-
 class MockIteratorAgent:
-    def run(self, work_description: str) -> IterateResponse:
+    def run(
+        self,
+        work_description: str,
+        image_description: str | None = None,
+    ) -> IterateResponse:
         return MOCK_ITERATE_RESULT
 
 
@@ -166,8 +182,28 @@ class MockProfileAgent:
 
 
 class FailingAnalyzerAgent:
-    def run(self, work_description: str) -> AnalyzeResponse:
+    def run(
+        self,
+        work_description: str,
+        image_description: str | None = None,
+    ) -> AnalyzeResponse:
         raise RuntimeError("secret-token-value should not be exposed")
+
+
+MOCK_JUDGMENT_GAP = JudgmentGap(
+    accurate_judgments=["User correctly noted the typography issue."],
+    missed_issues=["User missed the poor color contrast.", "User missed the layout imbalance."],
+    misjudgments=["User thought the shadow was too heavy, but AI found it appropriate."],
+    commercial_blind_spots=["User did not consider the price band or target audience."],
+    aesthetic_blind_spots=["User overlooked the lack of visual hierarchy."],
+    next_training_focus=["Practice color contrast audits.", "Define target audience before designing."],
+    short_summary="You have a good eye for typography but tend to overlook commercial context. Focus on audience-first design thinking next week.",
+)
+
+
+class MockComparatorAgent:
+    def run(self, work_description, user_judgment, ai_result) -> JudgmentGap:
+        return MOCK_JUDGMENT_GAP
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
@@ -193,6 +229,8 @@ def client(setup_test_db):
     app.dependency_overrides[get_critic] = lambda: MockCriticAgent()
     app.dependency_overrides[get_iterator] = lambda: MockIteratorAgent()
     app.dependency_overrides[get_profile_agent] = lambda: MockProfileAgent()
+    app.dependency_overrides[get_vision_adapter] = lambda: ManualAdapter()
+    app.dependency_overrides[get_comparator] = lambda: MockComparatorAgent()
 
     with TestClient(app) as c:
         yield c
@@ -513,6 +551,446 @@ class TestDeepSeekClient:
 
         assert get_default_model() == "custom-default-model"
         assert get_reasoning_model() == "custom-reasoning-model"
+
+
+# ── Tests: /upload ───────────────────────────────────────────────────
+
+class TestUploadEndpoint:
+    def test_uploads_valid_jpg(self, client):
+        fake_image = io.BytesIO(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00")
+        resp = client.post(
+            "/upload",
+            files={"file": ("test.jpg", fake_image, "image/jpeg")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert "image_id" in data
+        assert data["image_id"] > 0
+        assert data["filename"].endswith(".jpg")
+        assert "created_at" in data
+
+    def test_uploads_valid_png(self, client):
+        fake_image = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        resp = client.post(
+            "/upload",
+            files={"file": ("photo.png", fake_image, "image/png")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["filename"].endswith(".png")
+
+    def test_uploads_valid_webp(self, client):
+        fake_image = io.BytesIO(b"RIFF\x00\x00\x00\x00WEBPVP8L" + b"\x00" * 16)
+        resp = client.post(
+            "/upload",
+            files={"file": ("graphic.webp", fake_image, "image/webp")},
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["filename"].endswith(".webp")
+
+    def test_rejects_unsupported_extension(self, client):
+        fake_image = io.BytesIO(b"not-an-image")
+        resp = client.post(
+            "/upload",
+            files={"file": ("document.pdf", fake_image, "application/pdf")},
+        )
+        assert resp.status_code == 400
+        assert "Unsupported" in resp.json()["detail"]
+
+    def test_rejects_unsupported_content_type(self, client):
+        fake_image = io.BytesIO(b"garbage")
+        resp = client.post(
+            "/upload",
+            files={"file": ("fake.jpg", fake_image, "text/html")},
+        )
+        assert resp.status_code == 400
+
+    def test_rejects_empty_filename(self, client):
+        fake_image = io.BytesIO(b"")
+        resp = client.post(
+            "/upload",
+            files={"file": ("", fake_image, "image/jpeg")},
+        )
+        # FastAPI rejects missing/empty filenames at the framework level
+        assert resp.status_code in (400, 422)
+
+    def test_rejects_file_too_large(self, client, monkeypatch):
+        # Lower the size limit temporarily for a fast test
+        monkeypatch.setattr("app.main._MAX_FILE_SIZE", 10)
+        fake_image = io.BytesIO(b"x" * 100)
+        resp = client.post(
+            "/upload",
+            files={"file": ("big.jpg", fake_image, "image/jpeg")},
+        )
+        assert resp.status_code == 413
+
+    def test_missing_file_field(self, client):
+        resp = client.post("/upload")
+        assert resp.status_code == 422
+
+    def test_generates_unique_filenames(self, client):
+        fake_image = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        names = set()
+        for _ in range(3):
+            resp = client.post(
+                "/upload",
+                files={"file": ("img.png", fake_image, "image/png")},
+            )
+            assert resp.status_code == 201
+            names.add(resp.json()["filename"])
+        # All three should have unique UUID-based names
+        assert len(names) == 3
+
+
+# ── Tests: Vision adapter & /analyze with image ──────────────────────
+
+class TestManualAdapter:
+    def test_returns_hint_verbatim(self):
+        adapter = ManualAdapter()
+        result = adapter.describe_image(
+            "/fake/path.jpg",
+            hint="A blue button on a white page.",
+        )
+        assert result == "A blue button on a white page."
+
+    def test_raises_without_hint(self):
+        adapter = ManualAdapter()
+        with pytest.raises(ValueError, match="image_description"):
+            adapter.describe_image("/fake/path.jpg")
+
+
+class TestAnalyzeWithImage:
+    def test_analyze_with_image_id_and_description(self, client):
+        # Upload an image first
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        upload_resp = client.post(
+            "/upload",
+            files={"file": ("design.png", fake_img, "image/png")},
+        )
+        assert upload_resp.status_code == 201
+        image_id = upload_resp.json()["image_id"]
+
+        # Analyze with image
+        resp = client.post(
+            "/analyze",
+            json={
+                "work_description": "A landing page with a hero section and three cards.",
+                "image_id": image_id,
+                "image_description": "White background, navy header, three feature cards with icons.",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "color" in data
+        assert "composition" in data
+
+    def test_analyze_with_image_id_missing_description(self, client):
+        # Upload an image
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        upload_resp = client.post(
+            "/upload",
+            files={"file": ("photo.png", fake_img, "image/png")},
+        )
+        image_id = upload_resp.json()["image_id"]
+
+        # Analyze with image_id but no image_description → ManualAdapter raises
+        resp = client.post(
+            "/analyze",
+            json={
+                "work_description": "A landing page with a hero section.",
+                "image_id": image_id,
+            },
+        )
+        assert resp.status_code == 400
+
+    def test_analyze_with_invalid_image_id(self, client):
+        resp = client.post(
+            "/analyze",
+            json={
+                "work_description": "A landing page with a hero section.",
+                "image_id": 99999,
+                "image_description": "Some description.",
+            },
+        )
+        assert resp.status_code == 404
+        assert "not found" in resp.json()["detail"].lower()
+
+    def test_analyze_without_image_still_works(self, client):
+        """Backward compatibility: no image_id → pure text analysis."""
+        resp = client.post(
+            "/analyze",
+            json={
+                "work_description": "A minimalist page with a single CTA button."
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "color" in data
+
+
+class TestVisionAdapterProtocol:
+    def test_cannot_instantiate_abstract(self):
+        from app.vision.base import VisionAdapter
+
+        with pytest.raises(TypeError):
+            VisionAdapter()  # type: ignore[abstract]
+
+    def test_manual_adapter_is_a_vision_adapter(self):
+        from app.vision.base import VisionAdapter
+
+        assert isinstance(ManualAdapter(), VisionAdapter)
+
+
+# ── V1.1: User judgment & comparator ────────────────────────────────
+
+class TestUserJudgmentFlow:
+    """Test the training loop: user_judgment → AI → comparator → gap."""
+
+    def test_critique_with_user_judgment_returns_gap(self, client):
+        resp = client.post(
+            "/critique",
+            json={
+                "work_description": "A poster with mismatched fonts and neon colors.",
+                "user_judgment": {
+                    "score": 60,
+                    "strengths": ["Bold color choice"],
+                    "weaknesses": ["Too many fonts"],
+                    "priority_fixes": ["Reduce to 2 fonts"],
+                    "target_audience": "Young adults",
+                    "price_band": "Budget",
+                },
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # Should still have regular critique fields
+        assert "total_score" in data
+        assert "dimensions" in data
+        # Should also have judgment gap
+        assert data.get("judgment_gap") is not None
+        gap = data["judgment_gap"]
+        assert "accurate_judgments" in gap
+        assert "missed_issues" in gap
+        assert "short_summary" in gap
+        assert len(gap["short_summary"]) > 0
+
+    def test_analyze_with_user_judgment_returns_gap(self, client):
+        resp = client.post(
+            "/analyze",
+            json={
+                "work_description": "A minimal blue button on a white page with Helvetica.",
+                "user_judgment": {
+                    "score": 75,
+                    "strengths": ["Clean layout"],
+                    "weaknesses": ["Generic color"],
+                    "priority_fixes": ["Add a distinctive accent"],
+                    "target_audience": "SaaS users",
+                    "price_band": "Mid-market",
+                },
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("judgment_gap") is not None
+        gap = data["judgment_gap"]
+        assert "commercial_blind_spots" in gap
+        assert "aesthetic_blind_spots" in gap
+        assert "next_training_focus" in gap
+
+    def test_iterate_with_user_judgment_returns_gap(self, client):
+        resp = client.post(
+            "/iterate",
+            json={
+                "work_description": "An e-commerce card with rounded corners and shadow.",
+                "user_judgment": {
+                    "score": 80,
+                    "strengths": ["Good shadow depth"],
+                    "weaknesses": ["Rounded corners might feel dated"],
+                    "priority_fixes": ["Try sharper corners"],
+                    "target_audience": "Online shoppers",
+                    "price_band": "Mid-market",
+                },
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "directions" in data
+        assert data.get("judgment_gap") is not None
+
+    def test_no_user_judgment_still_works(self, client):
+        """Backward compatibility: no user_judgment → no gap, same result."""
+        resp = client.post(
+            "/critique",
+            json={
+                "work_description": "A neon green poster with five fonts."
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "total_score" in data
+        # judgment_gap should be None (omitted from JSON or null)
+        assert data.get("judgment_gap") is None
+
+
+class TestUserJudgmentSessionPersistence:
+    def test_session_includes_judgment_fields(self, client):
+        client.post(
+            "/critique",
+            json={
+                "work_description": "Session persistence test work description.",
+                "user_judgment": {
+                    "score": 55,
+                    "strengths": ["Good contrast"],
+                    "weaknesses": ["Bad font pairing"],
+                    "priority_fixes": ["Change fonts"],
+                    "target_audience": "Designers",
+                    "price_band": "Premium",
+                },
+            },
+        )
+
+        resp = client.get("/sessions")
+        assert resp.status_code == 200
+        data = resp.json()
+        latest = data["sessions"][0]
+        assert latest["user_score"] == 55
+        assert latest["ai_score"] is not None
+        assert latest.get("judgment_gap_summary") is not None
+        assert len(latest["judgment_gap_summary"]) > 0
+
+    def test_session_judgment_fields_null_without_user_judgment(self, client):
+        client.post(
+            "/critique",
+            json={
+                "work_description": "No judgment test work description here."
+            },
+        )
+
+        resp = client.get("/sessions")
+        data = resp.json()
+        latest = data["sessions"][0]
+        assert latest["user_score"] is None
+        assert latest["judgment_gap_summary"] is None
+
+    def test_profile_includes_judgment_history(self, client):
+        # Submit a few records with user_judgment
+        for i in range(3):
+            client.post(
+                "/critique",
+                json={
+                    "work_description": f"Profile test work number {i} with enough text.",
+                    "user_judgment": {
+                        "score": 40 + i * 10,
+                        "strengths": [f"Strength {i}"],
+                        "weaknesses": [f"Weakness {i}"],
+                        "priority_fixes": [f"Fix {i}"],
+                        "target_audience": "Test",
+                        "price_band": "Test",
+                    },
+                },
+            )
+
+        resp = client.get("/profile")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_sessions"] == 3
+        # Profile should still return sensible text
+        assert len(data["preferences"]) > 0
+        assert len(data["common_mistakes"]) > 0
+
+
+# ── V1.3: Image describe endpoint & Vision Adapter ──────────────────
+
+class TestImageDescribeEndpoint:
+    def test_describe_existing_image_returns_structured(self, client):
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        upload_resp = client.post(
+            "/upload",
+            files={"file": ("photo.png", fake_img, "image/png")},
+        )
+        image_id = upload_resp.json()["image_id"]
+
+        resp = client.post(f"/images/{image_id}/describe")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["image_id"] == image_id
+        desc = data["description"]
+        assert "summary" in desc
+        assert len(desc["summary"]) > 0
+        assert "colors" in desc
+        assert "suggested_prompt_text" in desc
+        assert "style_keywords" in desc
+
+    def test_describe_nonexistent_image_returns_404(self, client):
+        resp = client.post("/images/99999/describe")
+        assert resp.status_code == 404
+
+    def test_describe_persists_on_image_record(self, client):
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        upload_resp = client.post(
+            "/upload",
+            files={"file": ("img.png", fake_img, "image/png")},
+        )
+        image_id = upload_resp.json()["image_id"]
+
+        client.post(f"/images/{image_id}/describe")
+
+        # Verify image record was updated via a second describe
+        resp2 = client.post(f"/images/{image_id}/describe")
+        assert resp2.status_code == 200
+
+
+class TestPlaceholderAdapter:
+    def test_returns_mock_description(self):
+        from app.vision.placeholder_adapter import PlaceholderAdapter
+        adapter = PlaceholderAdapter()
+        desc = adapter.describe_image_structured("/fake/path.jpg")
+        assert isinstance(desc, VisionDescription)
+        assert len(desc.summary) > 0
+        assert len(desc.colors) > 0
+        assert len(desc.style_keywords) > 0
+        assert len(desc.suggested_prompt_text) > 0
+
+    def test_plain_describe_returns_string(self):
+        from app.vision.placeholder_adapter import PlaceholderAdapter
+        adapter = PlaceholderAdapter()
+        text = adapter.describe_image("/fake/path.jpg")
+        assert isinstance(text, str)
+        assert len(text) > 0
+
+
+class TestV13BackwardCompat:
+    def test_analyze_still_works_with_placeholder_adapter(self, client):
+        """Override with PlaceholderAdapter — old endpoints must still work."""
+        from app.vision.placeholder_adapter import PlaceholderAdapter
+        app.dependency_overrides[get_vision_adapter] = lambda: PlaceholderAdapter()
+
+        resp = client.post(
+            "/analyze",
+            json={"work_description": "A simple blue button on a white page."},
+        )
+        assert resp.status_code == 200
+
+    def test_critique_still_works_with_placeholder_adapter(self, client):
+        from app.vision.placeholder_adapter import PlaceholderAdapter
+        app.dependency_overrides[get_vision_adapter] = lambda: PlaceholderAdapter()
+
+        resp = client.post(
+            "/critique",
+            json={"work_description": "A neon green poster with five fonts."},
+        )
+        assert resp.status_code == 200
+
+    def test_iterate_still_works_with_placeholder_adapter(self, client):
+        from app.vision.placeholder_adapter import PlaceholderAdapter
+        app.dependency_overrides[get_vision_adapter] = lambda: PlaceholderAdapter()
+
+        resp = client.post(
+            "/iterate",
+            json={"work_description": "An e-commerce card with shadow and rounded corners."},
+        )
+        assert resp.status_code == 200
 
 
 # ── Tests: Cross-cutting ────────────────────────────────────────────

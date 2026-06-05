@@ -22,7 +22,7 @@ Be honest and precise — inflated scores help no one.
 
 Work description:
 {work_description}
-
+{image_block}
 Return a JSON object with exactly these keys:
 - total_score: number (weighted average of all dimension scores, 1-10)
 - dimensions: object with number scores for each key: color, composition, typography, material, emotion, brand_sense
@@ -51,13 +51,22 @@ class CriticAgent:
         self.client = client
         self.model = model
 
-    def run(self, work_description: str) -> CritiqueResponse:
+    def run(
+        self,
+        work_description: str,
+        image_description: str | None = None,
+    ) -> CritiqueResponse:
+        image_block = ""
+        if image_description:
+            image_block = f"\nAttached image description:\n{image_description}\n"
+
         messages = [
             {"role": "system", "content": CRITIC_SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": CRITIC_USER_PROMPT_TEMPLATE.format(
-                    work_description=work_description
+                    work_description=work_description,
+                    image_block=image_block,
                 ),
             },
         ]

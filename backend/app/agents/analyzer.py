@@ -21,7 +21,7 @@ Cover every dimension listed below. Be specific, concrete, and actionable.
 
 Work description:
 {work_description}
-
+{image_block}
 Return a JSON object with exactly these keys:
 - color: Color scheme analysis (palette, harmony, contrast, saturation)
 - composition: Composition analysis (balance, hierarchy, white space, focal points)
@@ -56,13 +56,25 @@ class AnalyzerAgent:
         self.client = client
         self.model = model
 
-    def run(self, work_description: str) -> AnalyzeResponse:
+    def run(
+        self,
+        work_description: str,
+        image_description: str | None = None,
+    ) -> AnalyzeResponse:
+        """Analyze a work description, optionally enriched with an image description."""
+        image_block = ""
+        if image_description:
+            image_block = (
+                f"\nAttached image description:\n{image_description}\n"
+            )
+
         messages = [
             {"role": "system", "content": ANALYZER_SYSTEM_PROMPT},
             {
                 "role": "user",
                 "content": ANALYZER_USER_PROMPT_TEMPLATE.format(
-                    work_description=work_description
+                    work_description=work_description,
+                    image_block=image_block,
                 ),
             },
         ]

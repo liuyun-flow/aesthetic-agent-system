@@ -23,6 +23,8 @@ class AnalyzeResponse(BaseModel):
     improvement_suggestions: str = Field(
         ..., min_length=1, description="Actionable improvement ideas"
     )
+    # V1.1: Optional judgment gap when user_judgment is provided
+    judgment_gap: "JudgmentGap | None" = None
 
 
 # ── /critique ─────────────────────────────────────────────────────────
@@ -42,6 +44,8 @@ class CritiqueResponse(BaseModel):
     main_issues: list[str] = Field(..., min_length=1, max_length=10)
     cheapness_sources: list[str] = Field(..., max_length=10)
     priority_fixes: list[str] = Field(..., min_length=1, max_length=10)
+    # V1.1
+    judgment_gap: "JudgmentGap | None" = None
 
 
 # ── /iterate ──────────────────────────────────────────────────────────
@@ -54,6 +58,8 @@ class IterationDirection(BaseModel):
 
 class IterateResponse(BaseModel):
     directions: list[IterationDirection] = Field(..., min_length=1, max_length=5)
+    # V1.1
+    judgment_gap: "JudgmentGap | None" = None
 
 
 # ── /profile ──────────────────────────────────────────────────────────
@@ -76,8 +82,67 @@ class SessionRecord(BaseModel):
     record_type: RecordType
     work_description: str
     created_at: datetime
+    user_score: int | None = None
+    ai_score: int | None = None
+    judgment_gap_summary: str | None = None
+    training_focus_tags: str | None = None
 
 
 class SessionsResponse(BaseModel):
     sessions: list[SessionRecord]
     total: int = Field(..., ge=0)
+
+
+# ── /upload ───────────────────────────────────────────────────────────
+
+class UploadResponse(BaseModel):
+    image_id: int = Field(..., description="Database ID of the uploaded image")
+    filename: str = Field(..., description="Stored filename (UUID-based)")
+    content_type: str = Field(..., description="MIME type of the uploaded file")
+    size_bytes: int = Field(..., description="File size in bytes")
+    url: str = Field(..., description="URL to view the uploaded image")
+    created_at: datetime = Field(..., description="Upload timestamp")
+
+
+# ── V1.1: Judgment gap ───────────────────────────────────────────────
+
+class JudgmentGap(BaseModel):
+    """Comparison result between user self-assessment and AI evaluation."""
+
+    accurate_judgments: list[str] = Field(default_factory=list)
+    missed_issues: list[str] = Field(default_factory=list)
+    misjudgments: list[str] = Field(default_factory=list)
+    commercial_blind_spots: list[str] = Field(default_factory=list)
+    aesthetic_blind_spots: list[str] = Field(default_factory=list)
+    next_training_focus: list[str] = Field(default_factory=list)
+    short_summary: str = Field("", min_length=1)
+
+
+# ── V1.3: Vision description ─────────────────────────────────────────
+
+class VisionDescription(BaseModel):
+    """Structured description of an image produced by a vision adapter."""
+
+    summary: str = Field(..., min_length=1)
+    colors: list[str] = Field(default_factory=list)
+    composition: str = Field(default="")
+    typography: str | None = None
+    materials: list[str] = Field(default_factory=list)
+    subjects: list[str] = Field(default_factory=list)
+    background: str | None = None
+    style_keywords: list[str] = Field(default_factory=list)
+    potential_issues: list[str] = Field(default_factory=list)
+    suggested_prompt_text: str = Field(default="")
+
+
+class ImageDescribeResponse(BaseModel):
+    """Response for POST /images/{image_id}/describe."""
+    image_id: int
+    description: VisionDescription
+
+
+# Resolve forward references (JudgmentGap is referenced as a string
+# in AnalyzeResponse, CritiqueResponse, and IterateResponse above).
+AnalyzeResponse.model_rebuild()
+CritiqueResponse.model_rebuild()
+IterateResponse.model_rebuild()

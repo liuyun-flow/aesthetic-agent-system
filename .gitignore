@@ -7,5 +7,9 @@ node_modules/
 dist/
 build/
 data/uploads/
+backend/data/uploads/
+frontend/node_modules/
+frontend/.next/
+frontend/.env
 *.sqlite3
 *.db

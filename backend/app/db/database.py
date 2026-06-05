@@ -34,5 +34,84 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def init_db() -> None:
-    """Create all tables if they don't exist."""
+    """Create all tables and run safe migrations."""
     Base.metadata.create_all(bind=engine)
+    _migrate_v1_1()
+    _migrate_v1_2()
+    _migrate_v1_3()
+
+
+def _migrate_v1_3() -> None:
+    """V1.3: Add AI vision description columns to uploaded_images."""
+    v1_3_columns: list[tuple[str, str]] = [
+        ("ai_description", "TEXT"),
+        ("vision_provider", "VARCHAR(50)"),
+        ("vision_description_json", "TEXT"),
+        ("described_at", "DATETIME"),
+    ]
+    with engine.connect() as conn:
+        for col_name, col_type in v1_3_columns:
+            try:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE uploaded_images ADD COLUMN {col_name} {col_type}"
+                )
+            except Exception:
+                pass
+        conn.commit()
+
+
+def _migrate_v1_2() -> None:
+    """V1.2: Ensure uploaded_images table has the expanded schema."""
+    v1_2_upgrades = [
+        # New columns for v1.2
+        ("original_filename", "VARCHAR(512)"),
+        ("content_type", "VARCHAR(100)"),
+        ("size_bytes", "INTEGER"),
+    ]
+    # Rename old columns if they exist (idempotent with try/except)
+    renames = [
+        ("filename", "stored_filename"),
+        ("path", "file_path"),
+    ]
+    with engine.connect() as conn:
+        for old, new in renames:
+            try:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE uploaded_images RENAME COLUMN {old} TO {new}"
+                )
+            except Exception:
+                pass
+        for col_name, col_type in v1_2_upgrades:
+            try:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE uploaded_images ADD COLUMN {col_name} {col_type}"
+                )
+            except Exception:
+                pass
+        conn.commit()
+
+
+def _migrate_v1_1() -> None:
+    """Add V1.1 columns to training_records if they don't exist (safe for SQLite)."""
+    v1_1_columns: list[tuple[str, str]] = [
+        ("user_score", "INTEGER"),
+        ("user_strengths", "TEXT"),
+        ("user_weaknesses", "TEXT"),
+        ("user_priority_fixes", "TEXT"),
+        ("user_target_audience", "TEXT"),
+        ("user_price_band", "TEXT"),
+        ("ai_score", "INTEGER"),
+        ("ai_main_problems", "TEXT"),
+        ("ai_priority_fixes", "TEXT"),
+        ("judgment_gap_summary", "TEXT"),
+        ("training_focus_tags", "TEXT"),
+    ]
+    with engine.connect() as conn:
+        for col_name, col_type in v1_1_columns:
+            try:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE training_records ADD COLUMN {col_name} {col_type}"
+                )
+            except Exception:
+                pass  # Column already exists — safe to skip
+        conn.commit()
