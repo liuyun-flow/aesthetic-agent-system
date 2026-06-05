@@ -167,6 +167,17 @@ class ReferenceCaseListResponse(BaseModel):
     total: int
 
 
+# ── V1.4.1: Generated prompt ─────────────────────────────────────────
+
+class GeneratedPrompt(BaseModel):
+    chinese_prompt: str = ""
+    english_prompt: str = ""
+    negative_prompt: str = ""
+    design_notes: list[str] = Field(default_factory=list)
+    copywriting_prompt: str = ""
+    usage_tips: list[str] = Field(default_factory=list)
+
+
 class CompareWithReferencesResponse(BaseModel):
     overall_level_estimate: str = ""
     closest_reference_level: str = ""

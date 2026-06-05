@@ -17,147 +17,108 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // V1.4: Compare with references state
+  // V1.4 compare
   const [comparing, setComparing] = useState(false);
   const [compareResult, setCompareResult] = useState<Record<string, unknown> | null>(null);
   const [compareError, setCompareError] = useState<string | null>(null);
-  // Store last submission data for compare
+
+  // V1.4.1 prompt generator
+  const [generatingPrompt, setGeneratingPrompt] = useState(false);
+  const [promptResult, setPromptResult] = useState<Record<string, unknown> | null>(null);
+  const [promptError, setPromptError] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Stash last submission for compare + prompt
   const [lastDescription, setLastDescription] = useState("");
   const [lastJudgment, setLastJudgment] = useState<UserJudgment | null>(null);
   const [lastImage, setLastImage] = useState<ImageData | null>(null);
+  const [lastType, setLastType] = useState<TaskType | null>(null);
+
+  const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
   const handleSubmit = useCallback(
     async (description: string, type: TaskType, judgment: UserJudgment | null, image: ImageData | null) => {
-      setLoading(true);
-      setError(null);
-      setResult(null);
-      setCompareResult(null);
-      setTaskType(type);
-      setLastDescription(description);
-      setLastJudgment(judgment);
-      setLastImage(image);
+      setLoading(true); setError(null); setResult(null);
+      setCompareResult(null); setPromptResult(null);
+      setTaskType(type); setLastDescription(description);
+      setLastJudgment(judgment); setLastImage(image); setLastType(type);
 
       try {
-        const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
         const body: Record<string, unknown> = { work_description: description };
-        if (image) {
-          body.image_id = image.image_id;
-          if (image.image_description) body.image_description = image.image_description;
-        }
-        if (judgment) {
-          body.user_judgment = {
-            score: judgment.score,
-            strengths: judgment.strengths.length > 0 ? judgment.strengths : null,
-            weaknesses: judgment.weaknesses.length > 0 ? judgment.weaknesses : null,
-            priority_fixes: judgment.priority_fixes.length > 0 ? judgment.priority_fixes : null,
-            target_audience: judgment.target_audience || null,
-            price_band: judgment.price_band || null,
-          };
-        }
+        if (image) { body.image_id = image.image_id; if (image.image_description) body.image_description = image.image_description; }
+        if (judgment) { body.user_judgment = { score: judgment.score, strengths: judgment.strengths.length > 0 ? judgment.strengths : null, weaknesses: judgment.weaknesses.length > 0 ? judgment.weaknesses : null, priority_fixes: judgment.priority_fixes.length > 0 ? judgment.priority_fixes : null, target_audience: judgment.target_audience || null, price_band: judgment.price_band || null }; }
 
-        const res = await fetch(`${base}/${type}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          throw new Error(errBody.detail || `Request failed (${res.status})`);
-        }
-
+        const res = await fetch(`${base}/${type}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (!res.ok) { const errBody = await res.json().catch(() => ({})); throw new Error(errBody.detail || `Request failed (${res.status})`); }
         const data = await res.json();
         setResult(data);
         setRefreshKey((k) => k + 1);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : t.common.error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [t.common.error],
+      } catch (err: unknown) { setError(err instanceof Error ? err.message : t.common.error); }
+      finally { setLoading(false); }
+    }, [t.common.error, base], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const handleCompare = async () => {
-    setComparing(true);
-    setCompareError(null);
+    setComparing(true); setCompareError(null);
     try {
-      const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+      const body: Record<string, unknown> = { user_work_description: lastDescription, image_description: lastImage?.image_description || null };
+      if (lastJudgment) { body.user_judgment = { score: lastJudgment.score, strengths: lastJudgment.strengths.length > 0 ? lastJudgment.strengths : null, weaknesses: lastJudgment.weaknesses.length > 0 ? lastJudgment.weaknesses : null, priority_fixes: lastJudgment.priority_fixes.length > 0 ? lastJudgment.priority_fixes : null, target_audience: lastJudgment.target_audience || null, price_band: lastJudgment.price_band || null }; }
+      const res = await fetch(`${base}/compare-with-references`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "Compare failed"); }
+      setCompareResult(await res.json());
+    } catch (err: unknown) { setCompareError(err instanceof Error ? err.message : "Compare failed"); }
+    finally { setComparing(false); }
+  };
+
+  const handleGeneratePrompt = async () => {
+    setGeneratingPrompt(true); setPromptError(null);
+    try {
       const body: Record<string, unknown> = {
-        user_work_description: lastDescription,
+        work_description: lastDescription,
         image_description: lastImage?.image_description || null,
+        target_tool: "general",
       };
-      if (lastJudgment) {
-        body.user_judgment = {
-          score: lastJudgment.score,
-          strengths: lastJudgment.strengths.length > 0 ? lastJudgment.strengths : null,
-          weaknesses: lastJudgment.weaknesses.length > 0 ? lastJudgment.weaknesses : null,
-          priority_fixes: lastJudgment.priority_fixes.length > 0 ? lastJudgment.priority_fixes : null,
-          target_audience: lastJudgment.target_audience || null,
-          price_band: lastJudgment.price_band || null,
-        };
-      }
+      if (lastJudgment) { body.user_judgment = { score: lastJudgment.score, strengths: lastJudgment.strengths.length > 0 ? lastJudgment.strengths : null, weaknesses: lastJudgment.weaknesses.length > 0 ? lastJudgment.weaknesses : null, priority_fixes: lastJudgment.priority_fixes.length > 0 ? lastJudgment.priority_fixes : null, target_audience: lastJudgment.target_audience || null, price_band: lastJudgment.price_band || null }; }
+      if (result) { body.critique_result = result; body.iterate_result = result; }
+      if (compareResult) { body.reference_comparison = compareResult; }
+      const res = await fetch(`${base}/generate-prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "Generate failed"); }
+      setPromptResult(await res.json());
+    } catch (err: unknown) { setPromptError(err instanceof Error ? err.message : "Generate failed"); }
+    finally { setGeneratingPrompt(false); }
+  };
 
-      const res = await fetch(`${base}/compare-with-references`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Compare failed");
-      }
-
-      const data = await res.json();
-      setCompareResult(data);
-    } catch (err: unknown) {
-      setCompareError(err instanceof Error ? err.message : "Compare failed");
-    } finally {
-      setComparing(false);
-    }
+  const handleCopy = async (text: string, key: string) => {
+    try { await navigator.clipboard.writeText(text); setCopiedKey(key); setTimeout(() => setCopiedKey(null), 2000); }
+    catch { /* ignore */ }
   };
 
   return (
     <div className="space-y-8">
       <TaskForm onSubmit={handleSubmit} loading={loading} />
 
-      {error && (
-        <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {loading && (
-        <div className="text-center text-sm text-gray-500">{t.common.loading}</div>
-      )}
+      {error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+      {loading && <div className="text-center text-sm text-gray-500">{t.common.loading}</div>}
 
       {result && taskType && (
         <>
           <ResultCard data={result} taskType={taskType} />
 
-          {/* V1.4: Compare with References button */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCompare}
-              disabled={comparing}
-              className={`rounded px-4 py-2 text-sm font-medium text-white transition ${
-                comparing
-                  ? "cursor-not-allowed bg-gray-300"
-                  : "bg-teal-600 hover:bg-teal-700"
-              }`}
-            >
-              {comparing ? "Comparing..." : "Compare with References"}
-            </button>
-          </div>
+          {/* V1.4 Compare */}
+          <button onClick={handleCompare} disabled={comparing}
+            className={`rounded px-4 py-2 text-sm font-medium text-white transition ${comparing ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"}`}>
+            {comparing ? t.result.comparing : t.result.compareWithRefs}
+          </button>
+          {compareError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{compareError}</div>}
+          {compareResult && <CompareResultCard data={compareResult} t={t} />}
 
-          {compareError && (
-            <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {compareError}
-            </div>
-          )}
-
-          {compareResult && <CompareResultCard data={compareResult} />}
+          {/* V1.4.1 Generate Prompt */}
+          <button onClick={handleGeneratePrompt} disabled={generatingPrompt}
+            className={`rounded px-4 py-2 text-sm font-medium text-white transition ml-2 ${generatingPrompt ? "cursor-not-allowed bg-gray-300" : "bg-indigo-600 hover:bg-indigo-700"}`}>
+            {generatingPrompt ? t.result.generatingPrompt : t.result.generatePrompt}
+          </button>
+          {promptError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{promptError}</div>}
+          {promptResult && <PromptResultCard data={promptResult} t={t} copiedKey={copiedKey} onCopy={handleCopy} />}
         </>
       )}
 
@@ -167,53 +128,66 @@ export default function Home() {
   );
 }
 
-/** Displays the compare-with-references result. */
-function CompareResultCard({ data }: { data: Record<string, unknown> }) {
+function CompareResultCard({ data, t }: { data: Record<string, unknown>; t: ReturnType<typeof useT>["t"] }) {
   return (
     <section className="rounded border border-teal-200 bg-teal-50 p-4">
-      <h3 className="mb-3 text-sm font-semibold text-teal-800">
-        Reference Comparison
-      </h3>
-
+      <h3 className="mb-3 text-sm font-semibold text-teal-800">{t.result.refComparison}</h3>
       {(data.overall_level_estimate as string) && (
         <p className="mb-2 text-sm">
-          <b>Your level estimate:</b>{" "}
-          <span className={`rounded px-2 py-0.5 text-xs font-medium ${
-            String(data.overall_level_estimate) === "high"
-              ? "bg-green-100 text-green-700"
-              : String(data.overall_level_estimate) === "medium"
-              ? "bg-amber-100 text-amber-700"
-              : "bg-red-100 text-red-700"
-          }`}>
-            {String(data.overall_level_estimate)}
+          <b>{t.result.yourLevel}:</b>{" "}
+          <span className={`rounded px-2 py-0.5 text-xs font-medium ${String(data.overall_level_estimate) === "high" ? "bg-green-100 text-green-700" : String(data.overall_level_estimate) === "medium" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}>
+            {String(data.overall_level_estimate) === "high" ? t.reference.high : String(data.overall_level_estimate) === "medium" ? t.reference.medium : t.reference.low}
           </span>
         </p>
       )}
-
-      {(data.training_takeaway as string) && (
-        <p className="mb-3 text-sm text-teal-700">{String(data.training_takeaway)}</p>
-      )}
-
-      {["weaker_than_high_cases", "key_gaps", "priority_fixes", "next_practice"].map((field) => {
+      {(data.training_takeaway as string) && <p className="mb-3 text-sm text-teal-700">{String(data.training_takeaway)}</p>}
+      {(["weaker_than_high_cases", "key_gaps", "priority_fixes", "next_practice"] as const).map((field) => {
         const value = data[field];
         if (!Array.isArray(value) || value.length === 0) return null;
-        const labels: Record<string, string> = {
-          weaker_than_high_cases: "Gaps vs. High References",
-          key_gaps: "Key Gaps",
-          priority_fixes: "Priority Fixes",
-          next_practice: "Next Practice",
-        };
+        const labels: Record<string, string> = { weaker_than_high_cases: t.result.gapsVsHigh, key_gaps: t.result.keyGaps, priority_fixes: t.result.priorityFixes, next_practice: t.result.nextPractice };
         return (
           <div key={field} className="mb-2">
-            <h4 className="mb-1 text-xs font-semibold text-teal-600">{labels[field] ?? field}</h4>
-            <ul className="list-inside list-disc space-y-0.5">
-              {value.map((item: unknown, i: number) => (
-                <li key={i} className="text-sm text-teal-800">{String(item)}</li>
-              ))}
-            </ul>
+            <h4 className="mb-1 text-xs font-semibold text-teal-600">{labels[field]}</h4>
+            <ul className="list-inside list-disc space-y-0.5">{value.map((item: unknown, i: number) => (<li key={i} className="text-sm text-teal-800">{String(item)}</li>))}</ul>
           </div>
         );
       })}
+    </section>
+  );
+}
+
+function PromptResultCard({ data, t, copiedKey, onCopy }: { data: Record<string, unknown>; t: ReturnType<typeof useT>["t"]; copiedKey: string | null; onCopy: (text: string, key: string) => void }) {
+  const fields: [string, string][] = [
+    ["chinese_prompt", t.result.chinesePrompt],
+    ["english_prompt", t.result.englishPrompt],
+    ["negative_prompt", t.result.negativePrompt],
+    ["design_notes", t.result.designNotes],
+    ["copywriting_prompt", t.result.copywritingPrompt],
+    ["usage_tips", t.result.usageTips],
+  ];
+
+  return (
+    <section className="rounded border border-indigo-200 bg-indigo-50 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-indigo-800">{t.result.generatePrompt}</h3>
+      <div className="space-y-3">
+        {fields.map(([key, label]) => {
+          const value = data[key];
+          if (!value || (Array.isArray(value) && value.length === 0)) return null;
+          const text = Array.isArray(value) ? value.join("\n") : String(value);
+          return (
+            <div key={key}>
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-xs font-semibold text-indigo-600">{label}</h4>
+                <button onClick={() => onCopy(text, key)}
+                  className="rounded border border-indigo-300 px-2 py-0.5 text-xs text-indigo-600 hover:bg-indigo-100">
+                  {copiedKey === key ? t.result.copied : t.result.copy}
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap rounded bg-white p-2 text-xs text-gray-700 border border-indigo-100">{text}</pre>
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }

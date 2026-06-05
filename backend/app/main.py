@@ -1,5 +1,6 @@
 """FastAPI application — aesthetic training agent system MVP."""
 
+import json
 import os
 import uuid
 from contextlib import asynccontextmanager
@@ -19,6 +20,7 @@ from app.agents.comparator import ComparatorAgent
 from app.agents.critic import CriticAgent
 from app.agents.iterator import IteratorAgent
 from app.agents.profile import ProfileAgent
+from app.agents.prompt_generator import PromptGeneratorAgent
 from app.agents.reference_comparator import ReferenceComparatorAgent
 from app.db.database import get_db, init_db
 from app.llm.deepseek_client import (
@@ -28,6 +30,7 @@ from app.llm.deepseek_client import (
 )
 from app.schemas.requests import (
     CompareWithReferencesRequest,
+    GeneratePromptRequest,
     ReferenceCaseCreate,
     WorkDescriptionRequest,
 )
@@ -35,6 +38,7 @@ from app.schemas.responses import (
     AnalyzeResponse,
     CompareWithReferencesResponse,
     CritiqueResponse,
+    GeneratedPrompt,
     ImageDescribeResponse,
     IterateResponse,
     JudgmentGap,
@@ -163,6 +167,13 @@ def get_reference_comparator(
     reasoning_model=Depends(_get_reasoning_model),
 ) -> ReferenceComparatorAgent:
     return ReferenceComparatorAgent(client=client, model=reasoning_model)
+
+
+def get_prompt_generator(
+    client=Depends(_get_client),
+    reasoning_model=Depends(_get_reasoning_model),
+) -> PromptGeneratorAgent:
+    return PromptGeneratorAgent(client=client, model=reasoning_model)
 
 
 def _run_agent(operation: str, runner: Callable[[], AgentResultT]) -> AgentResultT:
@@ -707,6 +718,47 @@ def compare_with_references(
             reference_cases=ref_data,
             image_description=body.image_description,
             user_judgment=body.user_judgment.model_dump() if body.user_judgment else None,
+        ),
+    )
+
+
+# ── V1.4.1: Generate prompt ──────────────────────────────────────────
+
+@app.post("/generate-prompt", response_model=GeneratedPrompt)
+def generate_prompt(
+    body: GeneratePromptRequest,
+    generator: PromptGeneratorAgent = Depends(get_prompt_generator),
+) -> GeneratedPrompt:
+    """Generate copyable prompts for image generation tools.
+
+    Accepts analysis results (critique, iterate, reference comparison)
+    and produces Chinese + English prompts, negative prompts, design
+    notes, and usage tips.
+    """
+
+    def _to_dict(v: Any) -> dict | None:
+        if v is None:
+            return None
+        if isinstance(v, dict):
+            return v
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except Exception:
+                return {"raw": v}
+        return None
+
+    return _run_agent(
+        "Prompt generation",
+        lambda: generator.run(
+            work_description=body.work_description,
+            image_description=body.image_description,
+            user_judgment=body.user_judgment.model_dump() if body.user_judgment else None,
+            critique_result=_to_dict(body.critique_result),
+            iterate_result=_to_dict(body.iterate_result),
+            selected_direction=body.selected_direction,
+            reference_comparison=_to_dict(body.reference_comparison),
+            target_tool=body.target_tool or "general",
         ),
     )
 

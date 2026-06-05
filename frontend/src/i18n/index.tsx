@@ -12,12 +12,11 @@ const translations: Record<Lang, Translations> = { en, zh };
 const LANG_KEY = "aesthetic-lang";
 
 function detectLang(): Lang {
-  if (typeof window === "undefined") return "en";
+  if (typeof window === "undefined") return "zh";
   const stored = localStorage.getItem(LANG_KEY);
   if (stored === "zh" || stored === "en") return stored;
-  // Auto-detect from browser
-  if (navigator.language.startsWith("zh")) return "zh";
-  return "en";
+  // Default to Chinese
+  return "zh";
 }
 
 interface I18nContextValue {

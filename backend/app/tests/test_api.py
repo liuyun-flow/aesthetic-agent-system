@@ -1131,6 +1131,47 @@ class TestCompareWithReferences:
         assert resp2.status_code == 200
 
 
+# ── V1.4.1: Generate prompt ─────────────────────────────────────────
+
+class TestPromptGeneration:
+    def test_generate_prompt_returns_structured(self, client):
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "A minimal blue button on a white page with Helvetica.",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "chinese_prompt" in data
+        assert "english_prompt" in data
+        assert "negative_prompt" in data
+        assert "design_notes" in data
+        assert isinstance(data["design_notes"], list)
+        assert len(data["chinese_prompt"]) > 0
+        assert len(data["english_prompt"]) > 0
+
+    def test_generate_prompt_with_full_context(self, client):
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "An e-commerce card with shadow and rounded corners.",
+                "image_description": "White card, soft shadow, red price tag.",
+                "user_judgment": {"score": 70, "strengths": ["Clean"], "weaknesses": ["Generic"]},
+                "target_tool": "midjourney",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["english_prompt"]) > 0
+
+    def test_existing_endpoints_still_pass_after_v141(self, client):
+        resp = client.post("/analyze", json={"work_description": "Backward compat test with ten chars."})
+        assert resp.status_code == 200
+        resp2 = client.post("/critique", json={"work_description": "Critique compat test with ten chars."})
+        assert resp2.status_code == 200
+
+
 # ── Tests: Cross-cutting ────────────────────────────────────────────
 
 class TestCrossCutting:

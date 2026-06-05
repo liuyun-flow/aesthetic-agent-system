@@ -98,3 +98,16 @@ class CompareWithReferencesRequest(BaseModel):
     style_tags: list[str] | None = None
     price_band: str | None = None
     reference_case_ids: list[int] | None = None
+
+
+# ── V1.4.1: Prompt generator ────────────────────────────────────────
+
+class GeneratePromptRequest(BaseModel):
+    work_description: str = Field(..., min_length=1, max_length=5000)
+    image_description: str | None = None
+    user_judgment: UserJudgment | None = None
+    critique_result: dict | str | None = None
+    iterate_result: dict | str | None = None
+    selected_direction: str | None = None
+    reference_comparison: dict | str | None = None
+    target_tool: str | None = "general"

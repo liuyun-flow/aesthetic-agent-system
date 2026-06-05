@@ -160,7 +160,7 @@ export default function TaskForm({ onSubmit, loading }: Props) {
       {/* V1.2 Image upload */}
       <div className="rounded border bg-gray-50 p-3">
         <p className="mb-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
-          Image (optional)
+          {t.form.imageSection}
         </p>
         <input
           ref={fileRef}
@@ -170,7 +170,7 @@ export default function TaskForm({ onSubmit, loading }: Props) {
           className="text-sm"
         />
         {uploading && (
-          <p className="mt-1 text-xs text-blue-500">Uploading...</p>
+          <p className="mt-1 text-xs text-blue-500">{t.form.uploading}</p>
         )}
         {uploadError && (
           <p className="mt-1 text-xs text-red-500">{uploadError}</p>
@@ -190,7 +190,7 @@ export default function TaskForm({ onSubmit, loading }: Props) {
                     : "bg-purple-600 hover:bg-purple-700"
                 }`}
               >
-                {describing ? "Analyzing image..." : "Auto-generate description"}
+                {describing ? t.form.describing : t.form.autoDescribe}
               </button>
             </div>
             {describeError && (
@@ -201,27 +201,27 @@ export default function TaskForm({ onSubmit, loading }: Props) {
                 {Array.isArray(visionSummary.style_keywords) &&
                   visionSummary.style_keywords.length > 0 && (
                     <p className="text-purple-700">
-                      <b>Style:</b>{" "}
+                      <b>{t.form.visionStyle}:</b>{" "}
                       {(visionSummary.style_keywords as string[]).join(", ")}
                     </p>
                   )}
                 {Array.isArray(visionSummary.colors) &&
                   visionSummary.colors.length > 0 && (
                     <p className="text-purple-700">
-                      <b>Colors:</b>{" "}
+                      <b>{t.form.visionColors}:</b>{" "}
                       {(visionSummary.colors as string[]).join(", ")}
                     </p>
                   )}
                 {(visionSummary.composition as string) && (
                   <p className="text-purple-700">
-                    <b>Composition:</b>{" "}
+                    <b>{t.form.visionComposition}:</b>{" "}
                     {String(visionSummary.composition).slice(0, 120)}
                   </p>
                 )}
                 {Array.isArray(visionSummary.potential_issues) &&
                   visionSummary.potential_issues.length > 0 && (
                     <p className="mt-1 text-purple-600">
-                      <b>Potential issues:</b>{" "}
+                      <b>{t.form.visionIssues}:</b>{" "}
                       {(visionSummary.potential_issues as string[]).slice(0, 3).join("; ")}
                     </p>
                   )}
@@ -233,7 +233,7 @@ export default function TaskForm({ onSubmit, loading }: Props) {
           rows={2}
           value={imageDesc}
           onChange={(e) => setImageDesc(e.target.value)}
-          placeholder="Describe the image: colors, composition, fonts, materials, subject, background, style, target audience. V1.2 AI reads your text description, not the image file."
+          placeholder={t.form.imagePlaceholder}
           className="mt-2 w-full rounded border border-gray-200 px-2 py-1 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none"
         />
       </div>
