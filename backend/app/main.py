@@ -55,6 +55,7 @@ from app.schemas.responses import (
 from app.services import session_service, reference_service
 from app.vision.base import VisionAdapter
 from app.vision.manual_adapter import ManualAdapter
+from app.vision.openai_adapter import OpenAIVisionAdapter
 from app.vision.placeholder_adapter import PlaceholderAdapter
 
 AgentResultT = TypeVar("AgentResultT")
@@ -144,15 +145,18 @@ def get_vision_adapter() -> VisionAdapter:
     """Return the current vision adapter based on VISION_PROVIDER env var.
 
     Supported values:
-    - ``placeholder`` (V1.3 default) — mock structured descriptions
+    - ``placeholder`` (default) — mock structured descriptions, no API key needed
     - ``manual`` — user provides image_description (V1.2 compat)
-    - ``openai`` — (future) OpenAI Vision
+    - ``openai`` — OpenAI GPT-4o Vision (requires OPENAI_API_KEY)
     - ``claude`` — (future) Claude Vision
+    - ``gemini`` — (future) Google Gemini Vision
     """
     provider = os.getenv("VISION_PROVIDER", "placeholder").strip().lower()
     if provider == "manual":
         return ManualAdapter()
-    # Default to placeholder (also catches "placeholder" explicitly)
+    if provider == "openai":
+        return OpenAIVisionAdapter()
+    # Default to placeholder for unknown values
     return PlaceholderAdapter()
 
 
@@ -582,6 +586,11 @@ def describe_image(
 
     try:
         desc = vision.describe_image_structured(uploaded.file_path)
+    except ValueError as exc:
+        # Missing API key or bad config — return 400 so frontend shows the message
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=502,

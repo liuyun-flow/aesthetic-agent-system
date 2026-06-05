@@ -1202,6 +1202,51 @@ class TestSessionDetail:
         assert "sessions" in resp.json()
 
 
+# ── V1.4.2: OpenAI Vision Adapter ───────────────────────────────────
+
+class TestOpenAIVisionAdapter:
+    def test_openai_adapter_requires_api_key(self):
+        from app.vision.openai_adapter import OpenAIVisionAdapter
+
+        with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+            OpenAIVisionAdapter(api_key="")
+
+    def test_openai_adapter_with_fake_key_creates_client(self):
+        from app.vision.openai_adapter import OpenAIVisionAdapter
+
+        # Should not raise — key is set (won't actually call the API)
+        adapter = OpenAIVisionAdapter(api_key="sk-fake-test-key")
+        assert adapter is not None
+        assert adapter.model == "gpt-4o"
+
+    def test_placeholder_still_default(self, monkeypatch):
+        """Without VISION_PROVIDER set, placeholder is used."""
+        monkeypatch.delenv("VISION_PROVIDER", raising=False)
+        from app.main import get_vision_adapter
+        from app.vision.placeholder_adapter import PlaceholderAdapter
+
+        adapter = get_vision_adapter()
+        assert isinstance(adapter, PlaceholderAdapter)
+
+    def test_openai_provider_fails_gracefully_without_key(self, monkeypatch):
+        """When VISION_PROVIDER=openai but no OPENAI_API_KEY, adapter raises ValueError."""
+        monkeypatch.setenv("VISION_PROVIDER", "openai")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        from app.main import get_vision_adapter
+        from app.vision.openai_adapter import OpenAIVisionAdapter
+
+        # get_vision_adapter tries to instantiate OpenAIVisionAdapter
+        # which should raise ValueError because no key
+        with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+            get_vision_adapter()
+
+    def test_existing_endpoints_still_pass(self, client):
+        resp = client.post("/analyze", json={"work_description": "V1.4.2 compat test with ten chars."})
+        assert resp.status_code == 200
+        resp2 = client.get("/sessions")
+        assert resp2.status_code == 200
+
+
 # ── Tests: Cross-cutting ────────────────────────────────────────────
 
 class TestCrossCutting:
