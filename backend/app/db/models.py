@@ -65,3 +65,27 @@ class UploadedImage(Base):
 
     def __repr__(self) -> str:
         return f"<UploadedImage id={self.id} filename={self.stored_filename}>"
+
+
+class ReferenceCase(Base):
+    """V1.4: Curated reference cases for aesthetic comparison training."""
+
+    __tablename__ = "reference_cases"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(300), nullable=False)
+    category = Column(String(100), nullable=True)
+    aesthetic_level = Column(String(20), nullable=True, default="unknown")  # high / medium / low / unknown
+    style_tags = Column(Text, nullable=True)
+    target_audience = Column(Text, nullable=True)
+    price_band = Column(String(100), nullable=True)
+    image_id = Column(Integer, nullable=True)
+    image_description = Column(Text, nullable=True)
+    ai_description = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    score = Column(Integer, nullable=True)  # 0-100
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<ReferenceCase id={self.id} title={self.title} level={self.aesthetic_level}>"

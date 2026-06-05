@@ -39,6 +39,7 @@ def init_db() -> None:
     _migrate_v1_1()
     _migrate_v1_2()
     _migrate_v1_3()
+    _migrate_v1_4()
 
 
 def _migrate_v1_3() -> None:
@@ -58,6 +59,14 @@ def _migrate_v1_3() -> None:
             except Exception:
                 pass
         conn.commit()
+
+
+def _migrate_v1_4() -> None:
+    """V1.4: Create reference_cases table if it doesn't exist."""
+    try:
+        Base.metadata.create_all(bind=engine, tables=[Base.metadata.tables["reference_cases"]])
+    except Exception:
+        pass  # Table already exists
 
 
 def _migrate_v1_2() -> None:

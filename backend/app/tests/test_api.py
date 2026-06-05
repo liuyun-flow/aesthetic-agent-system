@@ -993,6 +993,144 @@ class TestV13BackwardCompat:
         assert resp.status_code == 200
 
 
+# ── V1.4: Reference cases ───────────────────────────────────────────
+
+class TestReferenceCases:
+    def test_create_reference_case(self, client):
+        resp = client.post(
+            "/reference-cases",
+            json={
+                "title": "Premium SaaS Landing Page",
+                "category": "web",
+                "aesthetic_level": "high",
+                "style_tags": "minimalist, professional, blue",
+                "target_audience": "SaaS buyers",
+                "price_band": "premium",
+                "score": 85,
+            },
+        )
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["title"] == "Premium SaaS Landing Page"
+        assert data["aesthetic_level"] == "high"
+        assert data["id"] > 0
+
+    def test_list_reference_cases(self, client):
+        for i in range(3):
+            client.post(
+                "/reference-cases",
+                json={
+                    "title": f"Case {i}",
+                    "aesthetic_level": ["high", "medium", "low"][i],
+                },
+            )
+        resp = client.get("/reference-cases")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total"] >= 3
+
+    def test_filter_by_aesthetic_level(self, client):
+        client.post("/reference-cases", json={"title": "High case", "aesthetic_level": "high"})
+        client.post("/reference-cases", json={"title": "Low case", "aesthetic_level": "low"})
+
+        resp = client.get("/reference-cases?aesthetic_level=high")
+        data = resp.json()
+        for c in data["cases"]:
+            assert c["aesthetic_level"] == "high"
+
+    def test_get_single_case(self, client):
+        created = client.post(
+            "/reference-cases",
+            json={"title": "Single Case", "aesthetic_level": "medium"},
+        )
+        case_id = created.json()["id"]
+
+        resp = client.get(f"/reference-cases/{case_id}")
+        assert resp.status_code == 200
+        assert resp.json()["title"] == "Single Case"
+
+    def test_get_nonexistent_case_404(self, client):
+        resp = client.get("/reference-cases/99999")
+        assert resp.status_code == 404
+
+    def test_delete_reference_case(self, client):
+        created = client.post(
+            "/reference-cases",
+            json={"title": "To Delete", "aesthetic_level": "low"},
+        )
+        case_id = created.json()["id"]
+
+        resp = client.delete(f"/reference-cases/{case_id}")
+        assert resp.status_code == 204
+
+        resp2 = client.get(f"/reference-cases/{case_id}")
+        assert resp2.status_code == 404
+
+    def test_delete_nonexistent_case_404(self, client):
+        resp = client.delete("/reference-cases/99999")
+        assert resp.status_code == 404
+
+
+class TestCompareWithReferences:
+    def test_compare_no_cases_returns_friendly_message(self, client):
+        resp = client.post(
+            "/compare-with-references",
+            json={
+                "user_work_description": "A blue button on a white page.",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "No reference cases" in data["training_takeaway"]
+
+    def test_compare_with_cases_returns_structured(self, client):
+        # Create a few reference cases
+        for level in ["high", "medium", "low"]:
+            client.post(
+                "/reference-cases",
+                json={
+                    "title": f"{level.capitalize()} reference",
+                    "aesthetic_level": level,
+                },
+            )
+
+        resp = client.post(
+            "/compare-with-references",
+            json={
+                "user_work_description": "A simple landing page with blue accents.",
+                "user_judgment": {
+                    "score": 60,
+                    "strengths": ["Clean"],
+                    "weaknesses": ["Boring"],
+                    "priority_fixes": ["Add color"],
+                    "target_audience": "Everyone",
+                    "price_band": "Mid",
+                },
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "overall_level_estimate" in data
+        assert "key_gaps" in data
+        assert "priority_fixes" in data
+        assert "training_takeaway" in data
+        assert len(data["training_takeaway"]) > 0
+
+    def test_existing_endpoints_still_work(self, client):
+        """V1.4 must not break V1.0-V1.3 endpoints."""
+        resp = client.post(
+            "/analyze",
+            json={"work_description": "A simple blue button on white page with Helvetica."},
+        )
+        assert resp.status_code == 200
+
+        resp2 = client.post(
+            "/critique",
+            json={"work_description": "A neon poster with five different fonts."},
+        )
+        assert resp2.status_code == 200
+
+
 # ── Tests: Cross-cutting ────────────────────────────────────────────
 
 class TestCrossCutting:

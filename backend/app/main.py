@@ -19,27 +19,35 @@ from app.agents.comparator import ComparatorAgent
 from app.agents.critic import CriticAgent
 from app.agents.iterator import IteratorAgent
 from app.agents.profile import ProfileAgent
+from app.agents.reference_comparator import ReferenceComparatorAgent
 from app.db.database import get_db, init_db
 from app.llm.deepseek_client import (
     get_deepseek_client,
     get_default_model,
     get_reasoning_model,
 )
-from app.schemas.requests import WorkDescriptionRequest
+from app.schemas.requests import (
+    CompareWithReferencesRequest,
+    ReferenceCaseCreate,
+    WorkDescriptionRequest,
+)
 from app.schemas.responses import (
     AnalyzeResponse,
+    CompareWithReferencesResponse,
     CritiqueResponse,
     ImageDescribeResponse,
     IterateResponse,
     JudgmentGap,
     ProfileResponse,
     RecordType,
+    ReferenceCaseListResponse,
+    ReferenceCaseResponse,
     SessionRecord,
     SessionsResponse,
     UploadResponse,
     VisionDescription,
 )
-from app.services import session_service
+from app.services import session_service, reference_service
 from app.vision.base import VisionAdapter
 from app.vision.manual_adapter import ManualAdapter
 from app.vision.placeholder_adapter import PlaceholderAdapter
@@ -148,6 +156,13 @@ def get_comparator(
     reasoning_model=Depends(_get_reasoning_model),
 ) -> ComparatorAgent:
     return ComparatorAgent(client=client, model=reasoning_model)
+
+
+def get_reference_comparator(
+    client=Depends(_get_client),
+    reasoning_model=Depends(_get_reasoning_model),
+) -> ReferenceComparatorAgent:
+    return ReferenceComparatorAgent(client=client, model=reasoning_model)
 
 
 def _run_agent(operation: str, runner: Callable[[], AgentResultT]) -> AgentResultT:
@@ -544,6 +559,156 @@ def describe_image(
     )
 
     return ImageDescribeResponse(image_id=image_id, description=desc)
+
+
+# ── V1.4: Reference Cases ────────────────────────────────────────────
+
+@app.post("/reference-cases", response_model=ReferenceCaseResponse, status_code=201)
+def create_reference_case(
+    body: ReferenceCaseCreate,
+    db: Session = Depends(get_db),
+) -> ReferenceCaseResponse:
+    """Create a new reference case for the aesthetic comparison library."""
+    from datetime import datetime as dt
+
+    case = reference_service.create_case(
+        db,
+        title=body.title,
+        category=body.category,
+        aesthetic_level=body.aesthetic_level,
+        style_tags=body.style_tags,
+        target_audience=body.target_audience,
+        price_band=body.price_band,
+        image_id=body.image_id,
+        image_description=body.image_description,
+        ai_description=body.ai_description,
+        notes=body.notes,
+        score=body.score,
+        created_at=dt.utcnow(),
+        updated_at=dt.utcnow(),
+    )
+    return ReferenceCaseResponse.model_validate(case)
+
+
+@app.get("/reference-cases", response_model=ReferenceCaseListResponse)
+def list_reference_cases(
+    category: str | None = Query(default=None),
+    aesthetic_level: str | None = Query(default=None),
+    style_tag: str | None = Query(default=None),
+    price_band: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> ReferenceCaseListResponse:
+    """List reference cases with optional filters."""
+    cases = reference_service.list_cases(
+        db,
+        category=category,
+        aesthetic_level=aesthetic_level,
+        style_tag=style_tag,
+        price_band=price_band,
+        limit=limit,
+    )
+    return ReferenceCaseListResponse(
+        cases=[ReferenceCaseResponse.model_validate(c) for c in cases],
+        total=len(cases),
+    )
+
+
+@app.get("/reference-cases/{case_id}", response_model=ReferenceCaseResponse)
+def get_reference_case(
+    case_id: int,
+    db: Session = Depends(get_db),
+) -> ReferenceCaseResponse:
+    """Get a single reference case by ID."""
+    case = reference_service.get_case(db, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Reference case not found.")
+    return ReferenceCaseResponse.model_validate(case)
+
+
+@app.post("/reference-cases/{case_id}/describe", response_model=ReferenceCaseResponse)
+def describe_reference_case(
+    case_id: int,
+    vision: VisionAdapter = Depends(get_vision_adapter),
+    db: Session = Depends(get_db),
+) -> ReferenceCaseResponse:
+    """Auto-generate a description for a reference case that has an image."""
+    case = reference_service.get_case(db, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Reference case not found.")
+    if case.image_id is None:
+        raise HTTPException(status_code=400, detail="Reference case has no image attached.")
+
+    uploaded = session_service.get_image_by_id(db, case.image_id)
+    if uploaded is None:
+        raise HTTPException(status_code=404, detail="Linked image not found.")
+
+    try:
+        desc = vision.describe_image_structured(uploaded.file_path)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Vision adapter failed: {exc}")
+
+    reference_service.update_case(
+        db,
+        case_id,
+        ai_description=desc.suggested_prompt_text,
+        image_description=desc.suggested_prompt_text,
+    )
+    case = reference_service.get_case(db, case_id)
+    return ReferenceCaseResponse.model_validate(case)
+
+
+@app.delete("/reference-cases/{case_id}", status_code=204)
+def delete_reference_case(
+    case_id: int,
+    db: Session = Depends(get_db),
+) -> None:
+    """Delete a reference case (does not delete the linked uploaded image)."""
+    deleted = reference_service.delete_case(db, case_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Reference case not found.")
+
+
+# ── V1.4: Compare with references ────────────────────────────────────
+
+@app.post("/compare-with-references", response_model=CompareWithReferencesResponse)
+def compare_with_references(
+    body: CompareWithReferencesRequest,
+    comparator: ReferenceComparatorAgent = Depends(get_reference_comparator),
+    db: Session = Depends(get_db),
+) -> CompareWithReferencesResponse:
+    """Compare user work against curated reference cases."""
+    ref_cases = reference_service.find_cases_for_comparison(
+        db,
+        case_ids=body.reference_case_ids,
+        category=body.category,
+        style_tags=body.style_tags,
+        price_band=body.price_band,
+    )
+
+    ref_data = [
+        {
+            "id": c.id,
+            "title": c.title,
+            "aesthetic_level": c.aesthetic_level,
+            "style_tags": c.style_tags,
+            "price_band": c.price_band,
+            "image_description": c.image_description or c.ai_description,
+            "notes": c.notes,
+            "score": c.score,
+        }
+        for c in ref_cases
+    ]
+
+    return _run_agent(
+        "Reference comparison",
+        lambda: comparator.run(
+            user_work_description=body.user_work_description,
+            reference_cases=ref_data,
+            image_description=body.image_description,
+            user_judgment=body.user_judgment.model_dump() if body.user_judgment else None,
+        ),
+    )
 
 
 @app.get("/health")

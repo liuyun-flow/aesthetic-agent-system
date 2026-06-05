@@ -141,6 +141,44 @@ class ImageDescribeResponse(BaseModel):
     description: VisionDescription
 
 
+# ── V1.4: Reference cases ────────────────────────────────────────────
+
+class ReferenceCaseResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    title: str
+    category: str | None = None
+    aesthetic_level: str | None = None
+    style_tags: str | None = None
+    target_audience: str | None = None
+    price_band: str | None = None
+    image_id: int | None = None
+    image_description: str | None = None
+    ai_description: str | None = None
+    notes: str | None = None
+    score: int | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class ReferenceCaseListResponse(BaseModel):
+    cases: list[ReferenceCaseResponse]
+    total: int
+
+
+class CompareWithReferencesResponse(BaseModel):
+    overall_level_estimate: str = ""
+    closest_reference_level: str = ""
+    stronger_than_low_cases: list[str] = Field(default_factory=list)
+    weaker_than_high_cases: list[str] = Field(default_factory=list)
+    key_gaps: list[str] = Field(default_factory=list)
+    priority_fixes: list[str] = Field(default_factory=list)
+    reference_cases_used: list[int] = Field(default_factory=list)
+    training_takeaway: str = ""
+    next_practice: list[str] = Field(default_factory=list)
+
+
 # Resolve forward references (JudgmentGap is referenced as a string
 # in AnalyzeResponse, CritiqueResponse, and IterateResponse above).
 AnalyzeResponse.model_rebuild()

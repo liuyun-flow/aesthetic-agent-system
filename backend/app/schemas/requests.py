@@ -65,3 +65,36 @@ class WorkDescriptionRequest(BaseModel):
         default=None,
         description="Optional user self-assessment for judgment gap analysis.",
     )
+
+
+# ── V1.4: Reference cases ────────────────────────────────────────────
+
+VALID_AESTHETIC_LEVELS = {"high", "medium", "low", "unknown"}
+
+
+class ReferenceCaseCreate(BaseModel):
+    """Request body for POST /reference-cases."""
+
+    title: str = Field(..., min_length=1, max_length=300)
+    category: str | None = Field(default=None, max_length=100)
+    aesthetic_level: str | None = Field(default="unknown", pattern=r"^(high|medium|low|unknown)$")
+    style_tags: str | None = None
+    target_audience: str | None = None
+    price_band: str | None = Field(default=None, max_length=100)
+    image_id: int | None = Field(default=None, ge=1)
+    image_description: str | None = None
+    ai_description: str | None = None
+    notes: str | None = None
+    score: int | None = Field(default=None, ge=0, le=100)
+
+
+class CompareWithReferencesRequest(BaseModel):
+    """Request body for POST /compare-with-references."""
+
+    user_work_description: str = Field(..., min_length=1, max_length=5000)
+    image_description: str | None = None
+    user_judgment: UserJudgment | None = None
+    category: str | None = None
+    style_tags: list[str] | None = None
+    price_band: str | None = None
+    reference_case_ids: list[int] | None = None
