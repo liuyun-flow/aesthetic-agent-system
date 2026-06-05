@@ -93,6 +93,30 @@ class SessionsResponse(BaseModel):
     total: int = Field(..., ge=0)
 
 
+class SessionDetailResponse(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: int
+    record_type: RecordType
+    work_description: str
+    created_at: datetime | None = None
+    # User judgment
+    user_score: int | None = None
+    user_strengths: str | None = None
+    user_weaknesses: str | None = None
+    user_priority_fixes: str | None = None
+    user_target_audience: str | None = None
+    user_price_band: str | None = None
+    # AI result
+    result_json: dict | None = None
+    ai_score: int | None = None
+    ai_main_problems: str | None = None
+    ai_priority_fixes: str | None = None
+    # Judgment gap
+    judgment_gap_summary: str | None = None
+    training_focus_tags: str | None = None
+
+
 # ── /upload ───────────────────────────────────────────────────────────
 
 class UploadResponse(BaseModel):

@@ -46,6 +46,7 @@ from app.schemas.responses import (
     RecordType,
     ReferenceCaseListResponse,
     ReferenceCaseResponse,
+    SessionDetailResponse,
     SessionRecord,
     SessionsResponse,
     UploadResponse,
@@ -458,6 +459,35 @@ def sessions(
         for r in records
     ]
     return SessionsResponse(sessions=session_records, total=len(session_records))
+
+
+@app.get("/sessions/{session_id}", response_model=SessionDetailResponse)
+def get_session_detail(
+    session_id: int,
+    db: Session = Depends(get_db),
+) -> SessionDetailResponse:
+    """Return full detail for a single training session."""
+    record = session_service.get_session_by_id(db, session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+    return SessionDetailResponse(
+        id=record.id,
+        record_type=record.record_type,  # type: ignore[arg-type]
+        work_description=record.work_description,
+        created_at=record.created_at,
+        user_score=record.user_score,
+        user_strengths=record.user_strengths,
+        user_weaknesses=record.user_weaknesses,
+        user_priority_fixes=record.user_priority_fixes,
+        user_target_audience=record.user_target_audience,
+        user_price_band=record.user_price_band,
+        result_json=record.result_json,
+        ai_score=record.ai_score,
+        ai_main_problems=record.ai_main_problems,
+        ai_priority_fixes=record.ai_priority_fixes,
+        judgment_gap_summary=record.judgment_gap_summary,
+        training_focus_tags=record.training_focus_tags,
+    )
 
 
 @app.post("/upload", response_model=UploadResponse, status_code=201)

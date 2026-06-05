@@ -66,6 +66,11 @@ def save_record(
     return record
 
 
+def get_session_by_id(db: Session, session_id: int) -> TrainingRecord | None:
+    """Return a single training record by ID, or None."""
+    return db.query(TrainingRecord).filter(TrainingRecord.id == session_id).first()
+
+
 def get_recent_records(
     db: Session,
     limit: int = 50,

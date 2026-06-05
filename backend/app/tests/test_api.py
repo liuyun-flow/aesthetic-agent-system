@@ -1172,6 +1172,36 @@ class TestPromptGeneration:
         assert resp2.status_code == 200
 
 
+# ── V1.4.1: Session detail ──────────────────────────────────────────
+
+class TestSessionDetail:
+    def test_get_existing_session_detail(self, client):
+        # Create a record first
+        client.post("/analyze", json={"work_description": "Detail test work description here."})
+
+        # Get sessions list to find the ID
+        list_resp = client.get("/sessions?limit=1")
+        session_id = list_resp.json()["sessions"][0]["id"]
+
+        # Get detail
+        resp = client.get(f"/sessions/{session_id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == session_id
+        assert data["record_type"] == "analyze"
+        assert "work_description" in data
+        assert "result_json" in data
+
+    def test_get_nonexistent_session_returns_404(self, client):
+        resp = client.get("/sessions/99999")
+        assert resp.status_code == 404
+
+    def test_session_list_still_works(self, client):
+        resp = client.get("/sessions")
+        assert resp.status_code == 200
+        assert "sessions" in resp.json()
+
+
 # ── Tests: Cross-cutting ────────────────────────────────────────────
 
 class TestCrossCutting:
