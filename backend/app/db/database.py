@@ -41,6 +41,26 @@ def init_db() -> None:
     _migrate_v1_3()
     _migrate_v1_4()
     _migrate_v1_5()
+    _migrate_v1_5_1()
+
+
+def _migrate_v1_5_1() -> None:
+    """V1.5.1: Add aesthetic annotation columns to reference_cases."""
+    v1_5_1_columns: list[tuple[str, str]] = [
+        ("premium_sources", "TEXT"),
+        ("cheapness_sources", "TEXT"),
+        ("learn_from_this", "TEXT"),
+        ("avoid_copying", "TEXT"),
+    ]
+    with engine.connect() as conn:
+        for col_name, col_type in v1_5_1_columns:
+            try:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE reference_cases ADD COLUMN {col_name} {col_type}"
+                )
+            except Exception:
+                pass
+        conn.commit()
 
 
 def _migrate_v1_5() -> None:

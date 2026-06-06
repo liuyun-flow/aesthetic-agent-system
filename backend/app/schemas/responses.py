@@ -235,10 +235,15 @@ class ReferenceCaseResponse(BaseModel):
     target_audience: str | None = None
     price_band: str | None = None
     image_id: int | None = None
+    image_url: str | None = None
     image_description: str | None = None
     ai_description: str | None = None
     notes: str | None = None
     score: int | None = None
+    premium_sources: str | None = None
+    cheapness_sources: str | None = None
+    learn_from_this: str | None = None
+    avoid_copying: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
 

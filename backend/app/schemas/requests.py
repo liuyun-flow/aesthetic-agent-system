@@ -86,6 +86,10 @@ class ReferenceCaseCreate(BaseModel):
     ai_description: str | None = None
     notes: str | None = None
     score: int | None = Field(default=None, ge=0, le=100)
+    premium_sources: str | None = None
+    cheapness_sources: str | None = None
+    learn_from_this: str | None = None
+    avoid_copying: str | None = None
 
 
 class CompareWithReferencesRequest(BaseModel):

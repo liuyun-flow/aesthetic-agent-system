@@ -92,6 +92,11 @@ class ReferenceCase(Base):
     ai_description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     score = Column(Integer, nullable=True)  # 0-100
+    # V1.5.1: Enhanced aesthetic annotations
+    premium_sources = Column(Text, nullable=True)
+    cheapness_sources = Column(Text, nullable=True)
+    learn_from_this = Column(Text, nullable=True)
+    avoid_copying = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

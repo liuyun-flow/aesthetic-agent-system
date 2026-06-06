@@ -679,6 +679,25 @@ def vision_status() -> VisionStatusResponse:
 
 # ── V1.4: Reference Cases ────────────────────────────────────────────
 
+def _ref_response(case, db):
+    """Build ReferenceCaseResponse with image_url."""
+    image_url = None
+    if case.image_id:
+        img = session_service.get_image_by_id(db, case.image_id)
+        if img:
+            image_url = f"/uploads/{img.stored_filename}"
+    return ReferenceCaseResponse(
+        id=case.id, title=case.title, category=case.category,
+        aesthetic_level=case.aesthetic_level, style_tags=case.style_tags,
+        target_audience=case.target_audience, price_band=case.price_band,
+        image_id=case.image_id, image_url=image_url,
+        image_description=case.image_description, ai_description=case.ai_description,
+        notes=case.notes, score=case.score,
+        premium_sources=case.premium_sources, cheapness_sources=case.cheapness_sources,
+        learn_from_this=case.learn_from_this, avoid_copying=case.avoid_copying,
+        created_at=case.created_at, updated_at=case.updated_at,
+    )
+
 @app.post("/reference-cases", response_model=ReferenceCaseResponse, status_code=201)
 def create_reference_case(
     body: ReferenceCaseCreate,
@@ -700,10 +719,14 @@ def create_reference_case(
         ai_description=body.ai_description,
         notes=body.notes,
         score=body.score,
+        premium_sources=body.premium_sources,
+        cheapness_sources=body.cheapness_sources,
+        learn_from_this=body.learn_from_this,
+        avoid_copying=body.avoid_copying,
         created_at=dt.utcnow(),
         updated_at=dt.utcnow(),
     )
-    return ReferenceCaseResponse.model_validate(case)
+    return _ref_response(case, db)
 
 
 @app.get("/reference-cases", response_model=ReferenceCaseListResponse)
@@ -725,7 +748,7 @@ def list_reference_cases(
         limit=limit,
     )
     return ReferenceCaseListResponse(
-        cases=[ReferenceCaseResponse.model_validate(c) for c in cases],
+        cases=[_ref_response(c, db) for c in cases],
         total=len(cases),
     )
 
@@ -739,7 +762,7 @@ def get_reference_case(
     case = reference_service.get_case(db, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Reference case not found.")
-    return ReferenceCaseResponse.model_validate(case)
+    return _ref_response(case, db)
 
 
 @app.post("/reference-cases/{case_id}/describe", response_model=ReferenceCaseResponse)
@@ -771,7 +794,7 @@ def describe_reference_case(
         image_description=desc.suggested_prompt_text,
     )
     case = reference_service.get_case(db, case_id)
-    return ReferenceCaseResponse.model_validate(case)
+    return _ref_response(case, db)
 
 
 @app.delete("/reference-cases/{case_id}", status_code=204)
@@ -804,14 +827,16 @@ def compare_with_references(
 
     ref_data = [
         {
-            "id": c.id,
-            "title": c.title,
-            "aesthetic_level": c.aesthetic_level,
-            "style_tags": c.style_tags,
-            "price_band": c.price_band,
+            "id": c.id, "title": c.title,
+            "aesthetic_level": c.aesthetic_level, "category": c.category,
+            "style_tags": c.style_tags, "price_band": c.price_band,
+            "target_audience": c.target_audience,
             "image_description": c.image_description or c.ai_description,
-            "notes": c.notes,
-            "score": c.score,
+            "premium_sources": c.premium_sources,
+            "cheapness_sources": c.cheapness_sources,
+            "learn_from_this": c.learn_from_this,
+            "avoid_copying": c.avoid_copying,
+            "notes": c.notes, "score": c.score,
         }
         for c in ref_cases
     ]
