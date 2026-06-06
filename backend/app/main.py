@@ -641,8 +641,9 @@ def vision_status() -> VisionStatusResponse:
         )
 
     key_map = {"openai": ("OPENAI_API_KEY",), "claude": ("ANTHROPIC_API_KEY",), "gemini": ("GEMINI_API_KEY",)}
+    _placeholder_values = {"", "your_openai_api_key_here", "replace-with-your-key", "your_anthropic_api_key_here", "your_gemini_api_key_here"}
     required = key_map.get(provider, ())
-    missing = [k for k in required if not os.getenv(k)]
+    missing = [k for k in required if not os.getenv(k) or os.getenv(k, "").strip() in _placeholder_values]
     labels = {"openai": "OpenAI Vision", "claude": "Claude Vision", "gemini": "Gemini Vision"}
 
     if missing:
