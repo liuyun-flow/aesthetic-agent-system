@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker, Session, DeclarativeBase
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./aesthetic.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./data/database/aesthetic.db")
 
 _connect_args: dict = {}
 if DATABASE_URL.startswith("sqlite"):

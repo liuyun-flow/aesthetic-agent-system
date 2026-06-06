@@ -95,7 +95,7 @@ app.add_middleware(
 )
 
 # Serve uploaded images so the frontend can preview them.
-_UPLOAD_DIR = Path(__file__).resolve().parent.parent / "data" / "uploads"
+_UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(Path(__file__).resolve().parent.parent / "data" / "uploads")))
 _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(_UPLOAD_DIR)), name="uploads")
 
@@ -1047,5 +1047,22 @@ def weekly_review(
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict:
+    return {"status": "ok", "service": "backend", "version": "v1.6"}
+
+
+@app.get("/model/status")
+def model_status() -> dict:
+    """Return DeepSeek config status without exposing the API key."""
+    key = os.getenv("DEEPSEEK_API_KEY", "").strip()
+    placeholder_keys = {"", "replace-me", "your_deepseek_api_key_here"}
+    is_configured = bool(key) and key not in placeholder_keys
+    return {
+        "provider": "deepseek",
+        "is_configured": is_configured,
+        "missing_keys": [] if is_configured else ["DEEPSEEK_API_KEY"],
+        "default_model": os.getenv("DEEPSEEK_DEFAULT_MODEL", "deepseek-v4-flash"),
+        "reasoning_model": os.getenv("DEEPSEEK_REASONING_MODEL", "deepseek-v4-pro"),
+    }
+
+
