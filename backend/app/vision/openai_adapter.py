@@ -62,7 +62,10 @@ class OpenAIVisionAdapter(VisionAdapter):
     """Calls OpenAI GPT-4o to describe images."""
 
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
-        key = (api_key or os.getenv("OPENAI_API_KEY", "")).strip()
+        if api_key is not None:
+            key = api_key.strip()
+        else:
+            key = os.getenv("OPENAI_API_KEY", "").strip()
         _placeholder_keys = {"", "your_openai_api_key_here", "replace-with-your-key"}
         if not key or key in _placeholder_keys:
             raise ValueError(

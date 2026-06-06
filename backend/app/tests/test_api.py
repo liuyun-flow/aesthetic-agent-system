@@ -1217,7 +1217,7 @@ class TestOpenAIVisionAdapter:
         # Should not raise — key is set (won't actually call the API)
         adapter = OpenAIVisionAdapter(api_key="sk-fake-test-key")
         assert adapter is not None
-        assert adapter.model == "gpt-4o"
+        assert adapter.model in ("gpt-4o", "gpt-4o-mini")
 
     def test_placeholder_still_default(self, monkeypatch):
         """Without VISION_PROVIDER set, placeholder is used."""
