@@ -37,6 +37,14 @@ class TrainingRecord(Base):
     judgment_gap_summary = Column(Text, nullable=True)
     training_focus_tags = Column(Text, nullable=True)
 
+    # ── V1.5: Training workbench ────────────────────────────────────
+    training_theme = Column(String(100), nullable=True)
+    user_lesson = Column(Text, nullable=True)
+    next_focus = Column(Text, nullable=True)
+    completed = Column(Integer, nullable=True, default=0)  # 0/1 boolean
+    before_score = Column(Integer, nullable=True)
+    after_score = Column(Integer, nullable=True)
+
     def __repr__(self) -> str:
         return (
             f"<TrainingRecord id={self.id} type={self.record_type} "

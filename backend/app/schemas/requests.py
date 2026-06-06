@@ -111,3 +111,12 @@ class GeneratePromptRequest(BaseModel):
     selected_direction: str | None = None
     reference_comparison: dict | str | None = None
     target_tool: str | None = "general"
+
+
+# ── V1.5: Training workbench ────────────────────────────────────────
+
+class CompleteTrainingRequest(BaseModel):
+    training_theme: str | None = None
+    user_lesson: str | None = None
+    next_focus: str | None = None
+    after_score: int | None = Field(default=None, ge=0, le=100)

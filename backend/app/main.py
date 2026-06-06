@@ -22,6 +22,7 @@ from app.agents.iterator import IteratorAgent
 from app.agents.profile import ProfileAgent
 from app.agents.prompt_generator import PromptGeneratorAgent
 from app.agents.reference_comparator import ReferenceComparatorAgent
+from app.agents.weekly_review import WeeklyReviewAgent
 from app.db.database import get_db, init_db
 from app.llm.deepseek_client import (
     get_deepseek_client,
@@ -30,6 +31,7 @@ from app.llm.deepseek_client import (
 )
 from app.schemas.requests import (
     CompareWithReferencesRequest,
+    CompleteTrainingRequest,
     GeneratePromptRequest,
     ReferenceCaseCreate,
     WorkDescriptionRequest,
@@ -49,9 +51,13 @@ from app.schemas.responses import (
     SessionDetailResponse,
     SessionRecord,
     SessionsResponse,
+    TodayTrainingResponse,
+    TRAINING_THEMES,
+    TrainingStatsResponse,
     UploadResponse,
     VisionDescription,
     VisionStatusResponse,
+    WeeklyReviewResponse,
 )
 from app.services import session_service, reference_service
 from app.vision.base import VisionAdapter
@@ -180,6 +186,13 @@ def get_prompt_generator(
     reasoning_model=Depends(_get_reasoning_model),
 ) -> PromptGeneratorAgent:
     return PromptGeneratorAgent(client=client, model=reasoning_model)
+
+
+def get_weekly_reviewer(
+    client=Depends(_get_client),
+    reasoning_model=Depends(_get_reasoning_model),
+) -> WeeklyReviewAgent:
+    return WeeklyReviewAgent(client=client, model=reasoning_model)
 
 
 def _run_agent(operation: str, runner: Callable[[], AgentResultT]) -> AgentResultT:
@@ -852,6 +865,159 @@ def generate_prompt(
             reference_comparison=_to_dict(body.reference_comparison),
             target_tool=body.target_tool or "general",
         ),
+    )
+
+
+# ── V1.5: Training workbench ──────────────────────────────────────────
+
+@app.get("/training/today", response_model=TodayTrainingResponse)
+def training_today(
+    db: Session = Depends(get_db),
+) -> TodayTrainingResponse:
+    """Return today's training theme and tasks (rotates by date)."""
+    from datetime import date as dt_date
+
+    themes = TRAINING_THEMES
+    day_index = dt_date.today().toordinal() % len(themes)
+    theme = themes[day_index]
+
+    tasks = [
+        f"上传一个作品并先围绕「{theme}」自评",
+        f"指出你认为最影响「{theme}」的问题",
+        "和一个 high 案例对比",
+        "生成修改提示词",
+        "记录今天学到的一条审美规则",
+    ]
+
+    return TodayTrainingResponse(theme=theme, tasks=tasks)
+
+
+@app.post("/training/sessions/{session_id}/complete", response_model=dict)
+def complete_training(
+    session_id: int,
+    body: CompleteTrainingRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    """Mark a training session as complete with user notes."""
+    record = session_service.get_session_by_id(db, session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    if body.training_theme:
+        record.training_theme = body.training_theme
+    if body.user_lesson:
+        record.user_lesson = body.user_lesson
+    if body.next_focus:
+        record.next_focus = body.next_focus
+    if body.after_score is not None:
+        record.after_score = body.after_score
+    record.completed = 1
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Could not save training completion.")
+    return {"status": "ok", "session_id": session_id}
+
+
+@app.get("/training/stats", response_model=TrainingStatsResponse)
+def training_stats(
+    db: Session = Depends(get_db),
+) -> TrainingStatsResponse:
+    """Return training statistics."""
+    from datetime import date as dt_date, timedelta
+
+    total = session_service.get_record_count(db)
+    all_records = session_service.get_recent_records(db, limit=1000)
+
+    completed = sum(1 for r in all_records if r.completed == 1)
+    today = dt_date.today()
+    week_ago = today - timedelta(days=7)
+    sessions_this_week = sum(
+        1 for r in all_records if r.created_at and r.created_at.date() >= week_ago
+    )
+
+    # Simple streak: count consecutive days with at least one session
+    streak = 0
+    for i in range(30):
+        d = today - timedelta(days=i)
+        has_session = any(
+            r.created_at and r.created_at.date() == d for r in all_records
+        )
+        if has_session:
+            streak += 1
+        else:
+            break
+
+    user_scores = [r.user_score for r in all_records if r.user_score is not None]
+    ai_scores = [r.ai_score for r in all_records if r.ai_score is not None]
+    gaps = [
+        abs((r.user_score or 0) - (r.ai_score or 0))
+        for r in all_records
+        if r.user_score is not None and r.ai_score is not None
+    ]
+
+    import json as _json
+    tags: list[str] = []
+    for r in all_records:
+        if r.training_focus_tags:
+            try:
+                parsed = _json.loads(r.training_focus_tags)
+                if isinstance(parsed, list):
+                    tags.extend(parsed)
+            except Exception:
+                pass
+
+    # Most common tags (top 5)
+    from collections import Counter
+    common_tags = [tag for tag, _ in Counter(tags).most_common(5)]
+
+    return TrainingStatsResponse(
+        total_sessions=total,
+        completed_sessions=completed,
+        sessions_this_week=sessions_this_week,
+        current_streak_days=streak,
+        average_user_score=round(sum(user_scores) / len(user_scores), 1) if user_scores else None,
+        average_ai_score=round(sum(ai_scores) / len(ai_scores), 1) if ai_scores else None,
+        average_score_gap=round(sum(gaps) / len(gaps), 1) if gaps else None,
+        common_training_focus_tags=common_tags,
+    )
+
+
+@app.get("/training/weekly-review", response_model=WeeklyReviewResponse)
+def weekly_review(
+    reviewer: WeeklyReviewAgent = Depends(get_weekly_reviewer),
+    db: Session = Depends(get_db),
+) -> WeeklyReviewResponse:
+    """Generate a weekly training review from the last 7 days."""
+    from datetime import date as dt_date, timedelta
+
+    all_records = session_service.get_recent_records(db, limit=200)
+    week_ago = dt_date.today() - timedelta(days=7)
+    week_records = [
+        r for r in all_records
+        if r.created_at and r.created_at.date() >= week_ago
+    ]
+
+    history = [
+        {
+            "id": r.id,
+            "type": r.record_type,
+            "work_description": r.work_description,
+            "user_score": r.user_score,
+            "ai_score": r.ai_score,
+            "judgment_gap_summary": r.judgment_gap_summary,
+            "training_theme": r.training_theme,
+            "user_lesson": r.user_lesson,
+            "completed": r.completed,
+        }
+        for r in week_records
+    ]
+
+    return _run_agent(
+        "Weekly review",
+        lambda: reviewer.run(history),
     )
 
 

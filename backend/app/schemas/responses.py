@@ -170,6 +170,50 @@ class ImageDescribeResponse(BaseModel):
 
 # ── V1.4.3: Vision status ────────────────────────────────────────────
 
+# ── V1.5: Training workbench ───────────────────────────────────────
+
+TRAINING_THEMES = [
+    "字体与排版",
+    "色彩与高级感",
+    "构图与留白",
+    "材质与质感",
+    "价格带判断",
+    "商业适配与目标用户",
+]
+
+
+class TodayTrainingResponse(BaseModel):
+    theme: str
+    tasks: list[str] = Field(default_factory=list)
+
+
+class CompleteTrainingRequest(BaseModel):
+    training_theme: str | None = None
+    user_lesson: str | None = None
+    next_focus: str | None = None
+    after_score: int | None = Field(default=None, ge=0, le=100)
+
+
+class TrainingStatsResponse(BaseModel):
+    total_sessions: int = 0
+    completed_sessions: int = 0
+    sessions_this_week: int = 0
+    current_streak_days: int = 0
+    average_user_score: float | None = None
+    average_ai_score: float | None = None
+    average_score_gap: float | None = None
+    common_training_focus_tags: list[str] = Field(default_factory=list)
+
+
+class WeeklyReviewResponse(BaseModel):
+    summary: str = ""
+    common_misjudgments: str = ""
+    progress_points: str = ""
+    recurring_issues: str = ""
+    next_week_theme: str = ""
+    next_week_tasks: list[str] = Field(default_factory=list)
+
+
 class VisionStatusResponse(BaseModel):
     vision_provider: str
     is_placeholder: bool

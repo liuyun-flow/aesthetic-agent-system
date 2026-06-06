@@ -5,6 +5,7 @@ import TaskForm, { type UserJudgment, type ImageData } from "@/components/TaskFo
 import ResultCard from "@/components/ResultCard";
 import SessionList from "@/components/SessionList";
 import ReferencePanel from "@/components/ReferencePanel";
+import TrainingPanel from "@/components/TrainingPanel";
 import { useT } from "@/i18n";
 
 type TaskType = "analyze" | "critique" | "iterate";
@@ -27,6 +28,7 @@ export default function Home() {
   const [promptResult, setPromptResult] = useState<Record<string, unknown> | null>(null);
   const [promptError, setPromptError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [lastSessionId, setLastSessionId] = useState<number | null>(null);
 
   // Stash last submission for compare + prompt
   const [lastDescription, setLastDescription] = useState("");
@@ -53,6 +55,10 @@ export default function Home() {
         const data = await res.json();
         setResult(data);
         setRefreshKey((k) => k + 1);
+        // Track latest session ID for training completion
+        fetch(`${base}/sessions?limit=1`).then(r => r.json()).then(d => {
+          if (d.sessions?.length > 0) setLastSessionId(d.sessions[0].id);
+        }).catch(() => {});
       } catch (err: unknown) { setError(err instanceof Error ? err.message : t.common.error); }
       finally { setLoading(false); }
     }, [t.common.error, base], // eslint-disable-line react-hooks/exhaustive-deps
@@ -122,6 +128,7 @@ export default function Home() {
         </>
       )}
 
+      <TrainingPanel refreshKey={refreshKey} lastSessionId={lastSessionId} />
       <ReferencePanel />
       <SessionList refreshKey={refreshKey} />
     </div>
