@@ -163,6 +163,19 @@ class ImageDescribeResponse(BaseModel):
     """Response for POST /images/{image_id}/describe."""
     image_id: int
     description: VisionDescription
+    vision_provider: str = "placeholder"
+    is_placeholder: bool = True
+    warning: str | None = None
+
+
+# ── V1.4.3: Vision status ────────────────────────────────────────────
+
+class VisionStatusResponse(BaseModel):
+    vision_provider: str
+    is_placeholder: bool
+    is_configured: bool
+    missing_keys: list[str] = Field(default_factory=list)
+    message: str
 
 
 # ── V1.4: Reference cases ────────────────────────────────────────────

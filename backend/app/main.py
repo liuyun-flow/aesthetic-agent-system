@@ -51,6 +51,7 @@ from app.schemas.responses import (
     SessionsResponse,
     UploadResponse,
     VisionDescription,
+    VisionStatusResponse,
 )
 from app.services import session_service, reference_service
 from app.vision.base import VisionAdapter
@@ -608,7 +609,58 @@ def describe_image(
         vision_description_json=_json.dumps(desc.model_dump(), ensure_ascii=False),
     )
 
-    return ImageDescribeResponse(image_id=image_id, description=desc)
+    provider = os.getenv("VISION_PROVIDER", "placeholder")
+    is_placeholder = provider not in ("openai", "claude", "gemini") or provider == "placeholder"
+    warning = (
+        "当前使用占位视觉描述，未调用真实视觉模型。返回的描述为示例数据，不匹配实际图片。"
+        if is_placeholder
+        else None
+    )
+    return ImageDescribeResponse(
+        image_id=image_id,
+        description=desc,
+        vision_provider=provider,
+        is_placeholder=is_placeholder,
+        warning=warning,
+    )
+
+
+@app.get("/vision/status", response_model=VisionStatusResponse)
+def vision_status() -> VisionStatusResponse:
+    """Return the current vision provider configuration status."""
+    provider = os.getenv("VISION_PROVIDER", "placeholder").strip().lower()
+    is_placeholder = provider == "placeholder"
+
+    if is_placeholder:
+        return VisionStatusResponse(
+            vision_provider="placeholder",
+            is_placeholder=True,
+            is_configured=True,
+            missing_keys=[],
+            message="当前使用占位视觉描述，不是真实图片识别。返回的描述为固定示例，不匹配实际图片。",
+        )
+
+    key_map = {"openai": ("OPENAI_API_KEY",), "claude": ("ANTHROPIC_API_KEY",), "gemini": ("GEMINI_API_KEY",)}
+    required = key_map.get(provider, ())
+    missing = [k for k in required if not os.getenv(k)]
+    labels = {"openai": "OpenAI Vision", "claude": "Claude Vision", "gemini": "Gemini Vision"}
+
+    if missing:
+        return VisionStatusResponse(
+            vision_provider=provider,
+            is_placeholder=False,
+            is_configured=False,
+            missing_keys=missing,
+            message=f"未配置 {', '.join(missing)}，请在后端 .env 中配置后再使用 {labels.get(provider, provider)}。",
+        )
+
+    return VisionStatusResponse(
+        vision_provider=provider,
+        is_placeholder=False,
+        is_configured=True,
+        missing_keys=[],
+        message=f"{labels.get(provider, provider)} 已配置",
+    )
 
 
 # ── V1.4: Reference Cases ────────────────────────────────────────────

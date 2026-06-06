@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, type FormEvent } from "react";
+import { useState, useRef, useEffect, type FormEvent } from "react";
 import { useT } from "@/i18n";
 
 type TaskType = "analyze" | "critique" | "iterate";
@@ -54,6 +54,16 @@ export default function TaskForm({ onSubmit, loading }: Props) {
   const [describing, setDescribing] = useState(false);
   const [describeError, setDescribeError] = useState<string | null>(null);
   const [visionSummary, setVisionSummary] = useState<Record<string, unknown> | null>(null);
+  // V1.4.3 vision status
+  const [visionStatus, setVisionStatus] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+    fetch(`${base}/vision/status`)
+      .then((r) => r.json())
+      .then((d) => setVisionStatus(d))
+      .catch(() => setVisionStatus(null));
+  }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,8 +104,11 @@ export default function TaskForm({ onSubmit, loading }: Props) {
         throw new Error(err.detail || "Describe failed");
       }
       const data = await res.json();
+      // Show warning if placeholder
+      if (data.is_placeholder || data.warning) {
+        setDescribeError(data.warning || "当前为占位描述，不是真实图片识别结果。");
+      }
       setVisionSummary(data.description);
-      // Auto-fill the image description textarea with suggested_prompt_text
       if (data.description?.suggested_prompt_text) {
         setImageDesc(data.description.suggested_prompt_text);
       }
@@ -161,6 +174,26 @@ export default function TaskForm({ onSubmit, loading }: Props) {
       <div className="rounded border bg-gray-50 p-3">
         <p className="mb-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
           {t.form.imageSection}
+          {visionStatus && (
+            <span className={`ml-2 rounded px-2 py-0.5 text-xs ${
+              (visionStatus.is_placeholder as boolean)
+                ? "bg-amber-100 text-amber-700"
+                : (visionStatus.is_configured as boolean)
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}>
+              {String(visionStatus.vision_provider ?? "?")}
+              {(visionStatus.is_placeholder as boolean) ? " 占位" : (visionStatus.is_configured as boolean) ? " 已配置" : " 未配置"}
+            </span>
+          )}
+          {visionStatus && !(visionStatus.is_configured as boolean) && !(visionStatus.is_placeholder as boolean) && (
+            <p className="mt-1 text-xs text-red-500">{String(visionStatus.message ?? "")}</p>
+          )}
+          {visionStatus && (visionStatus.is_placeholder as boolean) && (
+            <p className="mt-1 text-xs text-amber-600">
+              当前为占位描述，不会真正识别图片。返回的描述是固定示例，与你的图片不匹配。
+            </p>
+          )}
         </p>
         <input
           ref={fileRef}

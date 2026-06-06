@@ -1247,6 +1247,42 @@ class TestOpenAIVisionAdapter:
         assert resp2.status_code == 200
 
 
+# ── V1.4.3: Vision status ───────────────────────────────────────────
+
+class TestVisionStatus:
+    def test_placeholder_returns_is_placeholder_true(self, client):
+        resp = client.get("/vision/status")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["vision_provider"] == "placeholder"
+        assert data["is_placeholder"] is True
+        assert data["is_configured"] is True
+
+    def test_describe_with_placeholder_shows_warning(self, client):
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        up = client.post("/upload", files={"file": ("img.png", fake_img, "image/png")})
+        img_id = up.json()["image_id"]
+        resp = client.post(f"/images/{img_id}/describe")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_placeholder"] is True
+        assert data["warning"] is not None
+        assert "占位" in data["warning"]
+
+    def test_vision_status_openai_no_key(self, monkeypatch):
+        monkeypatch.setenv("VISION_PROVIDER", "openai")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        # Must reload the module or call directly
+        from app.main import vision_status
+        result = vision_status()
+        assert result.is_configured is False
+        assert "OPENAI_API_KEY" in result.missing_keys
+
+    def test_existing_endpoints_still_pass(self, client):
+        resp = client.post("/analyze", json={"work_description": "V1.4.3 compat test with ten chars."})
+        assert resp.status_code == 200
+
+
 # ── Tests: Cross-cutting ────────────────────────────────────────────
 
 class TestCrossCutting:
