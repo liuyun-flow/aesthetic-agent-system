@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useT } from "@/i18n";
+import { toDisplayList, isEmptyValue } from "@/lib/formatters";
 
 interface Session {
   id: number;
@@ -119,16 +120,27 @@ export default function SessionList({ refreshKey }: Props) {
     setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const safeStr = (v: unknown): string => {
-    if (v === null || v === undefined) return "暂无";
-    return String(v);
-  };
+  /** Fields that should be displayed as a bullet list (JSON string arrays). */
+  const LIST_FIELDS = new Set([
+    "user_strengths", "user_weaknesses", "user_priority_fixes",
+    "ai_main_problems", "ai_priority_fixes", "training_focus_tags",
+  ]);
 
-  const showField = (key: string, value: unknown) => {
-    if (value === null || value === undefined) return false;
-    if (typeof value === "string" && value.trim() === "") return false;
-    if (Array.isArray(value) && value.length === 0) return false;
-    return true;
+  /** Render a value: list fields get bullet points, scalars get plain text. */
+  const renderValue = (key: string, value: unknown) => {
+    if (isEmptyValue(value)) return <span className="text-gray-400">暂无</span>;
+    if (LIST_FIELDS.has(key)) {
+      const items = toDisplayList(value);
+      if (items.length === 0) return <span className="text-gray-400">暂无</span>;
+      return (
+        <ul className="list-inside list-disc space-y-0.5">
+          {items.map((item, i) => (
+            <li key={i} className="text-gray-700">{item}</li>
+          ))}
+        </ul>
+      );
+    }
+    return <span className="text-gray-700 whitespace-pre-wrap">{String(value)}</span>;
   };
 
   if (loading && sessions.length === 0) {
@@ -219,11 +231,11 @@ export default function SessionList({ refreshKey }: Props) {
                     <div className="space-y-2">
                       {(["user_score", "user_strengths", "user_weaknesses", "user_priority_fixes", "user_target_audience", "user_price_band"] as const).map((key) => {
                         const value = detail[key as keyof SessionDetail];
-                        if (!showField(key, value)) return null;
+                        if (isEmptyValue(value)) return null;
                         return (
                           <div key={key}>
                             <span className="text-xs font-medium text-gray-500">{FIELD_LABELS[key] ?? key}</span>
-                            <p className="text-gray-700 whitespace-pre-wrap">{safeStr(value)}</p>
+                            <div className="mt-0.5">{renderValue(key, value)}</div>
                           </div>
                         );
                       })}
@@ -237,11 +249,11 @@ export default function SessionList({ refreshKey }: Props) {
                     <div className="space-y-2">
                       {(["ai_score", "ai_main_problems", "ai_priority_fixes"] as const).map((key) => {
                         const value = detail[key as keyof SessionDetail];
-                        if (!showField(key, value)) return null;
+                        if (isEmptyValue(value)) return null;
                         return (
                           <div key={key}>
                             <span className="text-xs font-medium text-gray-500">{FIELD_LABELS[key]}</span>
-                            <p className="text-gray-700 whitespace-pre-wrap">{safeStr(value)}</p>
+                            <div className="mt-0.5">{renderValue(key, value)}</div>
                           </div>
                         );
                       })}
@@ -264,15 +276,10 @@ export default function SessionList({ refreshKey }: Props) {
                         <p className="text-gray-700 whitespace-pre-wrap">{detail.judgment_gap_summary}</p>
                       </div>
                     )}
-                    {detail.training_focus_tags && (
+                    {!isEmptyValue(detail.training_focus_tags) && (
                       <div>
                         <span className="text-xs font-medium text-gray-500">{FIELD_LABELS.training_focus_tags}</span>
-                        <p className="text-gray-700 whitespace-pre-wrap">
-                          {(() => {
-                            try { return JSON.parse(detail.training_focus_tags).join("；"); }
-                            catch { return detail.training_focus_tags; }
-                          })()}
-                        </p>
+                        <div className="mt-0.5">{renderValue("training_focus_tags", detail.training_focus_tags)}</div>
                       </div>
                     )}
                   </Section>

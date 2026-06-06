@@ -300,16 +300,16 @@ def _process_user_judgment(
     import json as _json
     kwargs: dict[str, Any] = {
         "user_score": uj.score,
-        "user_strengths": _json.dumps(uj.strengths) if uj.strengths else None,
-        "user_weaknesses": _json.dumps(uj.weaknesses) if uj.weaknesses else None,
-        "user_priority_fixes": _json.dumps(uj.priority_fixes) if uj.priority_fixes else None,
+        "user_strengths": _json.dumps(uj.strengths, ensure_ascii=False) if uj.strengths else None,
+        "user_weaknesses": _json.dumps(uj.weaknesses, ensure_ascii=False) if uj.weaknesses else None,
+        "user_priority_fixes": _json.dumps(uj.priority_fixes, ensure_ascii=False) if uj.priority_fixes else None,
         "user_target_audience": uj.target_audience,
         "user_price_band": uj.price_band,
         "ai_score": ai_score,
         "ai_main_problems": ai_problems,
         "ai_priority_fixes": ai_fixes,
         "judgment_gap_summary": gap.short_summary,
-        "training_focus_tags": _json.dumps(gap.next_training_focus) if gap.next_training_focus else None,
+        "training_focus_tags": _json.dumps(gap.next_training_focus, ensure_ascii=False) if gap.next_training_focus else None,
     }
     return gap, kwargs
 
