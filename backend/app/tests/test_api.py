@@ -1250,7 +1250,8 @@ class TestOpenAIVisionAdapter:
 # ── V1.4.3: Vision status ───────────────────────────────────────────
 
 class TestVisionStatus:
-    def test_placeholder_returns_is_placeholder_true(self, client):
+    def test_placeholder_returns_is_placeholder_true(self, client, monkeypatch):
+        monkeypatch.setenv("VISION_PROVIDER", "placeholder")
         resp = client.get("/vision/status")
         assert resp.status_code == 200
         data = resp.json()
@@ -1258,7 +1259,8 @@ class TestVisionStatus:
         assert data["is_placeholder"] is True
         assert data["is_configured"] is True
 
-    def test_describe_with_placeholder_shows_warning(self, client):
+    def test_describe_with_placeholder_shows_warning(self, client, monkeypatch):
+        monkeypatch.setenv("VISION_PROVIDER", "placeholder")
         fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
         up = client.post("/upload", files={"file": ("img.png", fake_img, "image/png")})
         img_id = up.json()["image_id"]
