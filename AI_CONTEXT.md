@@ -67,27 +67,20 @@ winpty python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 ---
 
-## 标准服务启动流程
+## 标准服务启动流程（一键）
 
 ```bash
-# 1. 清理旧进程（按端口）
-bash scripts/kill_port.sh 8000
+# 启动全部服务（后端+前端），自动打开浏览器
+bash scripts/start_all.sh --open-browser
+
+# 或单独启动
+bash scripts/kill_port.sh 8000  # 清理旧进程
 bash scripts/kill_port.sh 3000
-
-# 2. 启动后端（在 backend 目录下）
-cd backend
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-
-# 3. 启动前端（在新终端窗口中）
-MSYS_NO_PATHCONV=1 cmd.exe //c "start \"Frontend\" /D \"$(cygpath -w "$PWD/../frontend")\" cmd.exe /c \"set PATH=%USERPROFILE%\\AppData\\Local\\nodejs\\node-v24.12.0-win-x64;%PATH% && npx next dev -p 3000\""
-
-# 4. 验证
-curl -s http://127.0.0.1:8000/health
-curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000
-
-# 5. 打开浏览器
-MSYS_NO_PATHCONV=1 cmd.exe //c "start http://127.0.0.1:3000"
 ```
+
+**工作原理**：`start_all.sh` 使用 `pythonw.exe` 启动子进程。
+这是唯一能在 Git Bash 中可靠启动 Windows 原生 GUI 进程的方式。
+`cmd.exe //c start` 和 PowerShell `Start-Process` 在 MSYS2 下均有引号嵌套和路径转换问题。
 
 ---
 
