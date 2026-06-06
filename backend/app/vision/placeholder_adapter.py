@@ -1,8 +1,8 @@
 """Placeholder vision adapter — returns mock structured descriptions.
 
 This is the V1.3 default.  It does **not** call any real vision API;
-it returns a hard-coded example VisionDescription.  Swap to a real
-adapter by setting ``VISION_PROVIDER`` in your ``.env`` file.
+it returns a hard-coded example VisionDescription in Chinese.  Swap to
+a real adapter by setting ``VISION_PROVIDER`` in your ``.env`` file.
 """
 
 from app.vision.base import VisionAdapter
@@ -10,39 +10,29 @@ from app.schemas.responses import VisionDescription
 
 
 _MOCK_DESCRIPTION = VisionDescription(
-    summary=(
-        "A minimalist product photograph featuring a white frosted glass "
-        "candle on a cream-colored surface, with soft natural lighting "
-        "and subtle botanical accents in the background."
-    ),
-    colors=["cream white", "soft beige", "sage green", "pale pink"],
-    composition=(
-        "Centered subject with strong negative space. The candle sits "
-        "slightly off-center using the rule of thirds, with a shallow "
-        "depth of field that blurs the background botanicals."
-    ),
-    typography=None,
-    materials=["frosted glass", "natural wax", "ceramic", "linen"],
-    subjects=["scented candle", "botanical sprig"],
-    background="Cream-colored surface with out-of-focus eucalyptus and dried flowers.",
-    style_keywords=["minimalist", "premium", "lifestyle", "Scandinavian", "clean"],
+    summary="当前为占位视觉描述，未调用真实视觉模型。返回的描述为固定中文示例，不匹配实际图片。",
+    colors=["深炭黑", "橙色", "米白色"],
+    composition="文字占据画面主体，竖向居中排列，视觉冲击力强。",
+    typography="粗重中文标题字体，带有倾斜和立体阴影效果。",
+    materials=["颗粒纹理", "火焰划痕质感"],
+    subjects=["直播封面", "中文标题", "考前冲刺主题"],
+    background="深色颗粒背景，带有橙色划痕点缀。",
+    style_keywords=["强冲击", "紧张感", "冲刺感", "直播感"],
     potential_issues=[
-        "Lack of human element may reduce emotional connection.",
-        "Very low contrast between candle and background could make the product hard to distinguish in thumbnail view.",
-        "No visible brand logo or label — brand recall may suffer.",
+        "文字过于拥挤，阅读节奏可能偏快",
+        "信息层级可能需要进一步区分主副标题",
+        "火焰/划痕质感可能分散对核心信息的注意力",
     ],
     suggested_prompt_text=(
-        "A minimalist product shot of a white frosted glass candle on a "
-        "cream background. Soft natural light. Eucalyptus and dried "
-        "flowers blurred in the background. Clean, premium, Scandinavian "
-        "aesthetic. Shallow depth of field. Centered composition with "
-        "strong negative space."
+        "这是一张考前直播封面，深色颗粒背景上使用橙色和米白色大字突出考前最后一场直播。"
+        "粗重中文标题字体带有倾斜和立体阴影，视觉冲击力强。整体风格紧张、有冲刺感，"
+        "适合教育培训类直播推广场景。"
     ),
 )
 
 
 class PlaceholderAdapter(VisionAdapter):
-    """Returns a fixed mock structured description.
+    """Returns a fixed mock structured description in Chinese.
 
     Does not read the actual image file — always returns the same
     example description.  Useful for testing and development when no

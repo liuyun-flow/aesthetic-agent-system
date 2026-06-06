@@ -16,25 +16,26 @@ from app.vision.base import VisionAdapter
 OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")
 
 VISION_SYSTEM_PROMPT = (
-    "You are a professional visual analyst. Describe the image in detail, "
-    "focusing on aesthetic qualities relevant to design critique. "
-    "Always respond with valid JSON only — no markdown, no extra text."
+    "你是一名专业的视觉分析师。请用简体中文详细描述图片，"
+    "聚焦于与设计评审相关的美学品质。"
+    "始终只返回合法 JSON，不要加 markdown，不要加额外文字。"
+    "所有字段值必须使用简体中文。"
 )
 
-VISION_USER_PROMPT = """Analyze this image and return a JSON object with exactly these keys:
+VISION_USER_PROMPT = """请分析这张图片，返回一个 JSON 对象，包含以下字段。所有字段值必须使用简体中文。
 
-- summary: string — 2-3 sentence overall description of the image
-- colors: array of strings — dominant and accent colors (e.g. ["navy blue", "warm gray", "gold"])
-- composition: string — layout, balance, focal points, use of negative space, visual hierarchy
-- typography: string or null — any visible text, font styles, hierarchy. Return null if no text is visible. For images with text, describe the font style (serif/sans-serif), weight, size hierarchy, and how typography contributes to or detracts from the overall design.
-- materials: array of strings — visible or implied materials and textures (e.g. ["frosted glass", "matte paper", "brushed metal"])
-- subjects: array of strings — main objects/people in the image
-- background: string or null — description of the background
-- style_keywords: array of strings — 3-8 keywords capturing the visual style (e.g. ["minimalist", "corporate", "warm", "Scandinavian"])
-- potential_issues: array of strings — 2-5 things that might make this feel cheap, amateur, or aesthetically weak (e.g. "low contrast", "cluttered composition", "inconsistent spacing"). Be honest and specific.
-- suggested_prompt_text: string — a concise paragraph that captures all key visual details, suitable for feeding into a design analysis AI. Include colors, composition, materials, style, and mood. Keep under 400 characters if possible.
+- summary: 字符串 — 2-3 句话概括图片内容
+- colors: 字符串数组 — 主色和辅助色（例如 ["深炭黑", "橙色", "米白色"]）
+- composition: 字符串 — 布局、平衡、视觉焦点、负空间运用、视觉层次
+- typography: 字符串或 null — 可见的文字内容、字体风格、字重、大小层次。如果没有文字则返回 null。如果有文字，描述字体风格（衬线/无衬线）、粗细、大小层级，以及排版对整体设计的影响
+- materials: 字符串数组 — 可见或隐含的材质和纹理（例如 ["颗粒纹理", "磨砂纸", "拉丝金属"]）
+- subjects: 字符串数组 — 图片中的主要物体/人物/内容
+- background: 字符串或 null — 背景描述
+- style_keywords: 字符串数组 — 3-8 个捕捉视觉风格的关键词（例如 ["极简", "企业", "温暖", "北欧"]）
+- potential_issues: 字符串数组 — 2-5 个可能让画面显得廉价、业余或审美薄弱的问题（例如 "对比度低", "构图杂乱", "间距不一致"）。请诚实且具体。
+- suggested_prompt_text: 字符串 — 一段精炼的中文描述，包含所有关键视觉细节，适合交给 DeepSeek 做进一步的审美分析。包含颜色、构图、材质、风格和氛围。尽量控制在 400 字以内。
 
-Be specific, concrete, and design-focused. Name actual colors, materials, and composition patterns."""  # noqa: E501
+请具体、扎实、以设计为导向。说出实际的颜色名称、材质和构图模式。"""  # noqa: E501
 
 
 def _encode_image(image_path: str) -> str:
@@ -61,8 +62,8 @@ class OpenAIVisionAdapter(VisionAdapter):
     """Calls OpenAI GPT-4o to describe images."""
 
     def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
-        key = api_key or os.getenv("OPENAI_API_KEY", "").strip()
-                _placeholder_keys = {"", "your_openai_api_key_here", "replace-with-your-key"}
+        key = (api_key or os.getenv("OPENAI_API_KEY", "")).strip()
+        _placeholder_keys = {"", "your_openai_api_key_here", "replace-with-your-key"}
         if not key or key in _placeholder_keys:
             raise ValueError(
                 "未配置 OPENAI_API_KEY，请配置后再使用自动图片描述，或改用手动图片描述。"
