@@ -1,144 +1,51 @@
-\# Aesthetic Agent System
-
-
-
-\## Project goal
-
-
-
-Build a developer-version AI agent system that helps the user improve aesthetic judgment.
-
-
-
-The system should not simply generate pretty outputs. It should train the user to:
-
-1\. analyze visual work,
-
-2\. compare high vs low aesthetic quality,
-
-3\. critique their own work,
-
-4\. iterate visual direction,
-
-5\. build a long-term aesthetic profile.
-
-
-
-\## Runtime model provider
-
-
-
-Use DeepSeek API as the primary LLM provider.
-
-
-
-Use an OpenAI-compatible client pattern where possible:
-
-\- Base URL: https://api.deepseek.com
-
-\- API key from environment variable: DEEPSEEK\_API\_KEY
-
-\- Default model: deepseek-v4-flash
-
-\- Reasoning / higher-quality model: deepseek-v4-pro
-
-
-
-Never hardcode API keys.
-
-
-
-\## Initial MVP scope
-
-
-
-Backend only. Use FastAPI + SQLite.
-
-
-
-Required endpoints:
-
-\- POST /analyze
-
-\- POST /critique
-
-\- POST /iterate
-
-\- GET /profile
-
-\- GET /sessions
-
-
-
-Required agents:
-
-\- AnalyzerAgent
-
-\- CriticAgent
-
-\- IteratorAgent
-
-\- ProfileAgent
-
-\- OrchestratorAgent
-
-
-
-\## Code standards
-
-
-
-\- Python 3.11+
-
-\- Use type hints.
-
-\- Use Pydantic schemas.
-
-\- Keep modules small.
-
-\- Add tests for API endpoints.
-
-\- Add README instructions.
-
-\- Do not introduce heavy dependencies unless necessary.
-
-\- Do not build frontend until backend MVP works.
-
-
-
-\## Safety and security
-
-
-
-\- Do not commit .env.
-
-\- Do not log raw API keys.
-
-\- Validate user input.
-
-\- Keep all external service credentials in environment variables.
-
-\- Add .env.example.
-
-\- Add clear setup instructions.
-
-
-
-\## Commands
-
-
-
-Backend setup:
-
+# Aesthetic Training Agent System
+
+AI 辅助审美判断力训练工具。训练你的眼力，不是生成好看输出。
+
+## Tech Stack
+- Backend: FastAPI + SQLite + SQLAlchemy + Pydantic v2
+- Frontend: Next.js 14 + TypeScript + Tailwind CSS
+- LLM: DeepSeek（主推理引擎：分析/批评/迭代/Profile/提示词）
+- Vision: OpenAI GPT-4o-mini（仅图片描述），可插拔 VisionAdapter
+- Env: `VISION_PROVIDER=placeholder|openai|claude|gemini`
+
+## Architecture
+DeepSeek = 审美推理。Vision Provider = 图片→文字描述。两者职责分离。
+
+## Versions
+V1.0 analyze/critique/iterate · V1.1 用户自评+判断差异 · V1.2 图片上传+手动描述
+V1.3 VisionAdapter+自动描述 · V1.4 参考案例库+对比 · V1.4.1 中文UI+提示词+历史详情
+V1.4.2 OpenAI Vision · V1.4.3 Vision状态端点 · V1.5 训练工作台 · V1.5.1 案例库图片+标注
+
+## Core Flow
+上传图片 → 自动生成中文描述 → 用户自评 → AI分析/批评/迭代 → 参考案例对比 → 判断差异 → 训练工作台 → 历史复盘
+
+## Critical Rules
+1. 禁止 placeholder 冒充真实视觉识别
+2. API key 不入前端、不入代码、不入日志
+3. 全站用户可见文案必须中文
+4. 历史详情弹窗不能坏（click→modal）
+5. V1.1 judgment gap / comparator 不能坏
+6. 不提交 .env；.env.example 用安全占位符
+7. 使用 `bash scripts/kill_port.sh <port>` 杀进程，禁止 `taskkill //IM`
+
+## Quick Commands
 ```bash
+# 一键启动（推荐）
+bash scripts/start_all.sh --open-browser
 
-cd backend
+# 后端
+cd backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 
-python -m venv .venv
+# 测试
+cd backend && pytest app/tests/test_api.py -v
 
-source .venv/bin/activate
+# 前端 build 检查
+cd frontend && npx next build
+```
 
-pip install -r requirements.txt
-
-uvicorn app.main:app --reload
-
+## Dev Constraints
+- 小步修改，改完就测
+- 不重构除非明确要求
+- 不做 SaaS 登录/部署/Supabase/向量DB 除非明确要求
+- Windows 宿主机 + Git Bash：用 127.0.0.1 不用 localhost；用 pythonw 启动子进程

@@ -1,144 +1,56 @@
-\# Aesthetic Agent System
-
-
-
-\## Project goal
-
-
-
-Build a developer-version AI agent system that helps the user improve aesthetic judgment.
-
-
-
-The system should not simply generate pretty outputs. It should train the user to:
-
-1\. analyze visual work,
-
-2\. compare high vs low aesthetic quality,
-
-3\. critique their own work,
-
-4\. iterate visual direction,
-
-5\. build a long-term aesthetic profile.
-
-
-
-\## Runtime model provider
-
-
-
-Use DeepSeek API as the primary LLM provider.
-
-
-
-Use an OpenAI-compatible client pattern where possible:
-
-\- Base URL: https://api.deepseek.com
-
-\- API key from environment variable: DEEPSEEK\_API\_KEY
-
-\- Default model: deepseek-v4-flash
-
-\- Reasoning / higher-quality model: deepseek-v4-pro
-
-
-
-Never hardcode API keys.
-
-
-
-\## Initial MVP scope
-
-
-
-Backend only. Use FastAPI + SQLite.
-
-
-
-Required endpoints:
-
-\- POST /analyze
-
-\- POST /critique
-
-\- POST /iterate
-
-\- GET /profile
-
-\- GET /sessions
-
-
-
-Required agents:
-
-\- AnalyzerAgent
-
-\- CriticAgent
-
-\- IteratorAgent
-
-\- ProfileAgent
-
-\- OrchestratorAgent
-
-
-
-\## Code standards
-
-
-
-\- Python 3.11+
-
-\- Use type hints.
-
-\- Use Pydantic schemas.
-
-\- Keep modules small.
-
-\- Add tests for API endpoints.
-
-\- Add README instructions.
-
-\- Do not introduce heavy dependencies unless necessary.
-
-\- Do not build frontend until backend MVP works.
-
-
-
-\## Safety and security
-
-
-
-\- Do not commit .env.
-
-\- Do not log raw API keys.
-
-\- Validate user input.
-
-\- Keep all external service credentials in environment variables.
-
-\- Add .env.example.
-
-\- Add clear setup instructions.
-
-
-
-\## Commands
-
-
-
-Backend setup:
-
+# AGENTS.md — Coding Agent Instructions
+
+## Project
+AI 审美训练本地工具。用户上传设计作品 → AI 分析审美质量 → 用户自评对比 → 参考案例库 → 训练复盘。
+
+## File Structure
+```
+aesthetic-agent-system/
+├── backend/
+│   ├── app/
+│   │   ├── agents/     # Analyzer, Critic, Iterator, Comparator, Profile, PromptGenerator, ReferenceComparator, WeeklyReview
+│   │   ├── vision/     # VisionAdapter (base, placeholder, manual, openai)
+│   │   ├── db/         # models, database, migrations
+│   │   ├── schemas/    # requests.py, responses.py
+│   │   └── services/   # session_service, reference_service
+│   └── data/uploads/   # 上传图片 (git-ignored)
+├── frontend/
+│   └── src/
+│       ├── app/        # page.tsx, layout.tsx
+│       ├── components/ # TaskForm, ResultCard, SessionList, ReferencePanel, TrainingPanel
+│       ├── i18n/       # zh.ts, en.ts, index.tsx
+│       └── lib/        # formatters.ts
+├── scripts/            # kill_port.sh, start_all.sh
+├── AI_CONTEXT.md       # 跨平台工程规范
+└── docs/
+```
+
+## Development Rules
+- Python 3.11+, TypeScript strict
+- Backend: 127.0.0.1 (not localhost) for all internal calls
+- Frontend: Chinese UI only; i18n keys sync en.ts ⇔ zh.ts
+- Tests: 85+ pytest (mock agents, no API key needed for tests)
+- DB: SQLite, auto-migration on startup, delete aesthetic.db to reset
+
+## DO NOT
+- Expose API keys to frontend or logs
+- Use `taskkill //IM python.exe` (use `scripts/kill_port.sh`)
+- Let placeholder impersonate real vision
+- Break session detail modal (history click → popup)
+- Break V1.1 user judgment / comparator flow
+- Commit .env or real keys
+
+## Test Commands
 ```bash
+cd backend && pytest app/tests/test_api.py -v   # 85+ pass
+cd frontend && npm run build                     # must pass
+```
 
-cd backend
-
-python -m venv .venv
-
-source .venv/bin/activate
-
-pip install -r requirements.txt
-
-uvicorn app.main:app --reload
-
+## PR Checklist
+- [ ] Backend tests pass
+- [ ] Frontend `npm run build` passes
+- [ ] Chinese UI not broken
+- [ ] Session detail modal works
+- [ ] analyze / critique / iterate not broken
+- [ ] No API keys in code or commits
+- [ ] .env.example uses safe placeholders
