@@ -79,13 +79,13 @@ export default function TaskForm({ onSubmit, loading }: Props) {
       const res = await fetch(base + "/upload", { method: "POST", body: fd });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Upload failed");
+        throw new Error(err.detail || t.common.uploadFailed);
       }
       const data = await res.json();
       setImageId(data.image_id);
       setImageUrl(data.url.startsWith("http") ? data.url : base + data.url);
     } catch (err: unknown) {
-      setUploadError(err instanceof Error ? err.message : "Upload failed");
+      setUploadError(err instanceof Error ? err.message : t.common.uploadFailed);
     } finally {
       setUploading(false);
     }
@@ -101,7 +101,7 @@ export default function TaskForm({ onSubmit, loading }: Props) {
       const res = await fetch(`${base}/images/${imageId}/describe`, { method: "POST" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || "Describe failed");
+        throw new Error(err.detail || t.common.describeFailed);
       }
       const data = await res.json();
       // Show warning if placeholder
@@ -113,7 +113,7 @@ export default function TaskForm({ onSubmit, loading }: Props) {
         setImageDesc(data.description.suggested_prompt_text);
       }
     } catch (err: unknown) {
-      setDescribeError(err instanceof Error ? err.message : "Describe failed");
+      setDescribeError(err instanceof Error ? err.message : t.common.describeFailed);
     } finally {
       setDescribing(false);
     }

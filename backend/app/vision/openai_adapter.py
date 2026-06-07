@@ -66,7 +66,7 @@ class OpenAIVisionAdapter(VisionAdapter):
             key = api_key.strip()
         else:
             key = os.getenv("OPENAI_API_KEY", "").strip()
-        _placeholder_keys = {"", "your_openai_api_key_here", "replace-with-your-key"}
+        _placeholder_keys = {"", "replace-me", "your_openai_api_key_here", "replace-with-your-key"}
         if not key or key in _placeholder_keys:
             raise ValueError(
                 "未配置 OPENAI_API_KEY，请配置后再使用自动图片描述，或改用手动图片描述。"

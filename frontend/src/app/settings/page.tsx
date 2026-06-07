@@ -1,0 +1,418 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { useT } from "@/i18n";
+
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+
+interface SettingsStatus {
+  deepseek: {
+    is_configured: boolean;
+    api_key_masked: string;
+    base_url: string;
+    default_model: string;
+    reasoning_model: string;
+  };
+  vision: {
+    provider: string;
+    is_configured: boolean;
+    openai_api_key_masked: string;
+    openai_vision_model: string;
+  };
+}
+
+export default function SettingsPage() {
+  const { t } = useT();
+
+  // ── Status from server ─────────────────────────────────────────────
+  const [status, setStatus] = useState<SettingsStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // ── Form state ─────────────────────────────────────────────────────
+  const [dsKey, setDsKey] = useState("");
+  const [dsBaseUrl, setDsBaseUrl] = useState("https://api.deepseek.com");
+  const [dsDefaultModel, setDsDefaultModel] = useState("deepseek-v4-flash");
+  const [dsReasoningModel, setDsReasoningModel] = useState("deepseek-v4-pro");
+  const [visionProvider, setVisionProvider] = useState("placeholder");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [openaiModel, setOpenaiModel] = useState("gpt-4o-mini");
+
+  // ── Action states ──────────────────────────────────────────────────
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [testingDs, setTestingDs] = useState(false);
+  const [dsTestResult, setDsTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [testingVision, setTestingVision] = useState(false);
+  const [visionTestResult, setVisionTestResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // ── Load status on mount ───────────────────────────────────────────
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`${BASE}/settings`);
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data);
+        setDsBaseUrl(data.deepseek.base_url);
+        setDsDefaultModel(data.deepseek.default_model);
+        setDsReasoningModel(data.deepseek.reasoning_model);
+        setVisionProvider(data.vision.provider);
+        setOpenaiModel(data.vision.openai_vision_model);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  // ── Save ───────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      const body: Record<string, string> = {};
+      if (dsKey) body.deepseek_api_key = dsKey;
+      if (dsBaseUrl) body.deepseek_base_url = dsBaseUrl;
+      if (dsDefaultModel) body.deepseek_default_model = dsDefaultModel;
+      if (dsReasoningModel) body.deepseek_reasoning_model = dsReasoningModel;
+      if (visionProvider) body.vision_provider = visionProvider;
+      if (openaiKey) body.openai_api_key = openaiKey;
+      if (openaiModel) body.openai_vision_model = openaiModel;
+
+      const res = await fetch(`${BASE}/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setSaveMsg({ ok: true, text: t.settings.saved });
+        setDsKey(""); // clear key field after save
+        setOpenaiKey("");
+        await fetchStatus(); // refresh masked status
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSaveMsg({ ok: false, text: err.detail || t.settings.saveError });
+      }
+    } catch {
+      setSaveMsg({ ok: false, text: t.settings.saveError });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Test DeepSeek ──────────────────────────────────────────────────
+  const handleTestDs = async () => {
+    setTestingDs(true);
+    setDsTestResult(null);
+    try {
+      // If user typed a new key but hasn't saved, save first
+      if (dsKey) await handleSaveSilent();
+      const res = await fetch(`${BASE}/settings/test-deepseek`, { method: "POST" });
+      const data = await res.json();
+      setDsTestResult({
+        ok: data.success,
+        text: data.message,
+      });
+    } catch {
+      setDsTestResult({ ok: false, text: t.settings.testFailed });
+    } finally {
+      setTestingDs(false);
+    }
+  };
+
+  // ── Test Vision ────────────────────────────────────────────────────
+  const handleTestVision = async () => {
+    setTestingVision(true);
+    setVisionTestResult(null);
+    try {
+      if (openaiKey) await handleSaveSilent();
+      const res = await fetch(`${BASE}/settings/test-vision`, { method: "POST" });
+      const data = await res.json();
+      setVisionTestResult({
+        ok: data.success,
+        text: data.message,
+      });
+    } catch {
+      setVisionTestResult({ ok: false, text: t.settings.testFailed });
+    } finally {
+      setTestingVision(false);
+    }
+  };
+
+  // ── Silent save (for test-before-save flow) ───────────────────────
+  const handleSaveSilent = async () => {
+    const body: Record<string, string> = {};
+    if (dsKey) body.deepseek_api_key = dsKey;
+    if (openaiKey) body.openai_api_key = openaiKey;
+    if (visionProvider) body.vision_provider = visionProvider;
+    await fetch(`${BASE}/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => {});
+    // Don't clear keys — user may test multiple times
+  };
+
+  // ── Clear key ──────────────────────────────────────────────────────
+  const handleClearKey = async (keyType: "deepseek" | "openai") => {
+    try {
+      await fetch(`${BASE}/settings/clear-key`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key_type: keyType }),
+      });
+      setDsKey("");
+      setOpenaiKey("");
+      setSaveMsg({ ok: true, text: t.settings.keyCleared });
+      await fetchStatus();
+    } catch {
+      // ignore
+    }
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────
+  const statusBadge = (ok: boolean) =>
+    ok
+      ? { cls: "bg-green-100 text-green-700", label: t.settings.configured }
+      : { cls: "bg-red-100 text-red-700", label: t.settings.notConfigured };
+
+  const dsBadge = statusBadge(status?.deepseek.is_configured ?? false);
+  const vsBadge = statusBadge(status?.vision.is_configured ?? false);
+
+  if (loading) {
+    return <div className="text-center text-sm text-gray-400 py-12">{t.common.loading}</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-lg font-semibold text-gray-800">{t.settings.title}</h2>
+
+      {/* ── DeepSeek Section ────────────────────────────────────────── */}
+      <section className="rounded border bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-gray-700">{t.settings.deepseekTitle}</h3>
+          <span className={`rounded px-2 py-0.5 text-xs font-medium ${dsBadge.cls}`}>
+            {dsBadge.label}
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          {/* API Key */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">
+              {t.settings.apiKey}
+              {status?.deepseek.api_key_masked && (
+                <span className="ml-2 text-green-600 font-normal">
+                  {status.deepseek.api_key_masked}
+                </span>
+              )}
+            </label>
+            <input
+              type="password"
+              value={dsKey}
+              onChange={(e) => setDsKey(e.target.value)}
+              placeholder={t.settings.apiKeyPlaceholder}
+              className="w-full rounded border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            />
+            <p className="mt-1 text-xs text-gray-400">{t.settings.apiKeyHint}</p>
+          </div>
+
+          {/* Base URL */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.baseUrl}</label>
+            <input
+              type="text"
+              value={dsBaseUrl}
+              onChange={(e) => setDsBaseUrl(e.target.value)}
+              className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            />
+          </div>
+
+          {/* Models row */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.defaultModel}</label>
+              <select
+                value={dsDefaultModel}
+                onChange={(e) => setDsDefaultModel(e.target.value)}
+                className="w-full rounded border border-gray-200 px-2 py-2 text-sm focus:border-blue-400 focus:outline-none"
+              >
+                <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+                <option value="deepseek-chat">deepseek-chat</option>
+                <option value="deepseek-reasoner">deepseek-reasoner</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.reasoningModel}</label>
+              <select
+                value={dsReasoningModel}
+                onChange={(e) => setDsReasoningModel(e.target.value)}
+                className="w-full rounded border border-gray-200 px-2 py-2 text-sm focus:border-blue-400 focus:outline-none"
+              >
+                <option value="deepseek-v4-pro">deepseek-v4-pro</option>
+                <option value="deepseek-v4-flash">deepseek-v4-flash</option>
+                <option value="deepseek-chat">deepseek-chat</option>
+                <option value="deepseek-reasoner">deepseek-reasoner</option>
+              </select>
+            </div>
+          </div>
+
+          {/* DeepSeek actions */}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleTestDs}
+              disabled={testingDs}
+              className={`rounded px-4 py-2 text-xs font-medium text-white transition ${
+                testingDs ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"
+              }`}
+            >
+              {testingDs ? t.settings.testing : t.settings.testConnection}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleClearKey("deepseek")}
+              className="rounded border border-red-200 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+            >
+              {t.settings.clearKey}
+            </button>
+          </div>
+          {dsTestResult && (
+            <div
+              className={`rounded border px-3 py-2 text-xs ${
+                dsTestResult.ok
+                  ? "border-green-200 bg-green-50 text-green-700"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {dsTestResult.text}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── Vision Section ───────────────────────────────────────────── */}
+      <section className="rounded border bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-semibold text-gray-700">{t.settings.visionTitle}</h3>
+          <span className={`rounded px-2 py-0.5 text-xs font-medium ${vsBadge.cls}`}>
+            {vsBadge.label}
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          {/* Provider */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.provider}</label>
+            <select
+              value={visionProvider}
+              onChange={(e) => setVisionProvider(e.target.value)}
+              className="w-full rounded border border-gray-200 px-2 py-2 text-sm focus:border-blue-400 focus:outline-none"
+            >
+              <option value="placeholder">{t.settings.providerPlaceholder}</option>
+              <option value="openai">{t.settings.providerOpenAI}</option>
+            </select>
+          </div>
+
+          {/* OpenAI Key (shown only when provider is openai) */}
+          {visionProvider === "openai" && (
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                {t.settings.openaiApiKey}
+                {status?.vision.openai_api_key_masked && (
+                  <span className="ml-2 text-green-600 font-normal">
+                    {status.vision.openai_api_key_masked}
+                  </span>
+                )}
+              </label>
+              <input
+                type="password"
+                value={openaiKey}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+                placeholder={t.settings.apiKeyPlaceholder}
+                className="w-full rounded border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              />
+              <p className="mt-1 text-xs text-gray-400">{t.settings.openaiApiKeyHint}</p>
+            </div>
+          )}
+
+          {/* Model */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.openaiVisionModel}</label>
+            <select
+              value={openaiModel}
+              onChange={(e) => setOpenaiModel(e.target.value)}
+              className="w-full rounded border border-gray-200 px-2 py-2 text-sm focus:border-blue-400 focus:outline-none"
+            >
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="gpt-4-turbo">gpt-4-turbo</option>
+            </select>
+          </div>
+
+          {/* Vision actions */}
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleTestVision}
+              disabled={testingVision}
+              className={`rounded px-4 py-2 text-xs font-medium text-white transition ${
+                testingVision ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"
+              }`}
+            >
+              {testingVision ? t.settings.testing : t.settings.testVision}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleClearKey("openai")}
+              className="rounded border border-red-200 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition"
+            >
+              {t.settings.clearKey}
+            </button>
+          </div>
+          {visionTestResult && (
+            <div
+              className={`rounded border px-3 py-2 text-xs ${
+                visionTestResult.ok
+                  ? "border-green-200 bg-green-50 text-green-700"
+                  : "border-red-200 bg-red-50 text-red-700"
+              }`}
+            >
+              {visionTestResult.text}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* ── Security Notice ──────────────────────────────────────────── */}
+      <section className="rounded border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800">
+        <p className="font-medium mb-1">🔒 安全说明</p>
+        <p>{t.settings.securityNotice}</p>
+      </section>
+
+      {/* ── Save ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className={`rounded px-6 py-2 text-sm font-medium text-white transition ${
+            saving ? "cursor-not-allowed bg-gray-300" : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+          }`}
+        >
+          {saving ? t.settings.saving : t.settings.save}
+        </button>
+        {saveMsg && (
+          <span
+            className={`text-xs ${saveMsg.ok ? "text-green-600" : "text-red-500"}`}
+          >
+            {saveMsg.text}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V1.5.1** | 测试：85+ passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
+**当前版本：V1.7** | 测试：111 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
 
 ---
 
@@ -37,7 +37,23 @@ aesthetic-agent-system/
 
 ### Quick Start
 
-#### Backend
+#### Docker (推荐 / Recommended)
+
+```bash
+# 1. Copy and edit the environment file
+cp backend/.env.example backend/.env
+# Edit backend/.env — set DEEPSEEK_API_KEY, optionally OPENAI_API_KEY for Vision
+
+# 2. Start both services
+docker compose up --build
+
+# 3. Open browser
+# http://127.0.0.1:3000
+```
+
+#### 本地开发 (Local Dev)
+
+##### Backend
 
 ```bash
 cd backend
@@ -50,14 +66,15 @@ uvicorn app.main:app --reload    # http://127.0.0.1:8000
 
 API docs: http://127.0.0.1:8000/docs
 
-#### Frontend
+##### Frontend
 
 ```bash
 cd frontend
-cp .env.example .env             # NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 npm install                      # if registry is slow: --registry https://registry.npmmirror.com
-npm run dev                      # http://localhost:3000
+npm run dev                      # http://127.0.0.1:3000
 ```
+
+> **注意：** 前端默认连接 `http://127.0.0.1:8000` 的后端 API。可通过环境变量 `NEXT_PUBLIC_API_BASE_URL` 修改。
 
 ### Features by Version
 
@@ -68,6 +85,13 @@ npm run dev                      # http://localhost:3000
 | V1.2 | Image upload (jpg/png/webp, 10MB), manual image description, `/uploads` static files |
 | V1.3 | Pluggable VisionAdapter, `POST /images/{id}/describe`, auto-generate image descriptions |
 | V1.4 | Reference case library (high/medium/low), `POST /compare-with-references`, aesthetic comparison training |
+| V1.4.1 | Chinese UI, copyable prompt generation, session detail modal |
+| V1.4.2 | OpenAI GPT-4o-mini Vision support |
+| V1.4.3 | Vision status endpoint (`GET /vision/status`) |
+| V1.5 | Training workbench (daily theme, stats, weekly review) |
+| V1.5.1 | Reference case image upload + aesthetic annotations |
+| V1.6 | Docker support (`docker compose up`), env config checker, data directory layout |
+| V1.7 | Local settings page, BYOK config (`data/config/app_config.json`), test-connection buttons |
 
 ### API Endpoints
 
@@ -84,6 +108,13 @@ npm run dev                      # http://localhost:3000
 | `GET` | `/reference-cases` | List/filter reference cases (V1.4) |
 | `POST` | `/compare-with-references` | Compare user work vs reference library (V1.4) |
 | `GET` | `/health` | Health check |
+| `GET` | `/model/status` | DeepSeek model status |
+| `GET` | `/vision/status` | Vision provider status |
+| `GET` | `/settings` | Get current config (keys masked) |
+| `POST` | `/settings` | Save/update config |
+| `POST` | `/settings/clear-key` | Clear a specific config key |
+| `POST` | `/settings/test-deepseek` | Test DeepSeek API connection |
+| `POST` | `/settings/test-vision` | Test Vision provider connection |
 
 ### Training Workflow
 
@@ -95,32 +126,69 @@ npm run dev                      # http://localhost:3000
 6. **Check your profile** — the system tracks your patterns and suggests next-week focus
 7. **Compare with references** — see how your work stacks up against curated high/medium/low examples
 
+### Local Settings (BYOK) — V1.7
+
+You can configure API keys through the frontend Settings page (`/settings`) instead of manually editing `.env` files.
+
+**Config Priority:** `data/config/app_config.json` > `.env` environment variables > hardcoded defaults
+
+| Config Key | JSON Path | Env Fallback |
+|------------|-----------|-------------|
+| DeepSeek API Key | `deepseek.api_key` | `DEEPSEEK_API_KEY` |
+| DeepSeek Base URL | `deepseek.base_url` | `DEEPSEEK_BASE_URL` |
+| DeepSeek Default Model | `deepseek.default_model` | `DEEPSEEK_DEFAULT_MODEL` |
+| DeepSeek Reasoning Model | `deepseek.reasoning_model` | `DEEPSEEK_REASONING_MODEL` |
+| Vision Provider | `vision.provider` | `VISION_PROVIDER` |
+| OpenAI API Key | `vision.openai_api_key` | `OPENAI_API_KEY` |
+| OpenAI Vision Model | `vision.openai_vision_model` | `OPENAI_VISION_MODEL` |
+
+**Security:** Keys are stored only on your server in `data/config/app_config.json`. The Settings API returns masked keys (e.g., `sk-a***3f8b`). Keys are never saved to browser localStorage, never logged, and never exposed to the frontend.
+
 ### Environment Variables
 
 | Variable | Default | Required |
 |----------|---------|----------|
-| `DEEPSEEK_API_KEY` | — | **Yes** (for LLM calls) |
+| `DEEPSEEK_API_KEY` | — | **Yes** (LLM calls) |
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | No |
 | `DEEPSEEK_DEFAULT_MODEL` | `deepseek-v4-flash` | No |
 | `DEEPSEEK_REASONING_MODEL` | `deepseek-v4-pro` | No |
-| `DATABASE_URL` | `sqlite:///./aesthetic.db` | No |
+| `DATABASE_URL` | `sqlite:///./data/database/aesthetic.db` | No |
+| `UPLOAD_DIR` | `./data/uploads` | No |
 | `VISION_PROVIDER` | `placeholder` | No |
+| `OPENAI_API_KEY` | — | If `VISION_PROVIDER=openai` |
+| `OPENAI_VISION_MODEL` | `gpt-4o-mini` | No |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://127.0.0.1:8000` | No |
 
 ### Vision Provider
 
 Set `VISION_PROVIDER` in your `.env`:
 
-- `placeholder` (default) — returns mock structured descriptions, no API key needed
-- `manual` — V1.2 mode: user must type the image description
-- `openai` — (future) OpenAI Vision
-- `claude` — (future) Claude Vision
+| Value | Description | Requires API Key |
+|-------|-------------|-----------------|
+| `placeholder` (default) | Mock structured descriptions — no real vision model | No |
+| `manual` | V1.2 mode: user types the image description | No |
+| `openai` | OpenAI GPT-4o-mini — real image-to-text | `OPENAI_API_KEY` |
+
+> **⚠️ Important:** `placeholder` mode returns fake example descriptions that do NOT match your images. It is for development/demo only. Set `VISION_PROVIDER=openai` with a valid key for real visual recognition.
+
+Check status: `GET /vision/status` shows current provider, whether it's configured, and missing keys if any.
 
 ### Running Tests
 
 ```bash
 cd backend
-pytest app/tests/test_api.py -v    # 73 tests, no API key needed (mocked agents)
+pytest app/tests/test_api.py -v    # All tests use mocked agents — no API key needed
+```
+
+### Database & Data Directory
+
+```
+backend/data/
+├── config/
+│   └── app_config.json     # BYOK persistent config (V1.7)
+├── database/
+│   └── aesthetic.db        # SQLite database (git-ignored)
+└── uploads/                # Uploaded images (git-ignored)
 ```
 
 ### Rebuilding the SQLite Database
@@ -128,8 +196,8 @@ pytest app/tests/test_api.py -v    # 73 tests, no API key needed (mocked agents)
 If you upgrade and the table schema is incompatible, delete the database file and restart:
 
 ```bash
-rm backend/aesthetic.db              # Linux/macOS
-del backend\aesthetic.db             # Windows
+rm backend/data/database/aesthetic.db    # Linux/macOS
+del backend\data\database\aesthetic.db   # Windows
 # Restart the backend — tables are created automatically on startup
 ```
 
@@ -169,7 +237,23 @@ aesthetic-agent-system/
 
 ### 快速开始
 
-#### 后端
+#### Docker（推荐）
+
+```bash
+# 1. 复制并编辑环境变量文件
+cp backend/.env.example backend/.env
+# 编辑 backend/.env — 设置 DEEPSEEK_API_KEY，如需 Vision 可设置 OPENAI_API_KEY
+
+# 2. 启动服务
+docker compose up --build
+
+# 3. 打开浏览器
+# http://127.0.0.1:3000
+```
+
+#### 本地开发
+
+##### 后端
 
 ```bash
 cd backend
@@ -182,14 +266,15 @@ uvicorn app.main:app --reload    # http://127.0.0.1:8000
 
 API 文档：http://127.0.0.1:8000/docs
 
-#### 前端
+##### 前端
 
 ```bash
 cd frontend
-cp .env.example .env             # NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
 npm install                      # 如果下载慢：--registry https://registry.npmmirror.com
-npm run dev                      # http://localhost:3000
+npm run dev                      # http://127.0.0.1:3000
 ```
+
+> **注意：** 前端默认连接 `http://127.0.0.1:8000` 的后端 API。
 
 ### 各版本功能
 
@@ -200,6 +285,13 @@ npm run dev                      # http://localhost:3000
 | V1.2 | 图片上传（jpg/png/webp，10MB），手动图片描述，`/uploads` 静态文件 |
 | V1.3 | 可插拔 VisionAdapter，`POST /images/{id}/describe`，自动生成图片描述 |
 | V1.4 | 参考案例库（high/medium/low），`POST /compare-with-references`，高低审美对比训练 |
+| V1.4.1 | 中文 UI、可复制提示词生成、历史详情弹窗 |
+| V1.4.2 | OpenAI GPT-4o-mini Vision 支持 |
+| V1.4.3 | Vision 状态端点（`GET /vision/status`） |
+| V1.5 | 训练工作台（每日主题、统计数据、每周复盘） |
+| V1.5.1 | 参考案例图片上传 + 审美标注 |
+| V1.6 | Docker 支持（`docker compose up`）、环境配置检查、数据目录整理 |
+| V1.7 | 本地设置页、BYOK 配置（`data/config/app_config.json`）、测试连接按钮 |
 
 ### API 端点
 
@@ -215,7 +307,18 @@ npm run dev                      # http://localhost:3000
 | `POST` | `/reference-cases` | 创建参考案例（V1.4） |
 | `GET` | `/reference-cases` | 查看/筛选参考案例（V1.4） |
 | `POST` | `/compare-with-references` | 用户作品 vs 参考案例库对比（V1.4） |
+| `POST` | `/generate-prompt` | 生成可复制提示词（V1.4.1） |
+| `GET` | `/training/today` | 今日训练主题与任务（V1.5） |
+| `GET` | `/training/stats` | 训练统计数据（V1.5） |
+| `GET` | `/training/weekly-review` | 每周复盘（V1.5） |
 | `GET` | `/health` | 健康检查 |
+| `GET` | `/model/status` | DeepSeek 模型状态 |
+| `GET` | `/vision/status` | Vision 提供者状态 |
+| `GET` | `/settings` | 获取当前配置（密钥脱敏） |
+| `POST` | `/settings` | 保存/更新配置 |
+| `POST` | `/settings/clear-key` | 清除指定密钥 |
+| `POST` | `/settings/test-deepseek` | 测试 DeepSeek 连接 |
+| `POST` | `/settings/test-vision` | 测试 Vision 连接 |
 
 ### 训练流程
 
@@ -235,24 +338,61 @@ npm run dev                      # http://localhost:3000
 | `DEEPSEEK_BASE_URL` | `https://api.deepseek.com` | 否 |
 | `DEEPSEEK_DEFAULT_MODEL` | `deepseek-v4-flash` | 否 |
 | `DEEPSEEK_REASONING_MODEL` | `deepseek-v4-pro` | 否 |
-| `DATABASE_URL` | `sqlite:///./aesthetic.db` | 否 |
+| `DATABASE_URL` | `sqlite:///./data/database/aesthetic.db` | 否 |
+| `UPLOAD_DIR` | `./data/uploads` | 否 |
 | `VISION_PROVIDER` | `placeholder` | 否 |
+| `OPENAI_API_KEY` | — | 若 `VISION_PROVIDER=openai` |
+| `OPENAI_VISION_MODEL` | `gpt-4o-mini` | 否 |
 | `NEXT_PUBLIC_API_BASE_URL` | `http://127.0.0.1:8000` | 否 |
 
 ### 视觉提供者
 
 在 `.env` 中设置 `VISION_PROVIDER`：
 
-- `placeholder`（默认）— 返回 mock 结构化描述，无需 API key
-- `manual` — V1.2 模式：用户必须手动输入图片描述
-- `openai` — （未来）OpenAI Vision
-- `claude` — （未来）Claude Vision
+| 值 | 说明 | 需要 API Key |
+|----|------|-------------|
+| `placeholder`（默认） | Mock 结构化描述 — 不调用真实视觉模型 | 否 |
+| `manual` | V1.2 模式：用户手动输入图片描述 | 否 |
+| `openai` | OpenAI GPT-4o-mini — 真实图片识别 | `OPENAI_API_KEY` |
+
+> **⚠️ 注意：** `placeholder` 模式返回的是固定示例描述，与你的实际图片不匹配。仅供开发/演示使用。如需真实视觉识别，请设置 `VISION_PROVIDER=openai` 并配置有效的 API Key。
+
+检查状态：`GET /vision/status` 显示当前提供者、是否已配置、缺失的 Key。
+
+### 本地设置（BYOK）— V1.7
+
+你可以通过前端设置页（`/settings`）配置 API Key，不必手动编辑 `.env` 文件。
+
+**配置优先级：** `data/config/app_config.json` > `.env` 环境变量 > 硬编码默认值
+
+| 配置项 | JSON 路径 | Env Fallback |
+|--------|----------|-------------|
+| DeepSeek API Key | `deepseek.api_key` | `DEEPSEEK_API_KEY` |
+| DeepSeek Base URL | `deepseek.base_url` | `DEEPSEEK_BASE_URL` |
+| DeepSeek 默认模型 | `deepseek.default_model` | `DEEPSEEK_DEFAULT_MODEL` |
+| DeepSeek 推理模型 | `deepseek.reasoning_model` | `DEEPSEEK_REASONING_MODEL` |
+| Vision 提供者 | `vision.provider` | `VISION_PROVIDER` |
+| OpenAI API Key | `vision.openai_api_key` | `OPENAI_API_KEY` |
+| OpenAI Vision 模型 | `vision.openai_vision_model` | `OPENAI_VISION_MODEL` |
+
+**安全说明：** Key 保存在服务器本地的 `data/config/app_config.json` 中。设置接口返回脱敏后的 Key（如 `sk-a***3f8b`）。Key 不会保存到浏览器 localStorage、不会打印到日志、不会暴露给前端。
 
 ### 运行测试
 
 ```bash
 cd backend
-pytest app/tests/test_api.py -v    # 73 个测试，无需 API key（使用 mock agents）
+pytest app/tests/test_api.py -v    # 全部测试使用 mock agents — 无需 API key
+```
+
+### 数据库与数据目录
+
+```
+backend/data/
+├── config/
+│   └── app_config.json     # BYOK 持久化配置（V1.7）
+├── database/
+│   └── aesthetic.db        # SQLite 数据库（git-ignored）
+└── uploads/                # 上传的图片（git-ignored）
 ```
 
 ### 重建 SQLite 数据库
@@ -260,8 +400,8 @@ pytest app/tests/test_api.py -v    # 73 个测试，无需 API key（使用 mock
 如果升级后表结构不兼容，删除数据库文件后重启即可：
 
 ```bash
-rm backend/aesthetic.db              # Linux/macOS
-del backend\aesthetic.db             # Windows
+rm backend/data/database/aesthetic.db    # Linux/macOS
+del backend\data\database\aesthetic.db   # Windows
 # 重启后端 — 启动时会自动建表
 ```
 

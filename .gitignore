@@ -15,4 +15,6 @@ frontend/.env
 *.db
 data/database/*.db
 data/uploads/*
+data/config/*
 !data/.gitkeep
+!data/config/.gitkeep

@@ -23,18 +23,24 @@ from app.main import (
     get_critic,
     get_iterator,
     get_profile_agent,
+    get_prompt_generator,
+    get_reference_comparator,
     get_vision_adapter,
+    get_weekly_reviewer,
 )
 from app.vision.manual_adapter import ManualAdapter
 from app.schemas.responses import (
     AnalyzeResponse,
+    CompareWithReferencesResponse,
     CritiqueResponse,
     DimensionScores,
+    GeneratedPrompt,
     IterateResponse,
     IterationDirection,
     JudgmentGap,
     ProfileResponse,
     VisionDescription,
+    WeeklyReviewResponse,
 )
 from app.services import session_service
 
@@ -206,6 +212,70 @@ class MockComparatorAgent:
         return MOCK_JUDGMENT_GAP
 
 
+MOCK_COMPARE_RESULT = CompareWithReferencesResponse(
+    overall_level_estimate="medium",
+    closest_reference_level="high",
+    stronger_than_low_cases=["Better spacing than low examples."],
+    weaker_than_high_cases=["Lacks the refinement of high-end typography."],
+    key_gaps=["Typography hierarchy needs work.", "Color palette is less cohesive."],
+    priority_fixes=["Establish a clear type scale.", "Reduce the color palette to 3-4 hues."],
+    reference_cases_used=[],
+    training_takeaway="Your design has solid structure but needs refinement in typography and color cohesion to reach the high aesthetic level.",
+    next_practice=["Study typographic scales.", "Audit color palette cohesion."],
+)
+
+
+class MockReferenceComparatorAgent:
+    def run(
+        self,
+        user_work_description: str,
+        reference_cases: list,
+        image_description: str | None = None,
+        user_judgment: dict | None = None,
+    ) -> CompareWithReferencesResponse:
+        return MOCK_COMPARE_RESULT
+
+
+MOCK_PROMPT_RESULT = GeneratedPrompt(
+    chinese_prompt="一张干净的蓝色按钮，白色背景，无衬线字体。极简风格，现代感。",
+    english_prompt="A clean blue button on white background, sans-serif font. Minimalist style, modern feel.",
+    negative_prompt="text, watermark, logo, cluttered, busy, ornate, serif, dark background",
+    design_notes=["Use a restrained color palette.", "Keep typography clean and hierarchical.", "Ensure adequate whitespace."],
+    copywriting_prompt="",
+    usage_tips=["For Midjourney, add --ar 16:9 for landscape.", "Use --style raw for more literal rendering."],
+)
+
+
+class MockPromptGeneratorAgent:
+    def run(
+        self,
+        work_description: str,
+        image_description: str | None = None,
+        user_judgment: dict | None = None,
+        critique_result: dict | None = None,
+        iterate_result: dict | None = None,
+        selected_direction: str | None = None,
+        reference_comparison: dict | None = None,
+        target_tool: str = "general",
+    ) -> GeneratedPrompt:
+        return MOCK_PROMPT_RESULT
+
+
+MOCK_WEEKLY_RESULT = WeeklyReviewResponse(
+    summary="本周你完成了3次训练，主要围绕色彩和构图。",
+    common_misjudgments="你倾向于高估色彩的协调性，但实际AI评分较低。",
+    progress_points="你对品牌感的判断越来越准确。",
+    recurring_issues="字体层次感和间距一致性是你反复出现的问题。",
+    next_week_theme="字体与排版",
+    next_week_tasks=["练习字体层次感（至少3级）", "审查所有CTA按钮的WCAG AA对比度", "尝试自定义图标"],
+)
+
+
+class MockWeeklyReviewAgent:
+    def run(self, history: list) -> WeeklyReviewResponse:
+        return MOCK_WEEKLY_RESULT
+
+
 # ── Fixtures ──────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
@@ -231,6 +301,9 @@ def client(setup_test_db):
     app.dependency_overrides[get_profile_agent] = lambda: MockProfileAgent()
     app.dependency_overrides[get_vision_adapter] = lambda: ManualAdapter()
     app.dependency_overrides[get_comparator] = lambda: MockComparatorAgent()
+    app.dependency_overrides[get_reference_comparator] = lambda: MockReferenceComparatorAgent()
+    app.dependency_overrides[get_prompt_generator] = lambda: MockPromptGeneratorAgent()
+    app.dependency_overrides[get_weekly_reviewer] = lambda: MockWeeklyReviewAgent()
 
     with TestClient(app) as c:
         yield c
@@ -550,6 +623,12 @@ class TestDeepSeekClient:
     def test_reads_model_names_at_call_time(self, monkeypatch):
         monkeypatch.setenv("DEEPSEEK_DEFAULT_MODEL", "custom-default-model")
         monkeypatch.setenv("DEEPSEEK_REASONING_MODEL", "custom-reasoning-model")
+        # Clear config values so monkeypatched env vars take effect
+        from app.settings import config_store as cs
+        config = cs.get_config()
+        config["deepseek"]["default_model"] = ""
+        config["deepseek"]["reasoning_model"] = ""
+        cs.write_config(config)
 
         assert get_default_model() == "custom-default-model"
         assert get_reasoning_model() == "custom-reasoning-model"
@@ -1074,7 +1153,7 @@ class TestReferenceCases:
 
 
 class TestCompareWithReferences:
-    def test_compare_no_cases_returns_friendly_message(self, client):
+    def test_compare_no_cases_returns_structured_result(self, client):
         resp = client.post(
             "/compare-with-references",
             json={
@@ -1083,7 +1162,9 @@ class TestCompareWithReferences:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert "No reference cases" in data["training_takeaway"]
+        assert "overall_level_estimate" in data
+        assert "key_gaps" in data
+        assert "training_takeaway" in data
 
     def test_compare_with_cases_returns_structured(self, client):
         # Create a few reference cases
@@ -1234,6 +1315,12 @@ class TestOpenAIVisionAdapter:
         """When VISION_PROVIDER=openai but no OPENAI_API_KEY, adapter raises ValueError."""
         monkeypatch.setenv("VISION_PROVIDER", "openai")
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        # Set provider in config with empty key
+        from app.settings import config_store as cs
+        config = cs.get_config()
+        config["vision"]["provider"] = "openai"
+        config["vision"]["openai_api_key"] = ""
+        cs.write_config(config)
         from app.main import get_vision_adapter
         from app.vision.openai_adapter import OpenAIVisionAdapter
 
@@ -1254,6 +1341,11 @@ class TestOpenAIVisionAdapter:
 class TestVisionStatus:
     def test_placeholder_returns_is_placeholder_true(self, client, monkeypatch):
         monkeypatch.setenv("VISION_PROVIDER", "placeholder")
+        # Ensure config also has placeholder (may be polluted by other tests)
+        from app.settings import config_store as cs
+        config = cs.get_config()
+        config["vision"]["provider"] = ""
+        cs.write_config(config)
         resp = client.get("/vision/status")
         assert resp.status_code == 200
         data = resp.json()
@@ -1263,6 +1355,11 @@ class TestVisionStatus:
 
     def test_describe_with_placeholder_shows_warning(self, client, monkeypatch):
         monkeypatch.setenv("VISION_PROVIDER", "placeholder")
+        # Ensure config also has placeholder
+        from app.settings import config_store as cs
+        config = cs.get_config()
+        config["vision"]["provider"] = ""
+        cs.write_config(config)
         fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
         up = client.post("/upload", files={"file": ("img.png", fake_img, "image/png")})
         img_id = up.json()["image_id"]
@@ -1276,7 +1373,12 @@ class TestVisionStatus:
     def test_vision_status_openai_no_key(self, monkeypatch):
         monkeypatch.setenv("VISION_PROVIDER", "openai")
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        # Must reload the module or call directly
+        # Clear config so monkeypatched env takes effect
+        from app.settings import config_store as cs
+        config = cs.get_config()
+        config["vision"]["provider"] = ""
+        config["vision"]["openai_api_key"] = ""
+        cs.write_config(config)
         from app.main import vision_status
         result = vision_status()
         assert result.is_configured is False

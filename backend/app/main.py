@@ -60,6 +60,7 @@ from app.schemas.responses import (
     WeeklyReviewResponse,
 )
 from app.services import session_service, reference_service
+from app.settings.config_store import get_value
 from app.vision.base import VisionAdapter
 from app.vision.manual_adapter import ManualAdapter
 from app.vision.openai_adapter import OpenAIVisionAdapter
@@ -81,7 +82,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="0.1.0",
+    version="1.6.0",
     lifespan=lifespan,
 )
 
@@ -98,6 +99,10 @@ app.add_middleware(
 _UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", str(Path(__file__).resolve().parent.parent / "data" / "uploads")))
 _UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(_UPLOAD_DIR)), name="uploads")
+
+# ── Settings router (V1.7 BYOK) ───────────────────────────────────────
+from app.settings.routes import router as settings_router  # noqa: E402
+app.include_router(settings_router)
 
 
 # ── Agent dependencies ────────────────────────────────────────────────
@@ -157,12 +162,19 @@ def get_vision_adapter() -> VisionAdapter:
     - ``openai`` — OpenAI GPT-4o Vision (requires OPENAI_API_KEY)
     - ``claude`` — (future) Claude Vision
     - ``gemini`` — (future) Google Gemini Vision
+
+    Priority: config_store > .env
     """
-    provider = os.getenv("VISION_PROVIDER", "placeholder").strip().lower()
+    provider = (
+        get_value("vision", "provider", env_var="VISION_PROVIDER")
+        or "placeholder"
+    ).strip().lower()
     if provider == "manual":
         return ManualAdapter()
     if provider == "openai":
-        return OpenAIVisionAdapter()
+        api_key = get_value("vision", "openai_api_key", env_var="OPENAI_API_KEY")
+        model = get_value("vision", "openai_vision_model", env_var="OPENAI_VISION_MODEL")
+        return OpenAIVisionAdapter(api_key=api_key, model=model)
     # Default to placeholder for unknown values
     return PlaceholderAdapter()
 
@@ -605,15 +617,15 @@ def describe_image(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
+    except Exception:
         raise HTTPException(
             status_code=502,
-            detail=f"Vision adapter failed: {exc}",
-        ) from exc
+            detail="视觉适配器调用失败，请检查 Vision 配置或稍后重试。",
+        )
 
     # Persist the description on the image record
     import json as _json
-    provider = os.getenv("VISION_PROVIDER", "placeholder")
+    provider = get_value("vision", "provider", env_var="VISION_PROVIDER") or "placeholder"
     session_service.update_image_description(
         db,
         image_id=image_id,
@@ -622,7 +634,6 @@ def describe_image(
         vision_description_json=_json.dumps(desc.model_dump(), ensure_ascii=False),
     )
 
-    provider = os.getenv("VISION_PROVIDER", "placeholder")
     is_placeholder = provider not in ("openai", "claude", "gemini") or provider == "placeholder"
     warning = (
         "当前使用占位视觉描述，未调用真实视觉模型。返回的描述为示例数据，不匹配实际图片。"
@@ -641,7 +652,10 @@ def describe_image(
 @app.get("/vision/status", response_model=VisionStatusResponse)
 def vision_status() -> VisionStatusResponse:
     """Return the current vision provider configuration status."""
-    provider = os.getenv("VISION_PROVIDER", "placeholder").strip().lower()
+    provider = (
+        get_value("vision", "provider", env_var="VISION_PROVIDER")
+        or "placeholder"
+    ).strip().lower()
     is_placeholder = provider == "placeholder"
 
     if is_placeholder:
@@ -654,9 +668,13 @@ def vision_status() -> VisionStatusResponse:
         )
 
     key_map = {"openai": ("OPENAI_API_KEY",), "claude": ("ANTHROPIC_API_KEY",), "gemini": ("GEMINI_API_KEY",)}
-    _placeholder_values = {"", "your_openai_api_key_here", "replace-with-your-key", "your_anthropic_api_key_here", "your_gemini_api_key_here"}
+    _placeholder_values = {"", "replace-me", "your_openai_api_key_here", "replace-with-your-key", "your_anthropic_api_key_here", "your_gemini_api_key_here"}
     required = key_map.get(provider, ())
-    missing = [k for k in required if not os.getenv(k) or os.getenv(k, "").strip() in _placeholder_values]
+    # Check config_store first, then env
+    check_keys = {"OPENAI_API_KEY": get_value("vision", "openai_api_key", env_var="OPENAI_API_KEY"),
+                  "ANTHROPIC_API_KEY": get_value("vision", "anthropic_api_key", env_var="ANTHROPIC_API_KEY"),
+                  "GEMINI_API_KEY": get_value("vision", "gemini_api_key", env_var="GEMINI_API_KEY")}
+    missing = [k for k in required if not check_keys.get(k) or check_keys[k].strip() in _placeholder_values]
     labels = {"openai": "OpenAI Vision", "claude": "Claude Vision", "gemini": "Gemini Vision"}
 
     if missing:
@@ -665,7 +683,7 @@ def vision_status() -> VisionStatusResponse:
             is_placeholder=False,
             is_configured=False,
             missing_keys=missing,
-            message=f"未配置 {', '.join(missing)}，请在后端 .env 中配置后再使用 {labels.get(provider, provider)}。",
+            message=f"未配置 {', '.join(missing)}，请在后端 .env 或设置页中配置后再使用 {labels.get(provider, provider)}。",
         )
 
     return VisionStatusResponse(
@@ -784,8 +802,8 @@ def describe_reference_case(
 
     try:
         desc = vision.describe_image_structured(uploaded.file_path)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Vision adapter failed: {exc}")
+    except Exception:
+        raise HTTPException(status_code=502, detail="视觉适配器调用失败，请检查 Vision 配置或稍后重试。")
 
     reference_service.update_case(
         db,
@@ -1054,15 +1072,15 @@ def health() -> dict:
 @app.get("/model/status")
 def model_status() -> dict:
     """Return DeepSeek config status without exposing the API key."""
-    key = os.getenv("DEEPSEEK_API_KEY", "").strip()
-    placeholder_keys = {"", "replace-me", "your_deepseek_api_key_here"}
+    key = get_value("deepseek", "api_key", env_var="DEEPSEEK_API_KEY").strip()
+    placeholder_keys = {"", "replace-me", "your_deepseek_api_key_here", "replace-with-your-key"}
     is_configured = bool(key) and key not in placeholder_keys
     return {
         "provider": "deepseek",
         "is_configured": is_configured,
         "missing_keys": [] if is_configured else ["DEEPSEEK_API_KEY"],
-        "default_model": os.getenv("DEEPSEEK_DEFAULT_MODEL", "deepseek-v4-flash"),
-        "reasoning_model": os.getenv("DEEPSEEK_REASONING_MODEL", "deepseek-v4-pro"),
+        "default_model": get_value("deepseek", "default_model", env_var="DEEPSEEK_DEFAULT_MODEL") or "deepseek-v4-flash",
+        "reasoning_model": get_value("deepseek", "reasoning_model", env_var="DEEPSEEK_REASONING_MODEL") or "deepseek-v4-pro",
     }
 
 

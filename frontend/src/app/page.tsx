@@ -70,9 +70,9 @@ export default function Home() {
       const body: Record<string, unknown> = { user_work_description: lastDescription, image_description: lastImage?.image_description || null };
       if (lastJudgment) { body.user_judgment = { score: lastJudgment.score, strengths: lastJudgment.strengths.length > 0 ? lastJudgment.strengths : null, weaknesses: lastJudgment.weaknesses.length > 0 ? lastJudgment.weaknesses : null, priority_fixes: lastJudgment.priority_fixes.length > 0 ? lastJudgment.priority_fixes : null, target_audience: lastJudgment.target_audience || null, price_band: lastJudgment.price_band || null }; }
       const res = await fetch(`${base}/compare-with-references`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "Compare failed"); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || t.common.compareFailed); }
       setCompareResult(await res.json());
-    } catch (err: unknown) { setCompareError(err instanceof Error ? err.message : "Compare failed"); }
+    } catch (err: unknown) { setCompareError(err instanceof Error ? err.message : t.common.compareFailed); }
     finally { setComparing(false); }
   };
 
@@ -88,9 +88,9 @@ export default function Home() {
       if (result) { body.critique_result = result; body.iterate_result = result; }
       if (compareResult) { body.reference_comparison = compareResult; }
       const res = await fetch(`${base}/generate-prompt`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "Generate failed"); }
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || t.common.generateFailed); }
       setPromptResult(await res.json());
-    } catch (err: unknown) { setPromptError(err instanceof Error ? err.message : "Generate failed"); }
+    } catch (err: unknown) { setPromptError(err instanceof Error ? err.message : t.common.generateFailed); }
     finally { setGeneratingPrompt(false); }
   };
 

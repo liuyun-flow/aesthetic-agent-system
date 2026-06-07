@@ -63,11 +63,11 @@ export default function ReferencePanel() {
     try {
       const fd = new FormData(); fd.append("file", file);
       const res = await fetch(`${base}/upload`, { method: "POST", body: fd });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) throw new Error(t.common.uploadFailed);
       const data = await res.json();
       setImageId(data.image_id);
       setImageUrl(data.url.startsWith("http") ? data.url : `${base}${data.url}`);
-    } catch (err: unknown) { setUploadError(err instanceof Error ? err.message : "Upload failed"); }
+    } catch (err: unknown) { setUploadError(err instanceof Error ? err.message : t.common.uploadFailed); }
     finally { setUploading(false); }
   };
 

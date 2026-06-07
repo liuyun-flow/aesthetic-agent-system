@@ -1,0 +1,18 @@
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Build output and dependencies
+node_modules/
+.next/
+out/
+
+# Cache
+.npm/
+.swc/
+.cache/
+
+# Git
+.git/
+.gitignore

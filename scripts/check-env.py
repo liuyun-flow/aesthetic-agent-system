@@ -33,7 +33,7 @@ def main() -> int:
 
     # Check DeepSeek
     dsk = env.get("DEEPSEEK_API_KEY", "")
-    placeholder_keys = {"", "replace-me", "your_deepseek_api_key_here"}
+    placeholder_keys = {"", "replace-me", "your_deepseek_api_key_here", "replace-with-your-key"}
     if dsk in placeholder_keys:
         print("[ERROR] DEEPSEEK_API_KEY is not set. Edit backend/.env and add your DeepSeek API key.")
         errors += 1

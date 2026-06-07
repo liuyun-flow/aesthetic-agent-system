@@ -79,11 +79,11 @@ export default function SessionList({ refreshKey }: Props) {
       setError(null);
       try {
         const res = await fetch(`${base}/sessions?limit=30`);
-        if (!res.ok) throw new Error("Failed to load sessions");
+        if (!res.ok) throw new Error(t.common.loadSessionsFailed);
         const data = await res.json();
         if (!cancelled) setSessions(data.sessions ?? []);
       } catch (err: unknown) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Load error");
+        if (!cancelled) setError(err instanceof Error ? err.message : t.common.loadError);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -99,7 +99,7 @@ export default function SessionList({ refreshKey }: Props) {
     setDetailLoading(true);
     try {
       const res = await fetch(`${base}/sessions/${id}`);
-      if (!res.ok) throw new Error("Not found");
+      if (!res.ok) throw new Error(t.common.notFound);
       setDetail(await res.json());
     } catch (err: unknown) {
       setDetailError(err instanceof Error ? err.message : "加载失败");

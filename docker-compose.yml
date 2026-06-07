@@ -10,7 +10,14 @@ services:
     volumes:
       - ./backend/data/uploads:/app/data/uploads
       - ./backend/data/database:/app/data/database
+      - ./backend/data/config:/app/data/config
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   frontend:
     build: ./frontend
@@ -19,5 +26,6 @@ services:
     environment:
       - NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped

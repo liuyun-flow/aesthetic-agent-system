@@ -1,0 +1,22 @@
+# Environment files — never include API keys in images
+.env
+.env.local
+.env.*.local
+
+# Database files — should be mounted as volumes
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Python cache / virtualenv
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Git
+.git/
+.gitignore
