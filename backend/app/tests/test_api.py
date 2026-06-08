@@ -1545,3 +1545,97 @@ class TestCrossCutting:
 
         assert history[0]["type"] == "critique"
         assert history[0]["result"]["total_score"] == MOCK_CRITIQUE_RESULT.total_score
+
+
+# ── V1.7.1: System status & Setup wizard ──────────────────────────────
+
+class TestSystemStatus:
+    """Tests for GET /system/status — combined health/model/vision/db/uploads."""
+
+    def test_returns_200(self, client):
+        resp = client.get("/system/status")
+        assert resp.status_code == 200
+
+    def test_returns_all_status_keys(self, client):
+        resp = client.get("/system/status")
+        data = resp.json()
+        for key in ("backend", "version", "deepseek", "vision", "database", "uploads", "setup_completed"):
+            assert key in data, f"Missing key: {key}"
+
+    def test_backend_is_ok(self, client):
+        resp = client.get("/system/status")
+        assert resp.json()["backend"] == "ok"
+
+    def test_version_is_v1_7_1(self, client):
+        resp = client.get("/system/status")
+        assert resp.json()["version"] == "v1.7.1"
+
+    def test_deepseek_has_configured_flag(self, client):
+        resp = client.get("/system/status")
+        ds = resp.json()["deepseek"]
+        assert "configured" in ds
+        assert isinstance(ds["configured"], bool)
+
+    def test_vision_has_fields(self, client):
+        resp = client.get("/system/status")
+        vis = resp.json()["vision"]
+        for key in ("configured", "provider", "is_placeholder"):
+            assert key in vis, f"Missing key in vision: {key}"
+
+    def test_database_status_is_ok(self, client):
+        resp = client.get("/system/status")
+        assert resp.json()["database"] == "ok"
+
+    def test_uploads_status_is_present(self, client):
+        resp = client.get("/system/status")
+        assert resp.json()["uploads"] in ("ok", "error")
+
+    def test_no_api_key_exposed(self, client):
+        resp = client.get("/system/status")
+        body = json.dumps(resp.json())
+        # No real API key patterns should appear
+        assert "sk-" not in body or "sk-" not in body
+
+    def test_health_still_works(self, client):
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "ok"
+
+    def test_model_status_still_works(self, client):
+        resp = client.get("/model/status")
+        assert resp.status_code == 200
+        assert "is_configured" in resp.json()
+
+    def test_vision_status_still_works(self, client):
+        resp = client.get("/vision/status")
+        assert resp.status_code == 200
+        assert "vision_provider" in resp.json()
+
+
+class TestSetupEndpoints:
+    """Tests for GET /setup/status and POST /setup/complete."""
+
+    def test_setup_status_returns_bool(self, client):
+        resp = client.get("/setup/status")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "setup_completed" in data
+        assert isinstance(data["setup_completed"], bool)
+
+    def test_setup_complete_marks_done(self, client):
+        resp = client.post("/setup/complete")
+        assert resp.status_code == 200
+        assert resp.json()["setup_completed"] is True
+
+    def test_setup_status_reflects_completion(self, client):
+        # First mark complete
+        client.post("/setup/complete")
+        # Then check status
+        resp = client.get("/setup/status")
+        assert resp.json()["setup_completed"] is True
+
+    def test_setup_complete_is_idempotent(self, client):
+        client.post("/setup/complete")
+        resp = client.post("/setup/complete")
+        assert resp.status_code == 200
+        assert resp.json()["setup_completed"] is True

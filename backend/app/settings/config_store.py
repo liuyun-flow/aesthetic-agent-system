@@ -35,6 +35,9 @@ DEFAULT_CONFIG: dict[str, dict[str, str]] = {
         "openai_api_key": "",
         "openai_vision_model": "",
     },
+    "setup": {
+        "completed": "",
+    },
 }
 
 PLACEHOLDER_CONFIG_VALUES = {

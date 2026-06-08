@@ -39,6 +39,16 @@ function Header() {
           >
             {lang === "en" ? "Settings" : "设置"}
           </Link>
+          <Link
+            href="/help"
+            className={`rounded px-2 py-1 text-xs font-medium transition ${
+              pathname === "/help"
+                ? "bg-blue-50 text-blue-600"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {lang === "en" ? "Help" : "帮助"}
+          </Link>
         </div>
         <button
           onClick={toggle}

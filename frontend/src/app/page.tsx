@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 import TaskForm, { type UserJudgment, type ImageData } from "@/components/TaskForm";
 import ResultCard from "@/components/ResultCard";
 import SessionList from "@/components/SessionList";
@@ -36,7 +37,18 @@ export default function Home() {
   const [lastImage, setLastImage] = useState<ImageData | null>(null);
   const [lastType, setLastType] = useState<TaskType | null>(null);
 
+  // V1.7.1: Config status bar
+  const [sysStatus, setSysStatus] = useState<Record<string, unknown> | null>(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+
+  useEffect(() => {
+    fetch(`${base}/system/status`)
+      .then((r) => r.json())
+      .then((d) => { setSysStatus(d); setStatusLoading(false); })
+      .catch(() => setStatusLoading(false));
+  }, [base]);
 
   const handleSubmit = useCallback(
     async (description: string, type: TaskType, judgment: UserJudgment | null, image: ImageData | null) => {
@@ -101,6 +113,13 @@ export default function Home() {
 
   return (
     <div className="space-y-8">
+      {/* V1.7.1: Config status bar */}
+      <ConfigStatusBar
+        sysStatus={sysStatus}
+        loading={statusLoading}
+        t={t}
+      />
+
       <TaskForm onSubmit={handleSubmit} loading={loading} />
 
       {error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
@@ -160,6 +179,107 @@ function CompareResultCard({ data, t }: { data: Record<string, unknown>; t: Retu
         );
       })}
     </section>
+  );
+}
+
+/* ── V1.7.1 Config Status Bar ─────────────────────────────────────── */
+
+function ConfigStatusBar({
+  sysStatus,
+  loading,
+  t,
+}: {
+  sysStatus: Record<string, unknown> | null;
+  loading: boolean;
+  t: ReturnType<typeof useT>["t"];
+}) {
+  if (loading) {
+    return (
+      <div className="rounded border bg-gray-50 px-4 py-2 text-xs text-gray-400">
+        {t.status.loading}
+      </div>
+    );
+  }
+
+  if (!sysStatus) {
+    return (
+      <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-600 flex items-center justify-between">
+        <span>{t.status.loading} — {t.common.loadError}</span>
+        <Link href="/help" className="underline">{t.status.viewHelp}</Link>
+      </div>
+    );
+  }
+
+  const ds = sysStatus.deepseek as Record<string, unknown> | undefined;
+  const vis = sysStatus.vision as Record<string, unknown> | undefined;
+  const dbOk = sysStatus.database === "ok";
+  const uploadsOk = sysStatus.uploads === "ok";
+  const allOk = ds?.configured && vis?.configured && dbOk && uploadsOk;
+
+  const items = [
+    {
+      label: t.status.deepseek,
+      ok: !!ds?.configured,
+      detail: ds?.configured ? t.status.configured : t.status.notConfigured,
+    },
+    {
+      label: t.status.vision,
+      ok: !!vis?.configured,
+      detail: vis?.configured
+        ? t.status.configured
+        : vis?.is_placeholder
+        ? t.status.placeholder
+        : t.status.notConfigured,
+    },
+    { label: t.status.database, ok: dbOk, detail: dbOk ? t.status.normal : t.status.error },
+    { label: t.status.uploads, ok: uploadsOk, detail: uploadsOk ? t.status.normal : t.status.error },
+  ];
+
+  return (
+    <div
+      className={`rounded border px-4 py-2.5 ${
+        allOk
+          ? "border-green-200 bg-green-50"
+          : "border-amber-200 bg-amber-50"
+      }`}
+    >
+      <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
+        <span className="text-xs font-medium text-gray-500 mr-1">{t.status.title}:</span>
+        {items.map((item) => (
+          <span
+            key={item.label}
+            className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${
+              item.ok
+                ? "bg-green-100 text-green-700"
+                : "bg-red-100 text-red-700"
+            }`}
+          >
+            <span
+              className={`inline-block w-1.5 h-1.5 rounded-full ${
+                item.ok ? "bg-green-500" : "bg-red-500"
+              }`}
+            />
+            {item.label}: {item.detail}
+          </span>
+        ))}
+        {!allOk && (
+          <span className="inline-flex items-center gap-2 ml-auto">
+            <Link
+              href="/settings"
+              className="text-xs text-blue-600 hover:underline font-medium"
+            >
+              {t.status.goSettings}
+            </Link>
+            <Link
+              href="/help"
+              className="text-xs text-blue-600 hover:underline font-medium"
+            >
+              {t.status.viewHelp}
+            </Link>
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 

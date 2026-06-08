@@ -66,7 +66,7 @@ from app.schemas.responses import (
     WeeklyReviewResponse,
 )
 from app.services import session_service, reference_service
-from app.settings.config_store import get_value, get_vision_missing_keys, get_vision_provider
+from app.settings.config_store import get_config, get_value, get_vision_missing_keys, get_vision_provider, is_vision_configured
 from app.vision.base import VisionAdapter
 from app.vision.manual_adapter import ManualAdapter
 from app.vision.openai_adapter import OpenAIVisionAdapter
@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="1.7.0",
+    version="1.7.1",
     lifespan=lifespan,
 )
 
@@ -1106,7 +1106,7 @@ def weekly_review(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "backend", "version": "v1.7"}
+    return {"status": "ok", "service": "backend", "version": "v1.7.1"}
 
 
 @app.get("/model/status")
@@ -1122,5 +1122,80 @@ def model_status() -> dict:
         "default_model": get_value("deepseek", "default_model", env_var="DEEPSEEK_DEFAULT_MODEL") or "deepseek-v4-flash",
         "reasoning_model": get_value("deepseek", "reasoning_model", env_var="DEEPSEEK_REASONING_MODEL") or "deepseek-v4-pro",
     }
+
+
+# ── V1.7.1: System status (combined health/model/vision/db/uploads) ─────
+
+@app.get("/system/status")
+def system_status(db: Session = Depends(get_db)) -> dict:
+    """Return a consolidated status snapshot for the config status bar.
+
+    Combines backend health, model config, vision config, database
+    connectivity, and upload directory writability.  No API keys are
+    exposed — only boolean ``configured`` flags are returned.
+    """
+    from sqlalchemy import text
+
+    # ── DeepSeek ───────────────────────────────────────────────────
+    key = get_value("deepseek", "api_key", env_var="DEEPSEEK_API_KEY").strip()
+    placeholder_keys = {
+        "", "replace-me", "your_deepseek_api_key_here", "replace-with-your-key",
+    }
+    deepseek_configured = bool(key) and key not in placeholder_keys
+
+    # ── Vision ─────────────────────────────────────────────────────
+    provider = get_vision_provider()
+    vision_configured = is_vision_configured(provider)
+    is_placeholder_vision = provider == "placeholder"
+
+    # ── Database ───────────────────────────────────────────────────
+    try:
+        db.execute(text("SELECT 1"))
+        database_status = "ok"
+    except Exception:
+        database_status = "error"
+
+    # ── Uploads ────────────────────────────────────────────────────
+    uploads_ok = _UPLOAD_DIR.exists() and os.access(str(_UPLOAD_DIR), os.W_OK)
+
+    # ── Setup ──────────────────────────────────────────────────────
+    setup_completed = (
+        get_value("setup", "completed", default="") == "true"
+    )
+
+    return {
+        "backend": "ok",
+        "version": "v1.7.1",
+        "deepseek": {"configured": deepseek_configured},
+        "vision": {
+            "configured": vision_configured,
+            "provider": provider,
+            "is_placeholder": is_placeholder_vision,
+        },
+        "database": database_status,
+        "uploads": "ok" if uploads_ok else "error",
+        "setup_completed": setup_completed,
+    }
+
+
+# ── V1.7.1: Setup wizard state ──────────────────────────────────────────
+
+@app.get("/setup/status")
+def setup_status() -> dict:
+    """Return whether the setup wizard has been completed."""
+    completed = get_value("setup", "completed", default="") == "true"
+    return {"setup_completed": completed}
+
+
+@app.post("/setup/complete")
+def setup_complete() -> dict:
+    """Mark the setup wizard as completed."""
+    from app.settings.config_store import write_config as _write
+    config = get_config()
+    if "setup" not in config:
+        config["setup"] = {}
+    config["setup"]["completed"] = "true"
+    _write(config)
+    return {"status": "ok", "setup_completed": True}
 
 

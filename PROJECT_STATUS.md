@@ -1,7 +1,52 @@
-# Project Status — V1.7
+# Project Status — V1.7.1
 
 ## Current Version
-**V1.7** — 本地设置页 / BYOK 配置 / Codex 审查加固 / Vision 错误修复
+**V1.7.1** — 首次使用向导 / 帮助中心 / 配置状态条 / 系统状态端点
+
+## Completed Capabilities (V1.7.1 additions)
+
+### Setup Wizard (`/setup`)
+- 5 步首次使用向导：欢迎 → 配置模型 → 测试连接 → 第一次训练 → 完成
+- 全部中文界面，可跳过，可从帮助页重新打开
+- 完成状态保存到后端 `app_config.json`（`setup.completed`）
+- 不保存 API Key 到前端 localStorage
+- 测试连接按钮复用 `/settings/test-deepseek` 和 `/settings/test-vision`
+
+### Help Center (`/help`)
+- 快速开始 / 配置 API Key / 完成一次训练 / 参考案例库 / 迭代与提示词 / 历史记录 / 备份数据
+- FAQ 8 项：图片描述不准、API Key 未配置、DeepSeek vs Vision 职责、placeholder 含义、数据存储位置、API Key 安全、为何先自评、如何判断训练有效
+- 全部中文，可折叠 FAQ
+
+### Config Status Bar
+- 首页顶部显示系统状态条：DeepSeek / Vision / 数据库 / 上传目录
+- 绿灯（已配置/正常）/ 红灯（未配置/异常）
+- 未配置时显示「去设置」「查看帮助」快捷按钮
+- 数据来源：`GET /system/status`
+
+### Backend: `/system/status` Endpoint
+- 合并 health + model + vision + database + uploads + setup 状态
+- 数据库连通性检查（`SELECT 1`）
+- 上传目录可写性检查
+- 不暴露任何 API Key，仅返回 boolean configured 标志
+
+### Backend: `/setup/status` + `/setup/complete`
+- GET `/setup/status` — 返回 `{setup_completed: bool}`
+- POST `/setup/complete` — 标记向导完成，幂等
+- 状态保存在 `app_config.json` 的 `setup.completed` 字段
+
+### Navigation
+- 新增「帮助」导航标签（/help）
+- Setup 页面可通过链接访问，不在主导航中（减少新用户困惑）
+
+## Test Results
+- **137 passed**（V1.7 原 121 + V1.7.1 新增 16 个）
+- 新增测试覆盖：/system/status × 11, /setup/status × 1, /setup/complete × 3, /health × 1
+- 全部使用 mocked agents + adapters，无需 API key
+
+## Build Results
+- Frontend `npm run build`: ✅ 通过（5 routes: /, /settings, /help, /setup, /_not-found）
+- Docker compose config: ✅ 有效
+- Backend pytest: ✅ 137 passed
 
 ## Completed Capabilities
 - 图片上传（jpg/png/webp，UUID 命名，10MB 上限）
@@ -94,6 +139,27 @@
 
 ## Next Step
 V1.8 — 语义搜索 / 向量检索（前置条件：案例库 ≥50 个）
+
+## Files Modified/Created in V1.7.1
+
+### Backend
+| File | Changes |
+|------|---------|
+| `backend/app/main.py` | +`/system/status`, +`/setup/status`, +`/setup/complete`; version→1.7.1; health→v1.7.1; +`is_vision_configured`, `get_config` imports |
+| `backend/app/settings/config_store.py` | DEFAULT_CONFIG +`setup` section |
+| `backend/app/tests/test_api.py` | +TestSystemStatus (11 tests) +TestSetupEndpoints (4 tests) |
+
+### Frontend
+| File | Changes |
+|------|---------|
+| `frontend/src/app/setup/page.tsx` | **New** — 5-step setup wizard |
+| `frontend/src/app/help/page.tsx` | **New** — Help center with FAQ |
+| `frontend/src/app/layout.tsx` | +「帮助」nav tab |
+| `frontend/src/app/page.tsx` | +ConfigStatusBar component; +useEffect for /system/status |
+| `frontend/src/i18n/zh.ts` | +status, setup, help i18n keys |
+| `frontend/src/i18n/en.ts` | +status, setup, help i18n keys |
+| `README.md` | +V1.7.1 features, +new endpoints, +first-time users section, +config verification |
+
 
 ## Files Modified Post-V1.7 Hardening (f290ac7 + 4ac7ee8)
 

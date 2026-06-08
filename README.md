@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V1.7** | 测试：111 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
+**当前版本：V1.7.1** | 测试：121 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
 
 ---
 
@@ -92,6 +92,7 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.5.1 | Reference case image upload + aesthetic annotations |
 | V1.6 | Docker support (`docker compose up`), env config checker, data directory layout |
 | V1.7 | Local settings page, BYOK config (`data/config/app_config.json`), test-connection buttons |
+| V1.7.1 | Setup wizard (`/setup`), Help center (`/help`), config status bar, system status endpoint |
 
 ### API Endpoints
 
@@ -115,6 +116,34 @@ npm run dev                      # http://127.0.0.1:3000
 | `POST` | `/settings/clear-key` | Clear a specific config key |
 | `POST` | `/settings/test-deepseek` | Test DeepSeek API connection |
 | `POST` | `/settings/test-vision` | Test Vision provider connection |
+| `GET` | `/system/status` | Consolidated status (backend/model/vision/db/uploads) (V1.7.1) |
+| `GET` | `/setup/status` | Check if setup wizard completed (V1.7.1) |
+| `POST` | `/setup/complete` | Mark setup wizard as done (V1.7.1) |
+
+### First-Time Users (V1.7.1)
+
+If you're new, open **http://127.0.0.1:3000/setup** — a 5-step wizard walks you through:
+
+1. What this tool is (and what it's not)
+2. How to get and configure API keys
+3. Testing connections
+4. How to complete your first training session
+5. Ready to go
+
+You can skip the wizard anytime. Find it again at `/setup` or via the `/help` page.
+
+Visit **http://127.0.0.1:3000/help** for the full help center covering quick start, configuration, training workflow, reference library, prompts, backup, and FAQ.
+
+### How to Verify Model Configuration
+
+The config status bar on the workbench homepage shows at a glance:
+
+- **DeepSeek**: Configured / Not configured
+- **Vision**: Configured / Not configured / Placeholder mode
+- **Database**: OK / Error
+- **Uploads**: OK / Error
+
+Or check programmatically: `GET /system/status` returns everything in one JSON response.
 
 ### Training Workflow
 
@@ -292,6 +321,7 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.5.1 | 参考案例图片上传 + 审美标注 |
 | V1.6 | Docker 支持（`docker compose up`）、环境配置检查、数据目录整理 |
 | V1.7 | 本地设置页、BYOK 配置（`data/config/app_config.json`）、测试连接按钮 |
+| V1.7.1 | 首次使用向导（`/setup`）、帮助中心（`/help`）、配置状态条、系统状态端点 |
 
 ### API 端点
 
@@ -319,6 +349,34 @@ npm run dev                      # http://127.0.0.1:3000
 | `POST` | `/settings/clear-key` | 清除指定密钥 |
 | `POST` | `/settings/test-deepseek` | 测试 DeepSeek 连接 |
 | `POST` | `/settings/test-vision` | 测试 Vision 连接 |
+| `GET` | `/system/status` | 综合状态（后端/模型/Vision/数据库/上传目录）（V1.7.1） |
+| `GET` | `/setup/status` | 检查首次向导是否完成（V1.7.1） |
+| `POST` | `/setup/complete` | 标记向导完成（V1.7.1） |
+
+### 首次使用（V1.7.1）— 面向新用户
+
+如果你是第一次打开这个工具，访问 **http://127.0.0.1:3000/setup**，5 步向导会带你了解：
+
+1. 这是什么工具（以及不是什么）
+2. 如何获取并配置 API Key
+3. 测试连接
+4. 如何完成第一次审美训练
+5. 准备就绪
+
+向导可以随时跳过或重新打开。从 `/help` 页面也能重新启动向导。
+
+访问 **http://127.0.0.1:3000/help** 查看完整的帮助中心，涵盖快速开始、配置 API Key、训练流程、参考案例库、迭代与提示词、历史记录、备份数据和常见问题。
+
+### 如何判断模型配置是否成功
+
+训练工作台顶部的配置状态条一目了然地显示：
+
+- **DeepSeek**：已配置 / 未配置
+- **Vision**：已配置 / 未配置 / 占位模式
+- **数据库**：正常 / 异常
+- **上传目录**：正常 / 异常
+
+也可以通过接口查询：`GET /system/status` 一次性返回所有状态信息。
 
 ### 训练流程
 
