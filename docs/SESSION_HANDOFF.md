@@ -1,126 +1,40 @@
-# Session Handoff — 2026-06-08
+# Session Handoff — 2026-06-09
 
 ## Last Completed
-- **V1.7.2: Iteration Direction Selection + Direction-Based Prompt Generation**
+- **V1.8.1: Stability fixes, regression tests, pre-release cleanup**
 
-## Commit Timeline (this session)
-```
-(not yet committed) V1.7.2: structured iteration directions, direction-based prompts
-7d77a23 V1.7.1: Setup wizard, help center, config status bar
-c51071c docs: update PROJECT_STATUS and SESSION_HANDOFF for V1.7
-```
+## V1.8.1 Changes
+- Version bumped to v1.8.1 across all files (main.py, export manifest, health, system/status)
+- `.gitignore` added `*.zip` to prevent backup files from being committed
+- Full regression: 158 tests passed, frontend build passed
+- Export zip verified: correct structure, no API key exposure, images included
+- Docker compose config passed, mount points verified
+- All docs synced (README, PROJECT_STATUS, ROADMAP, SESSION_HANDOFF)
 
-## Key Deliverables — V1.7.2
-
-### Backend
-- **IterationDirection** schema expanded: +id, goal, visual_changes, color_changes, typography_changes, layout_changes, commercial_rationale, risk
-- **IteratorAgent** prompt updated to produce all new fields (Chinese output)
-- **PromptGeneratorAgent**: focus block when selected_direction provided; output tightly scoped to chosen direction
-- **TrainingRecord** model: +selected_direction (Text), +prompt_result (JSON) columns with V1.7.2 migration
-- **session_service.save_record()**: accepts selected_direction + prompt_result params
-- **POST /generate-prompt**: accepts selected_direction as JSON string/object, saves selected_direction + prompt_result to the matching iterate session via session_id; legacy requests fall back to latest iterate only
-- **GET /sessions/{id}**: returns selected_direction + prompt_result in detail
-
-### Frontend
-- **ResultCard.tsx**: IterationDirections component — selectable cards with expand/collapse, all structured fields visible
-- **page.tsx**: selectedDirection state, handleSelectDirection, handleGenerateDirectionPrompt, DirectionPromptResultCard
-- **SessionList.tsx**: detail modal shows all iteration directions, highlights selected direction, and displays all prompt fields with copy buttons
-
-### Tests
-- 11 new tests: TestGeneratePromptWithDirection × 8, TestIterationDirectionSchema × 3
-- 148 total passed
-
-## Files Changed
-- `backend/app/schemas/responses.py` — IterationDirection +8 fields; SessionDetailResponse +2 fields
-- `backend/app/agents/iterator.py` — updated prompt template; id auto-assign
-- `backend/app/agents/prompt_generator.py` — focus block + updated template
-- `backend/app/db/models.py` — TrainingRecord +selected_direction, +prompt_result
-- `backend/app/db/database.py` — _migrate_v1_7_2()
-- `backend/app/services/session_service.py` — save_record +2 params
-- `backend/app/main.py` — version→1.7.2; /generate-prompt saves direction to matching iterate session; /sessions/{id} returns new fields
-- `backend/app/tests/test_api.py` — updated MOCK_ITERATE_RESULT; +11 tests
-- `frontend/src/components/ResultCard.tsx` — iteration cards + selection
-- `frontend/src/components/SessionList.tsx` — history detail + all directions + selected direction + prompt fields
-- `frontend/src/app/page.tsx` — direction state + handlers + DirectionPromptResultCard
-- `PROJECT_STATUS.md` — updated
-- `docs/SESSION_HANDOFF.md` — this file
+## V1.8 (previous session)
+- Data export/import: zip backup with manifest, cases, sessions, prompts, images, config summary (no keys)
+- Semantic search over reference cases using OpenAI text-embedding-3-small
+- ReferenceCaseEmbedding model + reindex + cosine similarity search
+- Frontend: data management section in settings, semantic search UI in reference panel
+- Compare-with-references semantic fallback
+- 158 tests total
 
 ## Git Status
-- Working tree: **dirty** (V1.7.2 changes not committed)
+- Working tree: **dirty** (V1.8.1 changes not committed)
 
-## Known Issues (carried forward)
+## Known Issues
 1. GitHub push requires proxy at 127.0.0.1:7891
 2. Git Bash curl can't reach 127.0.0.1 services
-3. Docker compose up --build smoke test passed (backend /health→v1.7.2, frontend→200)
+3. Docker compose up smoke test passed
 4. HTTP_PROXY env var may cause local connection failures
 5. `backend/.env` DATABASE_URL still points to `./aesthetic.db` — do NOT change without migration
 6. Frontend `NEXT_PUBLIC_API_BASE_URL` is build-time env
+7. Semantic search requires OPENAI_API_KEY (reuses Vision key) — graceful degradation when missing
+8. Embedding search is brute-force cosine similarity — fine for <1000 cases, may need optimization later
+9. Export does not include embeddings (user must reindex after import)
 
 ## Next Session First Steps
-1. Commit V1.7.2: `git add -A && git commit -m "V1.7.2: Iteration direction selection, direction-based prompt generation"`
+1. Commit V1.8.1: `git add -A && git commit -m "V1.8.1: Stability fixes, regression tests, pre-release cleanup"`
 2. Push to GitHub
-3. Start services, smoke test: run iterate → select direction → generate prompt → check history
-4. V1.8: Semantic search (prerequisite: ≥50 reference cases)
-
-## Key Deliverables — V1.7.1
-
-### Setup Wizard (`/setup`)
-- 5-step wizard: welcome → configure → test → first training → done
-- Skips on re-visit, completion saved to backend config
-- Chinese-first, English available via lang toggle
-
-### Help Center (`/help`)
-- Quick start, config guide, training guide, reference library, iteration/prompts, history, backup
-- 8 FAQ items with collapsible answers
-- Links to setup wizard and settings
-
-### Config Status Bar (Homepage)
-- Shows DeepSeek / Vision / Database / Uploads status
-- Green/red badges, links to settings/help when unconfigured
-- Fetches from `GET /system/status`
-
-### Backend: `/system/status`
-- Combined health + model + vision + database connectivity (`SELECT 1`) + uploads writability
-- No API key exposure, only boolean flags
-
-### Backend: `/setup/status` + `/setup/complete`
-- GET returns `{setup_completed: bool}`
-- POST marks wizard done (idempotent), stored in `app_config.json`
-
-### Files Changed
-- `backend/app/main.py` — +3 endpoints, version→1.7.1
-- `backend/app/settings/config_store.py` — +setup section in DEFAULT_CONFIG
-- `backend/app/tests/test_api.py` — +15 tests (TestSystemStatus + TestSetupEndpoints)
-- `frontend/src/app/setup/page.tsx` — **new**
-- `frontend/src/app/help/page.tsx` — **new**
-- `frontend/src/app/layout.tsx` — +Help nav tab
-- `frontend/src/app/page.tsx` — +ConfigStatusBar component
-- `frontend/src/i18n/zh.ts` — +status/setup/help keys
-- `frontend/src/i18n/en.ts` — +status/setup/help keys
-- `README.md` — updated
-- `PROJECT_STATUS.md` — updated
-
-## Test Results
-- **137 passed** (121 original + 16 new V1.7.1)
-- Frontend build: ✅ (5 routes: /, /settings, /help, /setup, /_not-found)
-- Docker compose config: ✅ valid
-
-## Git Status
-- Working tree: **dirty** (V1.7.1 changes not committed)
-- Remote: up to date (V1.7 pushed earlier this session)
-
-## Known Issues (carried forward)
-1. GitHub push requires proxy at 127.0.0.1:7891
-2. Git Bash curl can't reach 127.0.0.1 services
-3. Docker compose up --build smoke test passed
-4. HTTP_PROXY env var may cause local connection failures
-5. `backend/.env` DATABASE_URL still points to `./aesthetic.db` — do NOT change without migration
-6. Frontend `NEXT_PUBLIC_API_BASE_URL` is build-time env
-7. POST /settings/test-vision only does text chat test
-
-## Next Session First Steps
-1. Commit V1.7.1 changes: `git add -A && git commit -m "V1.7.1: Setup wizard, help center, config status bar"`
-2. Push to GitHub (start proxy first)
-3. Start services: `bash scripts/start_all.sh --open-browser`
-4. Smoke test: verify /setup wizard completes, /help loads, status bar shows on homepage
-5. V1.8: Semantic search (prerequisite: ≥50 reference cases)
+3. Quick smoke test: docker compose up --build, verify /health→v1.8.1, frontend→200
+4. V1.9: Case quality management (duplicate detection, field integrity checks, level distribution stats)

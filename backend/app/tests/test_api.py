@@ -1598,9 +1598,9 @@ class TestSystemStatus:
         resp = client.get("/system/status")
         assert resp.json()["backend"] == "ok"
 
-    def test_version_is_v1_8(self, client):
+    def test_version_is_v1_8_1(self, client):
         resp = client.get("/system/status")
-        assert resp.json()["version"] == "v1.8"
+        assert resp.json()["version"] == "v1.8.1"
 
     def test_deepseek_has_configured_flag(self, client):
         resp = client.get("/system/status")
@@ -1985,7 +1985,7 @@ class TestEmbeddings:
         data = resp.json()
         assert "embedding" in data
         assert "configured" in data["embedding"]
-        assert data["version"] == "v1.8"
+        assert data["version"] == "v1.8.1"
 
 
 class TestCompareWithSemanticFallback:

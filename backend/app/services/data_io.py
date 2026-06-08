@@ -17,7 +17,7 @@ from app.db.models import ReferenceCase, TrainingRecord, UploadedImage
 from app.settings.config_store import get_config, mask_key
 
 
-EXPORT_VERSION = "v1.8"
+EXPORT_VERSION = "v1.8.1"
 
 
 # ── Export ────────────────────────────────────────────────────────────────

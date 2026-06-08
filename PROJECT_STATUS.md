@@ -1,7 +1,16 @@
-# Project Status — V1.7.2
+# Project Status — V1.8.1
 
 ## Current Version
-**V1.7.2** — 迭代方向选择 / 基于方向生成提示词 / 结构化迭代字段
+**V1.8.1** — 稳定性修复 / 回归测试 / 发布前整理
+
+## V1.8.1 Changes (Stability & Cleanup)
+- 版本号统一更新至 v1.8.1（main.py / export manifest / health / system/status / README）
+- `.gitignore` 新增 `*.zip`（防止导出备份包被提交）
+- 全量回归测试通过：158 passed
+- Docker compose config 通过，挂载路径验证（data/config, data/database, data/uploads）
+- 导出 zip 结构完整验证：manifest + cases + sessions + images metadata + uploads/*
+- 导出包不包含 API Key 验证通过
+- Frontend build 通过（5 routes）
 
 ## Completed Capabilities (V1.7.2 additions)
 
@@ -42,7 +51,7 @@
 - Docker compose up --build smoke test: ✅ 后端 `/health` 返回 v1.7.2，前端首页返回 200
 
 ## Next Step
-V1.8 — 语义搜索 / 向量检索（前置条件：案例库 ≥50 个）
+V1.9 — 案例库质量管理（重复检测、字段完整性校验、审美等级分布统计）
 
 ## Completed Capabilities (V1.7.1 additions)
 
@@ -177,7 +186,7 @@ V1.8 — 语义搜索 / 向量检索（前置条件：案例库 ≥50 个）
 - 设置页 "配置来源" 展示（减少 .env 与设置页混用困惑）
 
 ## Next Step
-V1.8 — 语义搜索 / 向量检索（前置条件：案例库 ≥50 个）
+V1.9 — 案例库质量管理（重复检测、字段完整性校验、审美等级分布统计）
 
 ## Files Modified/Created in V1.7.1
 

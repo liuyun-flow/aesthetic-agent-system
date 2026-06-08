@@ -22,3 +22,4 @@ backend/data/config/*
 !backend/data/config/.gitkeep
 backend/data/uploads/*
 backend/data/database/*.db
+*.zip
