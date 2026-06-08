@@ -1,7 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useT } from "@/i18n";
+
+interface SemResult {
+  case_id: number;
+  title: string;
+  score: number | null;
+  similarity: number;
+  aesthetic_level: string | null;
+  category: string | null;
+  price_band: string | null;
+  image_url: string | null;
+  image_description: string | null;
+  reason: string;
+}
 
 interface RefCase {
   id: number;
@@ -44,6 +57,15 @@ export default function ReferencePanel() {
   // Detail modal
   const [detail, setDetail] = useState<RefCase | null>(null);
 
+  // V1.8: Semantic search
+  const [semQuery, setSemQuery] = useState("");
+  const [semSearching, setSemSearching] = useState(false);
+  const [semResults, setSemResults] = useState<SemResult[] | null>(null);
+  const [semMessage, setSemMessage] = useState<string | null>(null);
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexResult, setReindexResult] = useState<string | null>(null);
+  const [embedStatus, setEmbedStatus] = useState<{ is_configured: boolean; message: string } | null>(null);
+
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
   const fetchCases = async () => {
@@ -56,6 +78,50 @@ export default function ReferencePanel() {
   };
 
   useEffect(() => { fetchCases(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // V1.8: Check embedding status
+  useEffect(() => {
+    fetch(`${base}/embedding/status`)
+      .then(r => r.json()).then(d => setEmbedStatus(d)).catch(() => {});
+  }, [base]);
+
+  const handleReindex = async () => {
+    setReindexing(true);
+    setReindexResult(null);
+    try {
+      const res = await fetch(`${base}/reference-cases/reindex-embeddings`, { method: "POST" });
+      const data = await res.json();
+      setReindexResult(`索引完成：${data.indexed} 个案例已索引，${data.skipped} 个跳过，${data.failed} 个失败`);
+    } catch {
+      setReindexResult("重建索引失败");
+    } finally {
+      setReindexing(false);
+    }
+  };
+
+  const handleSemSearch = async () => {
+    if (!semQuery.trim()) return;
+    setSemSearching(true);
+    setSemResults(null);
+    setSemMessage(null);
+    try {
+      const res = await fetch(`${base}/reference-cases/search-semantic`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: semQuery.trim(), top_k: 10 }),
+      });
+      const data = await res.json();
+      if (data.results?.length > 0) {
+        setSemResults(data.results);
+      } else {
+        setSemMessage(data.message || "未找到匹配案例");
+      }
+    } catch {
+      setSemMessage("语义搜索请求失败");
+    } finally {
+      setSemSearching(false);
+    }
+  };
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
@@ -128,6 +194,69 @@ export default function ReferencePanel() {
           className="text-xs text-blue-600 hover:text-blue-800 underline">
           {showForm ? t.reference.cancel : t.reference.addCase}
         </button>
+      </div>
+
+      {/* V1.8: Semantic search */}
+      <div className="mb-3 space-y-2">
+        {embedStatus && !embedStatus.is_configured && (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+            未配置语义搜索模型，当前只能使用普通筛选。
+          </p>
+        )}
+        <div className="flex gap-2">
+          <input
+            value={semQuery}
+            onChange={e => setSemQuery(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSemSearch()}
+            placeholder="语义搜索：输入描述查找相似案例…"
+            className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
+          />
+          <button
+            onClick={handleSemSearch}
+            disabled={semSearching || !semQuery.trim()}
+            className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:bg-gray-300 transition"
+          >
+            {semSearching ? "搜索中…" : "语义搜索"}
+          </button>
+          <button
+            onClick={handleReindex}
+            disabled={reindexing}
+            className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 transition"
+            title="重建语义索引"
+          >
+            {reindexing ? "索引中…" : "重建索引"}
+          </button>
+        </div>
+        {reindexResult && (
+          <p className="text-xs text-green-600 bg-green-50 rounded px-2 py-1">{reindexResult}</p>
+        )}
+        {semMessage && (
+          <p className="text-xs text-amber-600 bg-amber-50 rounded px-2 py-1">{semMessage}</p>
+        )}
+        {/* Search results */}
+        {semResults && semResults.length > 0 && (
+          <div className="border rounded max-h-60 overflow-y-auto">
+            {semResults.map(r => (
+              <div
+                key={r.case_id}
+                className="flex items-center gap-2 px-2 py-1.5 text-xs border-b last:border-b-0 hover:bg-gray-50 cursor-pointer"
+                onClick={() => {
+                  const c = cases.find(x => x.id === r.case_id);
+                  if (c) setDetail(c);
+                }}
+              >
+                <span className="text-indigo-600 font-medium w-10 text-right">
+                  {Math.round(r.similarity * 100)}%
+                </span>
+                <span className={`rounded px-1 py-0.5 font-medium ${levelBadge(r.aesthetic_level)}`}>
+                  {levelLabel(r.aesthetic_level)}
+                </span>
+                <span className="flex-1 truncate font-medium">{r.title}</span>
+                <span className="text-gray-400">{r.reason}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {showForm && (

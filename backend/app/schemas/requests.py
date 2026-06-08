@@ -104,6 +104,7 @@ class CompareWithReferencesRequest(BaseModel):
     style_tags: list[str] | None = None
     price_band: str | None = None
     reference_case_ids: list[int] | None = None
+    semantic_query: str | None = None  # V1.8: semantic search query for auto case selection
 
 
 # ── V1.4.1: Prompt generator ────────────────────────────────────────

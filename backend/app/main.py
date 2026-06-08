@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any, Callable, TypeVar
 
-from fastapi import FastAPI, Depends, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, Depends, File, HTTPException, Query, UploadFile  # noqa: F401
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from openai import (
@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="1.7.2",
+    version="1.8.0",
     lifespan=lifespan,
 )
 
@@ -868,6 +868,56 @@ def delete_reference_case(
         raise HTTPException(status_code=404, detail="Reference case not found.")
 
 
+# ── V1.8: Semantic search over reference cases ───────────────────────────
+
+@app.post("/reference-cases/reindex-embeddings")
+def reindex_embeddings(db: Session = Depends(get_db)):
+    """Generate or update embeddings for all reference cases.
+
+    Uses the configured embedding provider (currently OpenAI text-embedding-3-small).
+    Skips cases whose content hasn't changed since last index.
+    """
+    from app.services.embeddings import reindex_all_cases
+    return reindex_all_cases(db)
+
+
+@app.post("/reference-cases/search-semantic")
+def search_semantic(body: dict, db: Session = Depends(get_db)):
+    """Search reference cases by semantic similarity.
+
+    Request body:
+        query: str — natural language search query
+        top_k: int (default 10) — number of results
+        filters: {category?, aesthetic_level?, price_band?} (all optional)
+
+    Returns scored results with similarity and match reason.
+    """
+    query = body.get("query", "")
+    if not query or not query.strip():
+        raise HTTPException(status_code=400, detail="搜索关键词不能为空")
+    top_k = min(int(body.get("top_k", 10)), 50)
+    filters = body.get("filters") or {}
+
+    from app.services.embeddings import search_semantic as _search
+    return _search(db, query=query.strip(), top_k=top_k, filters=filters)
+
+
+@app.get("/embedding/status")
+def embedding_status():
+    """Return embedding provider configuration status (no key exposure)."""
+    from app.services.embeddings import get_embedding_provider, is_embedding_configured, get_embedding_model
+    provider = get_embedding_provider()
+    return {
+        "provider": provider,
+        "model": get_embedding_model() if provider == "openai" else None,
+        "is_configured": is_embedding_configured(),
+        "message": (
+            "Embedding 已配置" if is_embedding_configured()
+            else "未配置 Embedding 模型。设置 EMBEDDING_PROVIDER=openai 并确保 OPENAI_API_KEY 有效即可启用语义搜索。"
+        ),
+    }
+
+
 # ── V1.4: Compare with references ────────────────────────────────────
 
 @app.post("/compare-with-references", response_model=CompareWithReferencesResponse)
@@ -876,7 +926,12 @@ def compare_with_references(
     comparator: ReferenceComparatorAgent = Depends(get_reference_comparator),
     db: Session = Depends(get_db),
 ) -> CompareWithReferencesResponse:
-    """Compare user work against curated reference cases."""
+    """Compare user work against curated reference cases.
+
+    V1.8: If no case_ids are provided and semantic_query is given, uses
+    semantic search to find relevant cases. Falls back to filtered list
+    if semantic search is unavailable.
+    """
     ref_cases = reference_service.find_cases_for_comparison(
         db,
         case_ids=body.reference_case_ids,
@@ -884,6 +939,25 @@ def compare_with_references(
         style_tags=body.style_tags,
         price_band=body.price_band,
     )
+
+    # ── V1.8: Semantic search fallback ──────────────────────────────
+    if not ref_cases and body.semantic_query and not body.reference_case_ids:
+        from app.services.embeddings import search_semantic as _sem_search, is_embedding_configured
+        if is_embedding_configured():
+            sem_result = _sem_search(
+                db,
+                query=body.semantic_query,
+                top_k=6,
+                filters={
+                    "category": body.category or "",
+                    "price_band": body.price_band or "",
+                },
+            )
+            case_ids = [r["case_id"] for r in sem_result.get("results", [])]
+            if case_ids:
+                ref_cases = reference_service.find_cases_for_comparison(
+                    db, case_ids=case_ids,
+                )
 
     ref_data = [
         {
@@ -1153,9 +1227,69 @@ def weekly_review(
     )
 
 
+# ── V1.8: Data export / import ──────────────────────────────────────────
+
+@app.get("/export")
+def export_data(db: Session = Depends(get_db)):
+    """Export all training data as a zip backup.
+
+    Includes: manifest, reference cases, sessions, prompts, image metadata,
+    config summary (no API keys), and uploaded image files.
+
+    Returns a zip file download.
+    """
+    from fastapi.responses import Response
+
+    from app.services.data_io import export_data as _export
+
+    try:
+        zip_bytes = _export(db, _UPLOAD_DIR)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"导出失败: {e}")
+
+    return Response(
+        content=zip_bytes,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": "attachment; filename=aesthetic-backup.zip",
+        },
+    )
+
+
+@app.post("/import")
+async def import_data(
+    file: UploadFile = File(description="Exported zip backup"),
+    db: Session = Depends(get_db),
+):
+    """Import data from a V1.8 export zip.  Merge-only — never overwrites.
+
+    Accepts a zip file upload via multipart/form-data with field name ``file``.
+    Validates zip structure, prevents path traversal, remaps image/case IDs,
+    and returns import statistics.
+    """
+    from app.services.data_io import import_data as _import
+
+    try:
+        zip_bytes = await file.read()
+    except Exception:
+        raise HTTPException(status_code=400, detail="无法读取上传文件")
+    try:
+        result = _import(db, zip_bytes, _UPLOAD_DIR)
+    except (ValueError, Exception) as e:
+        # zipfile.BadZipFile, invalid input, path traversal → 400
+        if isinstance(e, ValueError):
+            raise HTTPException(status_code=400, detail=str(e))
+        # Catch zipfile errors and other import-specific issues
+        import zipfile as _zipfile
+        if isinstance(e, _zipfile.BadZipFile):
+            raise HTTPException(status_code=400, detail="无效的 zip 文件格式")
+        raise HTTPException(status_code=500, detail=f"导入失败: {e}")
+    return result.to_dict()
+
+
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "backend", "version": "v1.7.2"}
+    return {"status": "ok", "service": "backend", "version": "v1.8"}
 
 
 @app.get("/model/status")
@@ -1212,15 +1346,20 @@ def system_status(db: Session = Depends(get_db)) -> dict:
         get_value("setup", "completed", default="") == "true"
     )
 
+    # ── Embedding ──────────────────────────────────────────────────
+    from app.services.embeddings import is_embedding_configured as _emb_ok
+    embedding_configured = _emb_ok()
+
     return {
         "backend": "ok",
-        "version": "v1.7.1",
+        "version": "v1.8",
         "deepseek": {"configured": deepseek_configured},
         "vision": {
             "configured": vision_configured,
             "provider": provider,
             "is_placeholder": is_placeholder_vision,
         },
+        "embedding": {"configured": embedding_configured},
         "database": database_status,
         "uploads": "ok" if uploads_ok else "error",
         "setup_completed": setup_completed,

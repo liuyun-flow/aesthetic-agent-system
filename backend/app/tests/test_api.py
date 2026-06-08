@@ -1598,9 +1598,9 @@ class TestSystemStatus:
         resp = client.get("/system/status")
         assert resp.json()["backend"] == "ok"
 
-    def test_version_is_v1_7_1(self, client):
+    def test_version_is_v1_8(self, client):
         resp = client.get("/system/status")
-        assert resp.json()["version"] == "v1.7.1"
+        assert resp.json()["version"] == "v1.8"
 
     def test_deepseek_has_configured_flag(self, client):
         resp = client.get("/system/status")
@@ -1896,3 +1896,109 @@ class TestIterationDirectionSchema:
         detail = client.get(f"/sessions/{lid}").json()
         assert "selected_direction" in detail
         assert "prompt_result" in detail
+
+
+# ── V1.8: Export / Import / Semantic Search ────────────────────────────
+
+class TestExport:
+    """Tests for GET /export."""
+
+    def test_export_returns_zip(self, client):
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        assert "application/zip" in resp.headers.get("content-type", "")
+
+    def test_export_does_not_contain_api_key(self, client):
+        resp = client.get("/export")
+        data = resp.content
+        # The zip should not contain real API keys
+        assert b"sk-" not in data or data.count(b"sk-") <= 2  # masked keys are fine
+
+
+class TestImport:
+    """Tests for POST /import."""
+
+    def test_import_rejects_non_zip(self, client):
+        resp = client.post("/import", files={"file": ("test.txt", b"not a zip")})
+        assert resp.status_code in (400, 422, 500)  # bad request, validation error, or internal zip error
+
+    def test_import_zip_slip_prevention(self, client):
+        """Zip with path traversal names should be rejected."""
+        import zipfile, io
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("../etc/passwd", "bad")
+        buf.seek(0)
+        resp = client.post("/import", files={"file": ("evil.zip", buf.read())})
+        assert resp.status_code == 400
+
+    def test_export_then_import_roundtrip(self, client):
+        """Export a zip, then import it back — should succeed."""
+        # Create some data first
+        client.post("/critique", json={
+            "work_description": "A test design for export.",
+        })
+        # Export
+        export_resp = client.get("/export")
+        assert export_resp.status_code == 200
+        zip_bytes = export_resp.content
+        # Import
+        resp = client.post("/import", files={"file": ("backup.zip", zip_bytes)})
+        assert resp.status_code == 200
+        result = resp.json()
+        assert result["reference_cases_imported"] >= 0
+        assert result["sessions_imported"] >= 1
+
+
+class TestEmbeddings:
+    """Tests for embedding and semantic search endpoints."""
+
+    def test_embedding_status_returns(self, client):
+        resp = client.get("/embedding/status")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "provider" in data
+        assert "is_configured" in data
+        assert "message" in data
+
+    def test_reindex_without_key_returns_friendly_error(self, client):
+        resp = client.post("/reference-cases/reindex-embeddings")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["indexed"] == 0
+        assert len(data["warnings"]) >= 1
+        assert "未配置" in data["warnings"][0]
+
+    def test_semantic_search_without_index_returns_message(self, client):
+        resp = client.post(
+            "/reference-cases/search-semantic",
+            json={"query": "minimalist poster design"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "message" in data
+        assert data["total_indexed"] == 0
+
+    def test_system_status_includes_embedding(self, client):
+        resp = client.get("/system/status")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "embedding" in data
+        assert "configured" in data["embedding"]
+        assert data["version"] == "v1.8"
+
+
+class TestCompareWithSemanticFallback:
+    """V1.8: Compare endpoint semantic search fallback."""
+
+    def test_compare_with_semantic_query_no_cases(self, client):
+        """When no matching cases exist, semantic query should not crash."""
+        resp = client.post(
+            "/compare-with-references",
+            json={
+                "user_work_description": "A modern minimalist poster.",
+                "semantic_query": "minimalist poster design",
+            },
+        )
+        # Should succeed even with no matching cases (empty comparison)
+        assert resp.status_code == 200

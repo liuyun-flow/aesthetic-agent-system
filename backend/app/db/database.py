@@ -43,6 +43,18 @@ def init_db() -> None:
     _migrate_v1_5()
     _migrate_v1_5_1()
     _migrate_v1_7_2()
+    _migrate_v1_8()
+
+
+def _migrate_v1_8() -> None:
+    """V1.8: Create reference_case_embeddings table."""
+    try:
+        Base.metadata.create_all(
+            bind=engine,
+            tables=[Base.metadata.tables["reference_case_embeddings"]],
+        )
+    except Exception:
+        pass  # Table already exists
 
 
 def _migrate_v1_7_2() -> None:

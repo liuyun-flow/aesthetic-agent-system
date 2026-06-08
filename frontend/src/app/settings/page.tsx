@@ -415,6 +415,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ── V1.8: Data Management ─────────────────────────────────────── */}
+      <DataManagementSection />
+
       {/* ── Security Notice ──────────────────────────────────────────── */}
       <section className="rounded border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800">
         <p className="font-medium mb-1">🔒 安全说明</p>
@@ -442,5 +445,127 @@ export default function SettingsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/* ── V1.8: Data Management Section ──────────────────────────────────── */
+
+function DataManagementSection() {
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<Record<string, unknown> | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch(`${BASE}/export`);
+      if (!res.ok) throw new Error("导出失败");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "aesthetic-backup.zip";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert("导出失败，请确认后端服务正常运行。");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportError(null);
+    setImportResult(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${BASE}/import`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        setImportResult(data);
+      } else {
+        setImportError(data.detail || "导入失败");
+      }
+    } catch {
+      setImportError("导入失败，请确认后端服务正常运行。");
+    } finally {
+      setImporting(false);
+      // Reset file input
+      e.target.value = "";
+    }
+  };
+
+  return (
+    <section className="rounded border bg-white p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-gray-700 mb-4">数据管理</h3>
+
+      {/* Export */}
+      <div className="mb-4 pb-4 border-b">
+        <p className="text-sm text-gray-600 mb-2">导出备份包</p>
+        <p className="text-xs text-gray-400 mb-3">
+          导出训练记录、参考案例、上传图片和配置摘要（不含 API Key）。可用于备份或迁移到新电脑。
+        </p>
+        <button
+          onClick={handleExport}
+          disabled={exporting}
+          className={`rounded px-4 py-2 text-xs font-medium text-white transition ${
+            exporting ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"
+          }`}
+        >
+          {exporting ? "导出中…" : "导出备份包 (.zip)"}
+        </button>
+      </div>
+
+      {/* Import */}
+      <div>
+        <p className="text-sm text-gray-600 mb-2">导入备份包</p>
+        <p className="text-xs text-gray-400 mb-3">
+          上传之前导出的 .zip 备份包。第一版为「合并导入」，不会清空当前数据。导入的图片和案例 ID 会自动重映射，不会覆盖现有数据。
+        </p>
+        <label className={`inline-block rounded px-4 py-2 text-xs font-medium text-white transition cursor-pointer ${
+          importing ? "bg-gray-300 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+        }`}>
+          {importing ? "导入中…" : "上传并导入"}
+          <input
+            type="file"
+            accept=".zip"
+            onChange={handleImport}
+            disabled={importing}
+            className="hidden"
+          />
+        </label>
+
+        {importError && (
+          <div className="mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            {importError}
+          </div>
+        )}
+        {importResult && (
+          <div className="mt-3 rounded border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700 space-y-1">
+            <p className="font-medium">导入完成</p>
+            <p>参考案例：{String(importResult.reference_cases_imported || 0)}</p>
+            <p>训练记录：{String(importResult.sessions_imported || 0)}</p>
+            <p>图片：{String(importResult.images_imported || 0)}</p>
+            <p>跳过：{String(importResult.skipped_items || 0)}</p>
+            {Array.isArray(importResult.warnings) && (importResult.warnings as string[]).length > 0 && (
+              <div className="mt-1">
+                <p className="font-medium">警告：</p>
+                {(importResult.warnings as string[]).map((w, i) => (
+                  <p key={i} className="text-amber-600">{w}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <p className="mt-2 text-xs text-gray-400">
+          导入后，如需语义搜索请前往参考案例库点击「重建语义索引」。
+        </p>
+      </div>
+    </section>
   );
 }

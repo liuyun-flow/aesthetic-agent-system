@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V1.7.2** | 测试：148 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
+**当前版本：V1.8** | 测试：158 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
 
 ---
 
@@ -93,6 +93,8 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.6 | Docker support (`docker compose up`), env config checker, data directory layout |
 | V1.7 | Local settings page, BYOK config (`data/config/app_config.json`), test-connection buttons |
 | V1.7.1 | Setup wizard (`/setup`), Help center (`/help`), config status bar, system status endpoint |
+| V1.7.2 | Iteration direction selection, direction-based prompt generation, structured iteration fields |
+| V1.8 | Data export/import (zip backup), semantic search over reference cases (embeddings), data management UI |
 
 ### API Endpoints
 
@@ -119,6 +121,11 @@ npm run dev                      # http://127.0.0.1:3000
 | `GET` | `/system/status` | Consolidated status (backend/model/vision/db/uploads) (V1.7.1) |
 | `GET` | `/setup/status` | Check if setup wizard completed (V1.7.1) |
 | `POST` | `/setup/complete` | Mark setup wizard as done (V1.7.1) |
+| `GET` | `/export` | Export all data as zip backup (V1.8) |
+| `POST` | `/import` | Import data from zip backup (V1.8) |
+| `POST` | `/reference-cases/reindex-embeddings` | Rebuild semantic search index (V1.8) |
+| `POST` | `/reference-cases/search-semantic` | Semantic search over reference cases (V1.8) |
+| `GET` | `/embedding/status` | Embedding provider config status (V1.8) |
 
 ### First-Time Users (V1.7.1)
 
@@ -144,6 +151,54 @@ The config status bar on the workbench homepage shows at a glance:
 - **Uploads**: OK / Error
 
 Or check programmatically: `GET /system/status` returns everything in one JSON response.
+
+### Data Export / Import (V1.8)
+
+Export your training data including reference cases, training sessions, prompts,
+and uploaded images as a zip file. Use this for backup or migrating to a new computer.
+
+```bash
+# Download backup via browser
+# Settings → Data Management → Export
+# Or: curl http://127.0.0.1:8000/export -o backup.zip
+```
+
+Import merges data — it never overwrites. Image/case IDs are automatically remapped.
+
+**Security:** Export packages contain a config summary (provider, model names) but **never include real API keys**. Imported data never overwrites your local API keys or config.
+
+#### How to Migrate to a New Computer
+1. On old machine: Settings → Export → download `aesthetic-backup.zip`
+2. Copy the zip to the new machine
+3. Start the app on the new machine and configure API keys
+4. Settings → Import → upload the zip
+5. Optional: go to Reference Cases → click "Rebuild Index" for semantic search
+
+### Semantic Search over Reference Cases (V1.8)
+
+Search your reference case library by describing what you're looking for, not just by category tags. Uses OpenAI `text-embedding-3-small` to compute similarity.
+
+**Setup:**
+```bash
+# In backend/.env or Settings page:
+EMBEDDING_PROVIDER=openai
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+# Also requires OPENAI_API_KEY (reuses Vision key)
+```
+
+**Usage:**
+1. Go to Reference Cases section on the workbench
+2. Type a natural language query (e.g., "高考直播封面，年轻有冲击力但不要廉价")
+3. Click "Semantic Search"
+4. Results show similarity scores and match reasons
+
+If embeddings aren't configured, the system falls back to normal category/level filters — no crashes.
+
+**Semantic Search vs. Regular Filters:**
+- **Regular filters**: exact match on category, aesthetic level, price band
+- **Semantic search**: matches by *meaning* — finds cases that feel similar even if their tags don't match
+
+**Why no automatic external case search?** This tool is for training YOUR eye. Finding externally-hosted high-aesthetic examples is part of the learning process. The semantic search only searches cases YOU have curated.
 
 ### Training Workflow
 
@@ -323,6 +378,7 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.7 | 本地设置页、BYOK 配置（`data/config/app_config.json`）、测试连接按钮 |
 | V1.7.1 | 首次使用向导（`/setup`）、帮助中心（`/help`）、配置状态条、系统状态端点 |
 | V1.7.2 | 迭代方向选择、基于选中方向生成提示词、历史详情展示方向与提示词 |
+| V1.8 | 数据导出/导入（zip 备份）、案例库语义搜索、数据管理 UI |
 
 ### API 端点
 
@@ -378,6 +434,52 @@ npm run dev                      # http://127.0.0.1:3000
 - **上传目录**：正常 / 异常
 
 也可以通过接口查询：`GET /system/status` 一次性返回所有状态信息。
+
+### 数据导出/导入（V1.8）
+
+导出训练数据（参考案例、训练记录、提示词、上传图片）为 zip 备份包。用于备份或迁移到新电脑。
+
+```bash
+# 浏览器中下载
+# 设置页 → 数据管理 → 导出
+# 或：curl http://127.0.0.1:8000/export -o backup.zip
+```
+
+导入为「合并导入」，不会清空当前数据。图片和案例 ID 会自动重映射。
+
+**安全说明：** 导出包包含配置摘要（provider、model 名称），但**永远不包含真实 API Key**。导入时不会覆盖本地 API Key 或配置。
+
+#### 如何迁移到新电脑
+1. 旧电脑：设置页 → 导出 → 下载 `aesthetic-backup.zip`
+2. 复制 zip 到新电脑
+3. 在新电脑启动应用并配置 API Key
+4. 设置页 → 导入 → 上传 zip
+5. 可选：前往参考案例库点击「重建语义索引」
+
+### 案例库语义搜索（V1.8）
+
+用自然语言搜索你收藏的参考案例，而不是只能按分类标签筛选。使用 OpenAI text-embedding-3-small 计算相似度。
+
+**配置：**
+```bash
+# backend/.env 或设置页中配置：
+EMBEDDING_PROVIDER=openai
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+# 同时需要 OPENAI_API_KEY（复用 Vision Key）
+```
+
+**使用：**
+1. 在工作台的参考案例区域输入自然语言查询（如「高考直播封面，年轻有冲击力但不要廉价」）
+2. 点击「语义搜索」
+3. 结果显示相似度百分比和匹配原因
+
+如果未配置 embedding，系统会自动降级为普通分类筛选——不会崩溃。
+
+**语义搜索 vs 普通筛选：**
+- **普通筛选**：按分类、审美等级、价格带精确匹配
+- **语义搜索**：按*含义*匹配——找到"感觉相似"的案例，即使标签不完全匹配
+
+**为什么不做外部案例自动搜索？** 这个工具的目的是训练你的眼力。自己去发现和收藏高审美案例本身就是训练的一部分。语义搜索只搜索你亲手建立和策展的案例库。
 
 ### 训练流程
 

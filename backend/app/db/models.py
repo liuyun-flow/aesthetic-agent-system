@@ -106,3 +106,18 @@ class ReferenceCase(Base):
 
     def __repr__(self) -> str:
         return f"<ReferenceCase id={self.id} title={self.title} level={self.aesthetic_level}>"
+
+
+class ReferenceCaseEmbedding(Base):
+    """V1.8: Pre-computed embeddings for semantic search over reference cases."""
+
+    __tablename__ = "reference_case_embeddings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    reference_case_id = Column(Integer, nullable=False, index=True)
+    embedding_provider = Column(String(50), nullable=False)
+    embedding_model = Column(String(100), nullable=False)
+    embedding_json = Column(Text, nullable=False)  # JSON-serialized float list
+    source_text_hash = Column(String(64), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
