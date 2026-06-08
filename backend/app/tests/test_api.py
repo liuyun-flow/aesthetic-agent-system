@@ -43,6 +43,7 @@ from app.schemas.responses import (
     WeeklyReviewResponse,
 )
 from app.services import session_service
+from app.settings import config_store as cs
 
 # ── Test database ────────────────────────────────────────────────────
 
@@ -277,6 +278,23 @@ class MockWeeklyReviewAgent:
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def isolate_config_store(tmp_path):
+    """Keep config_store writes out of the real backend/data/config folder."""
+    config_dir = tmp_path / "data" / "config"
+    config_dir.mkdir(parents=True)
+
+    orig_dir = cs.CONFIG_DIR
+    orig_file = cs.CONFIG_FILE
+    cs.CONFIG_DIR = config_dir
+    cs.CONFIG_FILE = config_dir / "app_config.json"
+    cs._invalidate_cache()
+    yield
+    cs.CONFIG_DIR = orig_dir
+    cs.CONFIG_FILE = orig_file
+    cs._invalidate_cache()
+
 
 @pytest.fixture(autouse=True)
 def setup_test_db():
@@ -610,12 +628,20 @@ class TestHealthEndpoint:
 class TestDeepSeekClient:
     def test_rejects_missing_api_key(self, monkeypatch):
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        # Also clear config so env fallback doesn't provide a key
+        from app.settings import config_store as cs
+        cs.clear_key("deepseek", "api_key")
+        cs._invalidate_cache()
 
         with pytest.raises(ValueError):
             get_deepseek_client()
 
     def test_rejects_placeholder_api_key(self, monkeypatch):
         monkeypatch.setenv("DEEPSEEK_API_KEY", "your_deepseek_api_key_here")
+        # Clear config so placeholder env value is hit
+        from app.settings import config_store as cs
+        cs.clear_key("deepseek", "api_key")
+        cs._invalidate_cache()
 
         with pytest.raises(ValueError):
             get_deepseek_client()
@@ -1021,6 +1047,29 @@ class TestImageDescribeEndpoint:
         resp2 = client.post(f"/images/{image_id}/describe")
         assert resp2.status_code == 200
 
+    def test_submitted_image_description_skips_second_vision_call(self, client):
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        upload_resp = client.post(
+            "/upload",
+            files={"file": ("img.png", fake_img, "image/png")},
+        )
+        image_id = upload_resp.json()["image_id"]
+
+        class ExplodingVisionAdapter(ManualAdapter):
+            def describe_image(self, image_path: str, hint: str | None = None) -> str:
+                raise AssertionError("vision should not be called")
+
+        app.dependency_overrides[get_vision_adapter] = lambda: ExplodingVisionAdapter()
+        resp = client.post(
+            "/analyze",
+            json={
+                "work_description": "A poster layout with enough text for analysis.",
+                "image_id": image_id,
+                "image_description": "Already generated Chinese image description.",
+            },
+        )
+        assert resp.status_code == 200
+
 
 class TestPlaceholderAdapter:
     def test_returns_mock_description(self):
@@ -1288,9 +1337,17 @@ class TestSessionDetail:
 # ── V1.4.2: OpenAI Vision Adapter ───────────────────────────────────
 
 class TestOpenAIVisionAdapter:
-    def test_openai_adapter_requires_api_key(self):
+    def test_openai_adapter_requires_api_key(self, monkeypatch):
         from app.vision.openai_adapter import OpenAIVisionAdapter
 
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        with pytest.raises(ValueError, match="OPENAI_API_KEY"):
+            OpenAIVisionAdapter(api_key="")
+
+    def test_empty_api_key_does_not_fall_back_to_env(self, monkeypatch):
+        from app.vision.openai_adapter import OpenAIVisionAdapter
+
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-env-fallback-test")
         with pytest.raises(ValueError, match="OPENAI_API_KEY"):
             OpenAIVisionAdapter(api_key="")
 
@@ -1305,6 +1362,11 @@ class TestOpenAIVisionAdapter:
     def test_placeholder_still_default(self, monkeypatch):
         """Without VISION_PROVIDER set, placeholder is used."""
         monkeypatch.delenv("VISION_PROVIDER", raising=False)
+        # Also clear config provider so env fallback is empty too
+        from app.settings import config_store as cs
+        cs.clear_key("vision", "provider")
+        cs._invalidate_cache()
+
         from app.main import get_vision_adapter
         from app.vision.placeholder_adapter import PlaceholderAdapter
 

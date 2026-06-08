@@ -13,7 +13,7 @@ from openai import OpenAI
 from app.schemas.responses import VisionDescription
 from app.vision.base import VisionAdapter
 
-OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o")
+OPENAI_VISION_MODEL = os.getenv("OPENAI_VISION_MODEL", "gpt-4o-mini")
 
 VISION_SYSTEM_PROMPT = (
     "你是一名专业的视觉分析师。请用简体中文详细描述图片，"

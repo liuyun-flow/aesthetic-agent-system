@@ -177,7 +177,7 @@ Check status: `GET /vision/status` shows current provider, whether it's configur
 
 ```bash
 cd backend
-pytest app/tests/test_api.py -v    # All tests use mocked agents — no API key needed
+pytest app/tests/ -v    # All tests use mocked agents — no API key needed
 ```
 
 ### Database & Data Directory

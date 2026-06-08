@@ -128,6 +128,9 @@ const en = {
     notConfigured: "Not configured",
     connectionOk: "Connection OK",
     connectionFail: "Connection failed",
+    loadError: "Failed to load settings. Is the backend running?",
+    retry: "Retry",
+    clearKeyHint: "After clearing, the cleared state takes priority and the matching .env key will not be used. Save a key again to re-enable it.",
   },
   common: {
     loading: "Waiting for the agent…",

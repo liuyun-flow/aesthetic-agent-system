@@ -46,20 +46,24 @@ export default function SettingsPage() {
   const [visionTestResult, setVisionTestResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   // ── Load status on mount ───────────────────────────────────────────
+  const [fetchError, setFetchError] = useState(false);
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch(`${BASE}/settings`);
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
+        setFetchError(false);
         setDsBaseUrl(data.deepseek.base_url);
         setDsDefaultModel(data.deepseek.default_model);
         setDsReasoningModel(data.deepseek.reasoning_model);
         setVisionProvider(data.vision.provider);
         setOpenaiModel(data.vision.openai_vision_model);
+      } else {
+        setFetchError(true);
       }
     } catch {
-      // ignore
+      setFetchError(true);
     } finally {
       setLoading(false);
     }
@@ -158,17 +162,22 @@ export default function SettingsPage() {
   // ── Clear key ──────────────────────────────────────────────────────
   const handleClearKey = async (keyType: "deepseek" | "openai") => {
     try {
-      await fetch(`${BASE}/settings/clear-key`, {
+      const res = await fetch(`${BASE}/settings/clear-key`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key_type: keyType }),
       });
-      setDsKey("");
-      setOpenaiKey("");
-      setSaveMsg({ ok: true, text: t.settings.keyCleared });
-      await fetchStatus();
+      if (res.ok) {
+        setDsKey("");
+        setOpenaiKey("");
+        setSaveMsg({ ok: true, text: t.settings.keyCleared });
+        await fetchStatus();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setSaveMsg({ ok: false, text: err.detail || t.settings.saveError });
+      }
     } catch {
-      // ignore
+      setSaveMsg({ ok: false, text: t.settings.saveError });
     }
   };
 
@@ -180,9 +189,24 @@ export default function SettingsPage() {
 
   const dsBadge = statusBadge(status?.deepseek.is_configured ?? false);
   const vsBadge = statusBadge(status?.vision.is_configured ?? false);
+  const hasOpenaiKey = Boolean(status?.vision.openai_api_key_masked);
 
   if (loading) {
     return <div className="text-center text-sm text-gray-400 py-12">{t.common.loading}</div>;
+  }
+
+  if (fetchError && !status) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-sm text-red-500 mb-2">{t.settings.loadError || "无法加载设置，请确认后端服务已启动。"}</p>
+        <button
+          onClick={() => { setLoading(true); setFetchError(false); fetchStatus(); }}
+          className="rounded bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700"
+        >
+          {t.settings.retry || "重试"}
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -213,8 +237,10 @@ export default function SettingsPage() {
               type="password"
               value={dsKey}
               onChange={(e) => setDsKey(e.target.value)}
-              placeholder={t.settings.apiKeyPlaceholder}
-              className="w-full rounded border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              placeholder={status?.deepseek.is_configured ? t.settings.keyMasked : t.settings.apiKeyPlaceholder}
+              className={`w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 ${
+                status?.deepseek.is_configured && !dsKey ? "bg-green-50 placeholder:text-green-500" : "placeholder:text-gray-400"
+              }`}
             />
             <p className="mt-1 text-xs text-gray-400">{t.settings.apiKeyHint}</p>
           </div>
@@ -332,8 +358,10 @@ export default function SettingsPage() {
                 type="password"
                 value={openaiKey}
                 onChange={(e) => setOpenaiKey(e.target.value)}
-                placeholder={t.settings.apiKeyPlaceholder}
-                className="w-full rounded border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                placeholder={hasOpenaiKey ? t.settings.keyMasked : t.settings.apiKeyPlaceholder}
+                className={`w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 ${
+                  hasOpenaiKey && !openaiKey ? "bg-green-50 placeholder:text-green-500" : "placeholder:text-gray-400"
+                }`}
               />
               <p className="mt-1 text-xs text-gray-400">{t.settings.openaiApiKeyHint}</p>
             </div>

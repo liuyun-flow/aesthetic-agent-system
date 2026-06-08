@@ -2,7 +2,7 @@
 # start_all.sh — Start both backend and frontend using pythonw (detached from Git Bash)
 # Usage: bash scripts/start_all.sh [--open-browser]
 #
-# NOTE: This script uses pythonw.exe to detach processes from the terminal.
+# NOTE: Uses pythonw.exe to detach processes from the terminal.
 # If your Python is installed elsewhere, set PYTHON_HOME and NODE_HOME
 # environment variables before running, e.g.:
 #   PYTHON_HOME=C:/Python311 NODE_HOME=C:/nodejs bash scripts/start_all.sh
@@ -15,42 +15,50 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 PYTHON_HOME="${PYTHON_HOME:-C:/Users/Dream/AppData/Local/Programs/Python/Python311}"
 NODE_HOME="${NODE_HOME:-C:/Users/Dream/AppData/Local/nodejs/node-v24.12.0-win-x64}"
 
-PYTHONW="${PYTHON_HOME}/pythonw.exe"
 PYTHON="${PYTHON_HOME}/python.exe"
-NPX="${NODE_HOME}/npx.cmd"
+PYTHONW="${PYTHON_HOME}/pythonw.exe"
+NODE="${NODE_HOME}/node.exe"
 
 # Fallback: try PATH if configured executables don't exist
 if [ ! -f "$PYTHONW" ]; then
-    PYTHONW="pythonw"
+	PYTHONW="pythonw"
 fi
 if [ ! -f "$PYTHON" ]; then
-    PYTHON="python"
+	PYTHON="python"
+fi
+if [ ! -f "$NODE" ]; then
+	NODE="node"
 fi
 
-# Convert PROJECT_DIR to Windows path (pythonw needs C:\... not /c/...)
-WIN_PROJECT_DIR="$(echo "$PROJECT_DIR" | sed 's|^/\([a-zA-Z]\)|\1:|;s|/|\\\\|g')"
+# Kill existing processes on target ports
+echo "=== Cleaning up existing processes ==="
+"$PYTHON" -c "
+import subprocess, sys
+result = subprocess.run(['netstat', '-ano'], capture_output=True, text=True)
+killed = False
+for port in ['8000', '3000']:
+	for line in result.stdout.splitlines():
+		if f':{port}' in line and 'LISTENING' in line:
+			pid = line.strip().split()[-1]
+			subprocess.run(['taskkill', '/PID', pid, '/F'], capture_output=True)
+			print(f'Killed PID {pid} on port {port}', file=sys.stderr)
+			killed = True
+			break
+if not killed:
+	print('No existing processes to kill', file=sys.stderr)
+"
 
+# Start backend (pythonw detaches from terminal, no console window)
+echo ""
 echo "=== Starting backend on 127.0.0.1:8000 ==="
-"$PYTHONW" -c "
-import subprocess, os, sys
-os.chdir(r'${WIN_PROJECT_DIR}\\\\backend')
-subprocess.Popen([
-    r'${PYTHON}',
-    '-m', 'uvicorn', 'app.main:app', '--host', '127.0.0.1', '--port', '8000'
-], creationflags=0x00000008)
-" &
+cd "$PROJECT_DIR/backend"
+"$PYTHONW" -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /dev/null 2>&1 &
 sleep 3
 
+# Start frontend (node directly — npx.cmd can't resolve node from Git Bash PATH)
 echo "=== Starting frontend on 127.0.0.1:3000 ==="
-"$PYTHONW" -c "
-import subprocess, os
-os.chdir(r'${WIN_PROJECT_DIR}\\\\frontend')
-env = os.environ.copy()
-env['PATH'] = r'${NODE_HOME};' + env.get('PATH', '')
-subprocess.Popen([
-    r'${NPX}', 'next', 'dev', '-p', '3000'
-], env=env, creationflags=0x00000008)
-" &
+cd "$PROJECT_DIR/frontend"
+"$NODE" node_modules/next/dist/bin/next dev -p 3000 > /dev/null 2>&1 &
 sleep 8
 
 # Verify

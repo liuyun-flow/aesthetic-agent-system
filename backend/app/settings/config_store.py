@@ -19,19 +19,37 @@ _DATA_DIR = Path(
 CONFIG_DIR = _DATA_DIR / "config"
 CONFIG_FILE = CONFIG_DIR / "app_config.json"
 
+# Default values for the config file skeleton — ALL empty so that .env
+# values are never shadowed by hard-coded defaults on fresh installs.
+# The real defaults live in get_value()'s ``default`` kwarg and in the
+# ``or`` fallbacks used by callers (get_masked_status, deepseek_client, etc.).
 DEFAULT_CONFIG: dict[str, dict[str, str]] = {
     "deepseek": {
         "api_key": "",
-        "base_url": "https://api.deepseek.com",
-        "default_model": "deepseek-v4-flash",
-        "reasoning_model": "deepseek-v4-pro",
+        "base_url": "",
+        "default_model": "",
+        "reasoning_model": "",
     },
     "vision": {
-        "provider": "placeholder",
+        "provider": "",
         "openai_api_key": "",
-        "openai_vision_model": "gpt-4o-mini",
+        "openai_vision_model": "",
     },
 }
+
+PLACEHOLDER_CONFIG_VALUES = {
+    "",
+    "replace-me",
+    "your_deepseek_api_key_here",
+    "your_openai_api_key_here",
+    "your_anthropic_api_key_here",
+    "your_gemini_api_key_here",
+    "replace-with-your-key",
+}
+
+# Sentinel written by clear_key() so that get_value() knows the user
+# explicitly cleared the field and .env fallback should NOT be used.
+_CLEARED_SENTINEL = "\x00CLEARED"
 
 # ── TTL cache ──────────────────────────────────────────────────────────
 _cache: dict | None = None
@@ -71,7 +89,12 @@ def write_config(data: dict) -> None:
 
     Public alias for ``_write_config`` — use this when you need to clear
     values by writing empty strings (``set_config`` skips empty values).
+
+    Cache is invalidated **before** any I/O to prevent a narrow window
+    where a concurrent reader could see stale cached data while the
+    disk write is in progress (GIL is released during file operations).
     """
+    _invalidate_cache()
     _ensure_config_exists()
     tmp = CONFIG_FILE.with_suffix(".tmp")
     tmp.write_text(
@@ -116,9 +139,15 @@ def get_value(
     """Return a config value following the priority chain:
 
     app_config.json > environment variable > hardcoded default
+
+    If the user explicitly cleared the key via ``clear_key()`` the JSON
+    value will be the ``_CLEARED_SENTINEL`` — in that case we return ""
+    immediately, skipping the env fallback.
     """
     config = get_config()
     val = config.get(section, {}).get(key, "")
+    if val == _CLEARED_SENTINEL:
+        return ""  # user explicitly cleared — suppress env fallback
     if val:
         return val
     if env_var:
@@ -143,11 +172,71 @@ def set_config(section: str, data: dict[str, str]) -> None:
 
 
 def clear_key(section: str, key: str) -> None:
-    """Set a key to empty string, falling back to env/default on next read."""
+    """Set a key to the CLEARED sentinel so that get_value() returns ""
+    even when an environment variable would otherwise provide a fallback.
+
+    The sentinel (``\\x00CLEARED``) is never a valid API key / URL / model
+    name, so it cannot collide with a real value.
+    """
     config = get_config()
-    if section in config and key in config[section]:
-        config[section][key] = ""
+    if section not in config:
+        config[section] = {}
+    config[section][key] = _CLEARED_SENTINEL
     _write_config(config)
+
+
+def is_configured_value(value: str) -> bool:
+    """Return whether a secret/config value is present and not a placeholder."""
+    return bool(value) and value.strip() not in PLACEHOLDER_CONFIG_VALUES
+
+
+def get_vision_provider() -> str:
+    """Return the effective Vision provider using config > env > default."""
+    return (
+        get_value("vision", "provider", env_var="VISION_PROVIDER")
+        or "placeholder"
+    ).strip().lower()
+
+
+def get_vision_missing_keys(provider: str | None = None) -> list[str]:
+    """Return missing config keys for the current/effective Vision provider."""
+    provider = (provider or get_vision_provider()).strip().lower()
+    if provider in ("placeholder", "manual"):
+        return []
+
+    required_values: dict[str, dict[str, str]] = {
+        "openai": {
+            "OPENAI_API_KEY": get_value(
+                "vision",
+                "openai_api_key",
+                env_var="OPENAI_API_KEY",
+            ),
+        },
+        "claude": {
+            "ANTHROPIC_API_KEY": get_value(
+                "vision",
+                "anthropic_api_key",
+                env_var="ANTHROPIC_API_KEY",
+            ),
+        },
+        "gemini": {
+            "GEMINI_API_KEY": get_value(
+                "vision",
+                "gemini_api_key",
+                env_var="GEMINI_API_KEY",
+            ),
+        },
+    }
+
+    required = required_values.get(provider)
+    if required is None:
+        return ["VISION_PROVIDER"]
+    return [name for name, value in required.items() if not is_configured_value(value)]
+
+
+def is_vision_configured(provider: str | None = None) -> bool:
+    """Return whether the current/effective Vision provider is usable."""
+    return not get_vision_missing_keys(provider)
 
 
 def mask_key(value: str) -> str:
@@ -168,31 +257,43 @@ def get_masked_status() -> dict:
     """Return config status dict with API keys masked for display.
 
     Intended for the ``GET /settings`` response.
+
+    Uses ``get_value()`` for fields that may be empty in the JSON file
+    but set via environment variables — this ensures the full priority
+    chain (config > env > default) is applied, not just the raw file
+    content.
     """
-    config = get_config()
-    ds = config.get("deepseek", {})
-    vs = config.get("vision", {})
-
-    dskey = ds.get("api_key", "")
-    oaikey = vs.get("openai_api_key", "")
-    placeholder_keys = {"", "replace-me", "your_deepseek_api_key_here",
-                        "your_openai_api_key_here", "replace-with-your-key"}
-
-    def _ok(v: str) -> bool:
-        return bool(v) and v not in placeholder_keys
+    provider = get_vision_provider()
+    openai_key = get_value("vision", "openai_api_key", env_var="OPENAI_API_KEY")
 
     return {
         "deepseek": {
-            "is_configured": _ok(dskey),
-            "api_key_masked": mask_key(dskey),
-            "base_url": ds.get("base_url", "https://api.deepseek.com"),
-            "default_model": ds.get("default_model", "deepseek-v4-flash"),
-            "reasoning_model": ds.get("reasoning_model", "deepseek-v4-pro"),
+            "is_configured": is_configured_value(
+                get_value("deepseek", "api_key", env_var="DEEPSEEK_API_KEY")
+            ),
+            "api_key_masked": mask_key(
+                get_value("deepseek", "api_key", env_var="DEEPSEEK_API_KEY")
+            ),
+            "base_url": (
+                get_value("deepseek", "base_url", env_var="DEEPSEEK_BASE_URL")
+                or "https://api.deepseek.com"
+            ),
+            "default_model": (
+                get_value("deepseek", "default_model", env_var="DEEPSEEK_DEFAULT_MODEL")
+                or "deepseek-v4-flash"
+            ),
+            "reasoning_model": (
+                get_value("deepseek", "reasoning_model", env_var="DEEPSEEK_REASONING_MODEL")
+                or "deepseek-v4-pro"
+            ),
         },
         "vision": {
-            "provider": vs.get("provider", "placeholder"),
-            "is_configured": _ok(oaikey),
-            "openai_api_key_masked": mask_key(oaikey),
-            "openai_vision_model": vs.get("openai_vision_model", "gpt-4o-mini"),
+            "provider": provider,
+            "is_configured": is_vision_configured(provider),
+            "openai_api_key_masked": mask_key(openai_key),
+            "openai_vision_model": (
+                get_value("vision", "openai_vision_model", env_var="OPENAI_VISION_MODEL")
+                or "gpt-4o-mini"
+            ),
         },
     }

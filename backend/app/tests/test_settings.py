@@ -111,7 +111,17 @@ def _save(settings_client, ds_api_key="", vision_provider="", openai_key=""):
 # ── Test: GET /settings ────────────────────────────────────────────────
 
 class TestGetSettings:
-    def test_returns_defaults_when_no_config(self, settings_client):
+    def test_returns_defaults_when_no_config(self, settings_client, monkeypatch):
+        # Clear env vars so we test true defaults (not .env fallback)
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        monkeypatch.delenv("DEEPSEEK_BASE_URL", raising=False)
+        monkeypatch.delenv("DEEPSEEK_DEFAULT_MODEL", raising=False)
+        monkeypatch.delenv("DEEPSEEK_REASONING_MODEL", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_VISION_MODEL", raising=False)
+        monkeypatch.delenv("VISION_PROVIDER", raising=False)
+        cs._invalidate_cache()
+
         resp = settings_client.get("/settings")
         assert resp.status_code == 200
         data = resp.json()
@@ -120,7 +130,7 @@ class TestGetSettings:
         assert data["deepseek"]["default_model"] == "deepseek-v4-flash"
         assert data["deepseek"]["reasoning_model"] == "deepseek-v4-pro"
         assert data["vision"]["provider"] == "placeholder"
-        assert data["vision"]["is_configured"] is False
+        assert data["vision"]["is_configured"] is True
 
     def test_does_not_expose_raw_api_keys(self, settings_client):
         _save(settings_client, ds_api_key="sk-top-secret-12345678")
@@ -168,12 +178,19 @@ class TestSaveSettings:
         config = cs.get_config()
         assert config["deepseek"]["api_key"] == "sk-original"
 
-    def test_partial_save_only_updates_given_section(self, settings_client):
+    def test_partial_save_only_updates_given_section(self, settings_client, monkeypatch):
+        # Ensure env doesn't provide vision key as fallback
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("VISION_PROVIDER", raising=False)
+        cs._invalidate_cache()
+
         _save(settings_client, ds_api_key="sk-ds")
         status = settings_client.get("/settings").json()
         assert status["deepseek"]["is_configured"] is True
-        # Vision should still be unconfigured
-        assert status["vision"]["is_configured"] is False
+        # Vision should still be the default placeholder provider.
+        assert status["vision"]["provider"] == "placeholder"
+        assert status["vision"]["is_configured"] is True
+        assert status["vision"]["openai_api_key_masked"] == ""
 
     def test_saves_vision_provider_and_key(self, settings_client):
         resp = settings_client.post("/settings", json={
@@ -195,19 +212,42 @@ class TestSaveSettings:
 # ── Test: POST /settings/clear-key ─────────────────────────────────────
 
 class TestClearKey:
-    def test_clears_deepseek_key(self, settings_client):
+    def test_clears_deepseek_key(self, settings_client, monkeypatch):
+        # Ensure env doesn't provide a fallback after clearing
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        cs._invalidate_cache()
+
         _save(settings_client, ds_api_key="sk-will-clear")
         resp = settings_client.post("/settings/clear-key", json={"key_type": "deepseek"})
         assert resp.status_code == 200
         status = settings_client.get("/settings").json()
         assert status["deepseek"]["is_configured"] is False
 
-    def test_clears_openai_key(self, settings_client):
+    def test_clears_openai_key(self, settings_client, monkeypatch):
+        # Ensure env doesn't provide a fallback after clearing
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        cs._invalidate_cache()
+
         _save(settings_client, vision_provider="openai", openai_key="sk-clear-me")
         resp = settings_client.post("/settings/clear-key", json={"key_type": "openai"})
         assert resp.status_code == 200
         status = settings_client.get("/settings").json()
         assert status["vision"]["is_configured"] is False
+
+    def test_cleared_openai_key_suppresses_env_fallback(self, settings_client, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-env-fallback")
+
+        _save(settings_client, vision_provider="openai", openai_key="sk-clear-me")
+        resp = settings_client.post("/settings/clear-key", json={"key_type": "openai"})
+        assert resp.status_code == 200
+
+        settings_status = settings_client.get("/settings").json()
+        assert settings_status["vision"]["is_configured"] is False
+
+        vision_status = settings_client.get("/vision/status").json()
+        assert vision_status["vision_provider"] == "openai"
+        assert vision_status["is_configured"] is False
+        assert "OPENAI_API_KEY" in vision_status["missing_keys"]
 
 
 # ── Test: POST /settings/test-deepseek ─────────────────────────────────
@@ -241,7 +281,17 @@ class TestTestDeepSeek:
 # ── Test: POST /settings/test-vision ───────────────────────────────────
 
 class TestTestVision:
-    def test_placeholder_returns_success_with_note(self, settings_client):
+    def test_placeholder_returns_success_with_note(self, settings_client, monkeypatch):
+        # Ensure provider=placeholder and no OpenAI key in env/config
+        monkeypatch.setenv("VISION_PROVIDER", "placeholder")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        from app.settings import config_store as cs
+        # Clear config to empty (not CLEARED sentinel) so env fallback works
+        config = cs.get_config()
+        config["vision"]["provider"] = ""
+        config["vision"]["openai_api_key"] = ""
+        cs.write_config(config)
+
         resp = settings_client.post("/settings/test-vision")
         assert resp.status_code == 200
         data = resp.json()
@@ -257,6 +307,44 @@ class TestTestVision:
         data = resp.json()
         assert data["success"] is False
         assert "未配置" in data["message"] or "API Key" in data["message"]
+
+    def test_openai_test_uses_vision_adapter_path(self, settings_client, monkeypatch):
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_VISION_MODEL", raising=False)
+        from app.settings import routes as settings_routes
+
+        called: dict[str, str] = {}
+
+        def fake_vision_test(api_key: str, model: str) -> None:
+            called["api_key"] = api_key
+            called["model"] = model
+
+        monkeypatch.setattr(settings_routes, "_test_openai_vision_adapter", fake_vision_test)
+        _save(settings_client, vision_provider="openai", openai_key="sk-vision-key")
+
+        resp = settings_client.post("/settings/test-vision")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["model_used"] == "gpt-4o-mini"
+        assert called == {"api_key": "sk-vision-key", "model": "gpt-4o-mini"}
+
+    def test_openai_test_does_not_expose_raw_exception(self, settings_client, monkeypatch):
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_VISION_MODEL", raising=False)
+        from app.settings import routes as settings_routes
+
+        def fake_vision_test(api_key: str, model: str) -> None:
+            raise RuntimeError("raw provider error with sk-secret")
+
+        monkeypatch.setattr(settings_routes, "_test_openai_vision_adapter", fake_vision_test)
+        _save(settings_client, vision_provider="openai", openai_key="sk-vision-key")
+
+        resp = settings_client.post("/settings/test-vision")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is False
+        assert "sk-secret" not in data["message"]
 
 
 # ── Test: /model/status uses config_store ──────────────────────────────
@@ -291,6 +379,34 @@ class TestModelStatusUsesConfig:
 # ── Test: /vision/status uses config_store ─────────────────────────────
 
 class TestVisionStatusUsesConfig:
+    def test_settings_and_vision_status_match_for_placeholder(self, settings_client, monkeypatch):
+        monkeypatch.delenv("VISION_PROVIDER", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        config = cs.get_config()
+        config["vision"]["provider"] = ""
+        config["vision"]["openai_api_key"] = ""
+        cs.write_config(config)
+
+        settings_status = settings_client.get("/settings").json()
+        vision_status = settings_client.get("/vision/status").json()
+
+        assert settings_status["vision"]["provider"] == "placeholder"
+        assert settings_status["vision"]["is_configured"] is True
+        assert vision_status["vision_provider"] == "placeholder"
+        assert vision_status["is_configured"] is True
+
+    def test_settings_and_vision_status_match_for_openai_missing_key(self, settings_client, monkeypatch):
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        _save(settings_client, vision_provider="openai")
+
+        settings_status = settings_client.get("/settings").json()
+        vision_status = settings_client.get("/vision/status").json()
+
+        assert settings_status["vision"]["provider"] == "openai"
+        assert settings_status["vision"]["is_configured"] is False
+        assert vision_status["vision_provider"] == "openai"
+        assert vision_status["is_configured"] is False
+
     def test_reads_from_config(self, settings_client, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "")
         _save(settings_client, vision_provider="openai", openai_key="sk-vs-from-config")

@@ -1,5 +1,8 @@
 """FastAPI router for settings management — BYOK config, test connections."""
 
+import tempfile
+from pathlib import Path
+
 from fastapi import APIRouter
 
 from app.settings.config_store import (
@@ -15,6 +18,7 @@ from app.settings.schemas import (
     SettingsStatusResponse,
     TestConnectionResponse,
 )
+from app.vision.openai_adapter import OpenAIVisionAdapter
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
@@ -26,6 +30,27 @@ PLACEHOLDER_KEYS = {
 
 def _is_configured(val: str) -> bool:
     return bool(val) and val not in PLACEHOLDER_KEYS
+
+
+_VISION_TEST_PNG = bytes.fromhex(
+    "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
+    "1f15c4890000000a49444154789c6360000002000100ffff0300000600"
+    "0557bfab0000000049454e44ae426082"
+)
+
+
+def _test_openai_vision_adapter(api_key: str, model: str) -> None:
+    """Exercise the same image adapter path used by the workbench."""
+    adapter = OpenAIVisionAdapter(api_key=api_key, model=model)
+    tmp_path = ""
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            tmp.write(_VISION_TEST_PNG)
+            tmp_path = tmp.name
+        adapter.describe_image_structured(tmp_path)
+    finally:
+        if tmp_path:
+            Path(tmp_path).unlink(missing_ok=True)
 
 
 # ── GET /settings ──────────────────────────────────────────────────────
@@ -132,10 +157,10 @@ def test_deepseek_connection() -> TestConnectionResponse:
             message=f"连接成功：DeepSeek 返回「{content.strip()}」",
             model_used=model,
         )
-    except Exception as exc:
+    except Exception:
         return TestConnectionResponse(
             success=False,
-            message=f"连接失败：{exc}",
+            message="连接失败：请检查 API Key 和网络连接是否正常。",
             model_used=model,
         )
 
@@ -147,7 +172,7 @@ def test_vision_connection() -> TestConnectionResponse:
     """Test the current Vision provider configuration.
 
     * ``placeholder`` / ``manual`` — returns success immediately (no real API).
-    * ``openai`` — sends a minimal chat request to verify the key.
+    * ``openai`` — calls the real image adapter with a tiny test image.
     """
     provider = (
         get_value("vision", "provider", env_var="VISION_PROVIDER")
@@ -172,24 +197,16 @@ def test_vision_connection() -> TestConnectionResponse:
             or "gpt-4o-mini"
         )
         try:
-            from openai import OpenAI
-            client = OpenAI(api_key=api_key)
-            resp = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": "Say hello in Chinese"}],
-                max_tokens=20,
-                timeout=15,
-            )
-            content = resp.choices[0].message.content or ""
+            _test_openai_vision_adapter(api_key, model)
             return TestConnectionResponse(
                 success=True,
-                message=f"OpenAI Vision 连接成功：返回「{content.strip()}」",
+                message="OpenAI Vision 图片识别测试成功。",
                 model_used=model,
             )
-        except Exception as exc:
+        except Exception:
             return TestConnectionResponse(
                 success=False,
-                message=f"连接失败：{exc}",
+                message="Vision 测试失败：请检查 OpenAI API Key、模型是否支持图片输入，以及网络连接是否正常。",
                 model_used=model,
             )
 

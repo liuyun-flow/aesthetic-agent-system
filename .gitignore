@@ -18,3 +18,7 @@ data/uploads/*
 data/config/*
 !data/.gitkeep
 !data/config/.gitkeep
+backend/data/config/*
+!backend/data/config/.gitkeep
+backend/data/uploads/*
+backend/data/database/*.db

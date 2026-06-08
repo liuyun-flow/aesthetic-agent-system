@@ -60,7 +60,7 @@ from app.schemas.responses import (
     WeeklyReviewResponse,
 )
 from app.services import session_service, reference_service
-from app.settings.config_store import get_value
+from app.settings.config_store import get_value, get_vision_missing_keys, get_vision_provider
 from app.vision.base import VisionAdapter
 from app.vision.manual_adapter import ManualAdapter
 from app.vision.openai_adapter import OpenAIVisionAdapter
@@ -82,7 +82,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="1.6.0",
+    version="1.7.0",
     lifespan=lifespan,
 )
 
@@ -389,6 +389,12 @@ def _resolve_image_description(
             status_code=404,
             detail=f"Image with id={request.image_id} not found.",
         )
+
+    if request.image_description:
+        manual_description = request.image_description.strip()
+        if manual_description:
+            return manual_description
+
     try:
         return vision.describe_image(
             uploaded.file_path,
@@ -652,10 +658,7 @@ def describe_image(
 @app.get("/vision/status", response_model=VisionStatusResponse)
 def vision_status() -> VisionStatusResponse:
     """Return the current vision provider configuration status."""
-    provider = (
-        get_value("vision", "provider", env_var="VISION_PROVIDER")
-        or "placeholder"
-    ).strip().lower()
+    provider = get_vision_provider()
     is_placeholder = provider == "placeholder"
 
     if is_placeholder:
@@ -667,15 +670,8 @@ def vision_status() -> VisionStatusResponse:
             message="当前使用占位视觉描述，不是真实图片识别。返回的描述为固定示例，不匹配实际图片。",
         )
 
-    key_map = {"openai": ("OPENAI_API_KEY",), "claude": ("ANTHROPIC_API_KEY",), "gemini": ("GEMINI_API_KEY",)}
-    _placeholder_values = {"", "replace-me", "your_openai_api_key_here", "replace-with-your-key", "your_anthropic_api_key_here", "your_gemini_api_key_here"}
-    required = key_map.get(provider, ())
-    # Check config_store first, then env
-    check_keys = {"OPENAI_API_KEY": get_value("vision", "openai_api_key", env_var="OPENAI_API_KEY"),
-                  "ANTHROPIC_API_KEY": get_value("vision", "anthropic_api_key", env_var="ANTHROPIC_API_KEY"),
-                  "GEMINI_API_KEY": get_value("vision", "gemini_api_key", env_var="GEMINI_API_KEY")}
-    missing = [k for k in required if not check_keys.get(k) or check_keys[k].strip() in _placeholder_values]
-    labels = {"openai": "OpenAI Vision", "claude": "Claude Vision", "gemini": "Gemini Vision"}
+    missing = get_vision_missing_keys(provider)
+    labels = {"manual": "Manual Vision", "openai": "OpenAI Vision", "claude": "Claude Vision", "gemini": "Gemini Vision"}
 
     if missing:
         return VisionStatusResponse(
@@ -1066,7 +1062,7 @@ def weekly_review(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "backend", "version": "v1.6"}
+    return {"status": "ok", "service": "backend", "version": "v1.7"}
 
 
 @app.get("/model/status")

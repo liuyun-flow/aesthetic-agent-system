@@ -141,6 +141,9 @@ const zh = {
     notConfigured: "未配置",
     connectionOk: "连接正常",
     connectionFail: "连接失败",
+    loadError: "无法加载设置，请确认后端服务已启动。",
+    retry: "重试",
+    clearKeyHint: "清除后会优先使用清除状态，不再回退到 .env 中的同名 Key。如需重新使用，请重新保存 Key。",
   },
   common: {
     loading: "等待智能体返回结果…",
