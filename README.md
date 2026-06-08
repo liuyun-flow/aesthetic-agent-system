@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V1.7.1** | 测试：121 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
+**当前版本：V1.7.2** | 测试：148 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
 
 ---
 
@@ -322,6 +322,7 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.6 | Docker 支持（`docker compose up`）、环境配置检查、数据目录整理 |
 | V1.7 | 本地设置页、BYOK 配置（`data/config/app_config.json`）、测试连接按钮 |
 | V1.7.1 | 首次使用向导（`/setup`）、帮助中心（`/help`）、配置状态条、系统状态端点 |
+| V1.7.2 | 迭代方向选择、基于选中方向生成提示词、历史详情展示方向与提示词 |
 
 ### API 端点
 
@@ -337,7 +338,7 @@ npm run dev                      # http://127.0.0.1:3000
 | `POST` | `/reference-cases` | 创建参考案例（V1.4） |
 | `GET` | `/reference-cases` | 查看/筛选参考案例（V1.4） |
 | `POST` | `/compare-with-references` | 用户作品 vs 参考案例库对比（V1.4） |
-| `POST` | `/generate-prompt` | 生成可复制提示词（V1.4.1） |
+| `POST` | `/generate-prompt` | 生成可复制提示词；V1.7.2 支持 `selected_direction` + `session_id` |
 | `GET` | `/training/today` | 今日训练主题与任务（V1.5） |
 | `GET` | `/training/stats` | 训练统计数据（V1.5） |
 | `GET` | `/training/weekly-review` | 每周复盘（V1.5） |
@@ -387,6 +388,14 @@ npm run dev                      # http://127.0.0.1:3000
 5. **查看差异** — 看你对在哪、漏了什么、商业/美学盲点
 6. **查看画像** — 系统跟踪你的模式，给出下周训练重点
 7. **与参考案例对比** — 看看你的作品和高/中/低审美案例的差距
+
+### 迭代方向与提示词（V1.7.2）
+
+当任务类型选择“迭代”时，系统会返回 3-5 个结构化改版方向。每个方向包含目标、视觉改动、色彩改动、字体改动、版式改动、商业理由和风险。
+
+你可以选择其中一个方向，然后点击“基于该方向生成提示词”。前端会把当前训练记录的 `session_id` 和选中的 `selected_direction` 一起发送给后端，后端会围绕该方向生成提示词，并保存回对应的 iterate 历史记录。
+
+历史详情中可以查看当时所有迭代方向、用户选择的方向，以及对应生成的中文提示词、英文提示词、反向提示词、设计师执行说明、文案优化提示和使用建议。旧历史记录没有这些字段时仍可正常打开。
 
 ### 环境变量
 
@@ -439,7 +448,7 @@ npm run dev                      # http://127.0.0.1:3000
 
 ```bash
 cd backend
-pytest app/tests/test_api.py -v    # 全部测试使用 mock agents — 无需 API key
+pytest app/tests/ -v    # 全部测试使用 mock agents — 无需 API key
 ```
 
 ### 数据库与数据目录

@@ -1,5 +1,7 @@
 """Pydantic request schemas."""
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -112,9 +114,10 @@ class GeneratePromptRequest(BaseModel):
     user_judgment: UserJudgment | None = None
     critique_result: dict | str | None = None
     iterate_result: dict | str | None = None
-    selected_direction: str | None = None
+    selected_direction: dict[str, Any] | str | None = None
     reference_comparison: dict | str | None = None
     target_tool: str | None = "general"
+    session_id: int | None = Field(default=None, ge=1)
 
 
 # ── V1.5: Training workbench ────────────────────────────────────────

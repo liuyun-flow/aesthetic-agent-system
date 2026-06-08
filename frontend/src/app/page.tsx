@@ -139,6 +139,9 @@ export default function Home() {
         target_tool: "general",
         selected_direction: JSON.stringify(direction, null, 2),
       };
+      if (lastSessionId) {
+        body.session_id = lastSessionId;
+      }
       if (lastJudgment) {
         body.user_judgment = {
           score: lastJudgment.score,

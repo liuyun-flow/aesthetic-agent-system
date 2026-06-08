@@ -18,17 +18,17 @@ c51071c docs: update PROJECT_STATUS and SESSION_HANDOFF for V1.7
 - **PromptGeneratorAgent**: focus block when selected_direction provided; output tightly scoped to chosen direction
 - **TrainingRecord** model: +selected_direction (Text), +prompt_result (JSON) columns with V1.7.2 migration
 - **session_service.save_record()**: accepts selected_direction + prompt_result params
-- **POST /generate-prompt**: saves selected_direction + prompt_result to latest session
+- **POST /generate-prompt**: accepts selected_direction as JSON string/object, saves selected_direction + prompt_result to the matching iterate session via session_id; legacy requests fall back to latest iterate only
 - **GET /sessions/{id}**: returns selected_direction + prompt_result in detail
 
 ### Frontend
 - **ResultCard.tsx**: IterationDirections component — selectable cards with expand/collapse, all structured fields visible
 - **page.tsx**: selectedDirection state, handleSelectDirection, handleGenerateDirectionPrompt, DirectionPromptResultCard
-- **SessionList.tsx**: detail modal shows selected direction (parsed JSON) + generated prompts with copy buttons
+- **SessionList.tsx**: detail modal shows all iteration directions, highlights selected direction, and displays all prompt fields with copy buttons
 
 ### Tests
-- 7 new tests: TestGeneratePromptWithDirection × 4, TestIterationDirectionSchema × 3
-- 144 total passed
+- 11 new tests: TestGeneratePromptWithDirection × 8, TestIterationDirectionSchema × 3
+- 148 total passed
 
 ## Files Changed
 - `backend/app/schemas/responses.py` — IterationDirection +8 fields; SessionDetailResponse +2 fields
@@ -37,10 +37,10 @@ c51071c docs: update PROJECT_STATUS and SESSION_HANDOFF for V1.7
 - `backend/app/db/models.py` — TrainingRecord +selected_direction, +prompt_result
 - `backend/app/db/database.py` — _migrate_v1_7_2()
 - `backend/app/services/session_service.py` — save_record +2 params
-- `backend/app/main.py` — version→1.7.2; /generate-prompt saves direction; /sessions/{id} returns new fields
-- `backend/app/tests/test_api.py` — updated MOCK_ITERATE_RESULT; +7 tests
+- `backend/app/main.py` — version→1.7.2; /generate-prompt saves direction to matching iterate session; /sessions/{id} returns new fields
+- `backend/app/tests/test_api.py` — updated MOCK_ITERATE_RESULT; +11 tests
 - `frontend/src/components/ResultCard.tsx` — iteration cards + selection
-- `frontend/src/components/SessionList.tsx` — history detail + direction/prompt
+- `frontend/src/components/SessionList.tsx` — history detail + all directions + selected direction + prompt fields
 - `frontend/src/app/page.tsx` — direction state + handlers + DirectionPromptResultCard
 - `PROJECT_STATUS.md` — updated
 - `docs/SESSION_HANDOFF.md` — this file
@@ -51,7 +51,7 @@ c51071c docs: update PROJECT_STATUS and SESSION_HANDOFF for V1.7
 ## Known Issues (carried forward)
 1. GitHub push requires proxy at 127.0.0.1:7891
 2. Git Bash curl can't reach 127.0.0.1 services
-3. Docker not tested locally (not in PATH)
+3. Docker compose up --build smoke test passed (backend /health→v1.7.2, frontend→200)
 4. HTTP_PROXY env var may cause local connection failures
 5. `backend/.env` DATABASE_URL still points to `./aesthetic.db` — do NOT change without migration
 6. Frontend `NEXT_PUBLIC_API_BASE_URL` is build-time env
@@ -112,7 +112,7 @@ c51071c docs: update PROJECT_STATUS and SESSION_HANDOFF for V1.7
 ## Known Issues (carried forward)
 1. GitHub push requires proxy at 127.0.0.1:7891
 2. Git Bash curl can't reach 127.0.0.1 services
-3. Docker not tested locally (not in PATH)
+3. Docker compose up --build smoke test passed
 4. HTTP_PROXY env var may cause local connection failures
 5. `backend/.env` DATABASE_URL still points to `./aesthetic.db` — do NOT change without migration
 6. Frontend `NEXT_PUBLIC_API_BASE_URL` is build-time env

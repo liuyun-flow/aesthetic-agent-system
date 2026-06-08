@@ -55,6 +55,56 @@ const FIELD_LABELS: Record<string, string> = {
   training_focus_tags: "训练重点标签",
 };
 
+const DIRECTION_DETAIL_LABELS: Record<string, string> = {
+  goal: "目标",
+  description: "说明",
+  visual_changes: "视觉改动",
+  color_changes: "色彩改动",
+  typography_changes: "字体改动",
+  layout_changes: "版式改动",
+  commercial_rationale: "商业理由",
+  risk: "风险",
+};
+
+const PROMPT_FIELDS: Array<[string, string]> = [
+  ["chinese_prompt", "中文提示词"],
+  ["english_prompt", "英文提示词"],
+  ["negative_prompt", "反向提示词"],
+  ["design_notes", "设计师执行说明"],
+  ["copywriting_prompt", "文案优化提示"],
+  ["usage_tips", "使用建议"],
+];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function valueToText(value: unknown): string {
+  if (isEmptyValue(value)) return "";
+  if (Array.isArray(value)) {
+    return value.map((item) => valueToText(item)).filter(Boolean).join("\n");
+  }
+  if (isRecord(value)) {
+    return JSON.stringify(value, null, 2);
+  }
+  return String(value);
+}
+
+function parseDirection(value: string | null): Record<string, unknown> | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function getDirectionId(direction: Record<string, unknown>, index: number): string {
+  const id = valueToText(direction.id).trim();
+  return id || `direction-${index + 1}`;
+}
+
 function copyText(text: string): void {
   navigator.clipboard.writeText(text).catch(() => {});
 }
@@ -142,7 +192,10 @@ export default function SessionList({ refreshKey }: Props) {
         </ul>
       );
     }
-    return <span className="text-gray-700 whitespace-pre-wrap">{String(value)}</span>;
+    const text = valueToText(value);
+    return text
+      ? <span className="text-gray-700 whitespace-pre-wrap">{text}</span>
+      : <span className="text-gray-400">暂无</span>;
   };
 
   if (loading && sessions.length === 0) {
@@ -288,44 +341,108 @@ export default function SessionList({ refreshKey }: Props) {
                 )}
 
                 {/* V1.7.2: Selected direction + generated prompt */}
+                {(() => {
+                  const rawDirections = detail.result_json?.directions;
+                  if (!Array.isArray(rawDirections)) return null;
+                  const directions = rawDirections.filter(isRecord);
+                  if (directions.length === 0) return null;
+                  const selectedDirection = parseDirection(detail.selected_direction);
+                  const selectedId = selectedDirection ? valueToText(selectedDirection.id).trim() : "";
+
+                  return (
+                    <Section title="当时所有迭代方向">
+                      <div className="space-y-2">
+                        {directions.map((direction, index) => {
+                          const directionId = getDirectionId(direction, index);
+                          const isSelected = selectedId !== "" && directionId === selectedId;
+
+                          return (
+                            <div
+                              key={`${directionId}-${index}`}
+                              className={`rounded border p-3 ${
+                                isSelected
+                                  ? "border-blue-300 bg-blue-50"
+                                  : "border-gray-200 bg-gray-50"
+                              }`}
+                            >
+                              <div className="mb-1 flex items-center gap-2">
+                                <span className="text-xs text-gray-400">[{directionId}]</span>
+                                <span className="text-sm font-semibold text-gray-700">
+                                  {valueToText(direction.title) || `方向 ${index + 1}`}
+                                </span>
+                                {isSelected && (
+                                  <span className="rounded bg-blue-600 px-1.5 py-0.5 text-[11px] text-white">
+                                    已选择
+                                  </span>
+                                )}
+                              </div>
+                              <div className="space-y-1">
+                                {Object.entries(DIRECTION_DETAIL_LABELS).map(([key, label]) => {
+                                  const text = valueToText(direction[key]);
+                                  if (!text) return null;
+                                  return (
+                                    <p key={key} className="text-xs text-gray-600">
+                                      <span className="font-medium text-gray-500">{label}：</span>
+                                      <span className="whitespace-pre-wrap">{text}</span>
+                                    </p>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Section>
+                  );
+                })()}
+
                 {detail.selected_direction && (
                   <Section title="选择的迭代方向">
                     {(() => {
-                      try {
-                        const dir = JSON.parse(detail.selected_direction);
+                      const direction = parseDirection(detail.selected_direction);
+                      if (!direction) {
                         return (
-                          <div className="space-y-1">
-                            <p className="text-sm font-semibold text-gray-700">
-                              {dir.id && <span className="text-xs text-gray-400 mr-1">[{dir.id}]</span>}
-                              {dir.title || ""}
-                            </p>
-                            {dir.goal && <p className="text-xs text-gray-500">目标：{dir.goal}</p>}
-                            {dir.description && <p className="text-sm text-gray-600">{dir.description}</p>}
-                          </div>
+                          <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                            {detail.selected_direction}
+                          </p>
                         );
-                      } catch {
-                        return <p className="text-sm text-gray-700 whitespace-pre-wrap">{detail.selected_direction}</p>;
                       }
+                      return (
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-gray-700">
+                            {valueToText(direction.id) && (
+                              <span className="text-xs text-gray-400 mr-1">
+                                [{valueToText(direction.id)}]
+                              </span>
+                            )}
+                            {valueToText(direction.title)}
+                          </p>
+                          {Object.entries(DIRECTION_DETAIL_LABELS).map(([key, label]) => {
+                            const text = valueToText(direction[key]);
+                            if (!text) return null;
+                            return (
+                              <p key={key} className="text-xs text-gray-600">
+                                <span className="font-medium text-gray-500">{label}：</span>
+                                <span className="whitespace-pre-wrap">{text}</span>
+                              </p>
+                            );
+                          })}
+                        </div>
+                      );
                     })()}
                   </Section>
                 )}
 
-                {(detail.prompt_result && detail.selected_direction) && (
+                {detail.prompt_result && (
                   <Section title="生成的提示词">
                     <div className="space-y-2 text-sm">
-                      {(["chinese_prompt", "english_prompt", "negative_prompt"] as const).map((key) => {
-                        const value = detail.prompt_result?.[key];
-                        if (!value || (Array.isArray(value) && value.length === 0)) return null;
-                        const text = Array.isArray(value) ? value.join("\n") : String(value);
-                        const labels: Record<string, string> = {
-                          chinese_prompt: "中文提示词",
-                          english_prompt: "英文提示词",
-                          negative_prompt: "反向提示词",
-                        };
+                      {PROMPT_FIELDS.map(([key, label]) => {
+                        const text = valueToText(detail.prompt_result?.[key]);
+                        if (!text) return null;
                         return (
                           <div key={key}>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-medium text-gray-500">{labels[key]}</span>
+                              <span className="text-xs font-medium text-gray-500">{label}</span>
                               <button
                                 onClick={() => handleCopy(text, `hist-${key}`)}
                                 className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"

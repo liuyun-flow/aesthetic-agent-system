@@ -11,9 +11,10 @@
 - 向后兼容：LLM 未提供 id 时自动分配 dir-1, dir-2…
 
 ### Direction-Based Prompt Generation
-- `/generate-prompt` 接收 `selected_direction`（JSON 字符串）
+- `/generate-prompt` 接收 `selected_direction`（JSON 字符串或对象）与可选 `session_id`
 - PromptGeneratorAgent focus block：有选择方向时强烈聚焦该方向
-- 生成结果保存到最新 session 的 `selected_direction` + `prompt_result`
+- 生成结果保存到匹配的 iterate session 的 `selected_direction` + `prompt_result`
+- 未传 `session_id` 的旧客户端仅回退保存到最新 iterate 记录，不会写入 analyze/critique 记录
 - 无选择方向时完全兼容旧流程
 
 ### Frontend: Iteration Direction Cards
@@ -24,17 +25,21 @@
 - 提示词结果卡片展示（可逐项复制）
 
 ### History Detail Enhancement
-- 训练详情弹窗展示选择的迭代方向和生成的提示词
+- 训练详情弹窗展示当时所有迭代方向，并高亮用户选择的方向
+- 展示选中方向对应的生成提示词：中文提示词 / 英文提示词 / 反向提示词 / 设计师执行说明 / 文案优化提示 / 使用建议
 - 提示词可逐项复制
+- 旧历史记录缺少 `selected_direction` / `prompt_result` 时不会崩溃或显示 undefined/null/[object Object]
 
 ## Test Results
-- **144 passed**（V1.7.1 原 137 + V1.7.2 新增 7 个）
-- 新增测试覆盖：TestGeneratePromptWithDirection × 4, TestIterationDirectionSchema × 3
+- **148 passed**（V1.7.1 原 137 + V1.7.2 新增 11 个）
+- 新增测试覆盖：TestGeneratePromptWithDirection × 8, TestIterationDirectionSchema × 3
 - 全部使用 mocked agents，无需 API key
 
 ## Build Results
-- Frontend `npm run build`: ✅ 通过
-- Backend pytest: ✅ 144 passed
+- Frontend build: ✅ 通过
+- Backend pytest: ✅ 148 passed
+- Docker compose config: ✅ 有效
+- Docker compose up --build smoke test: ✅ 后端 `/health` 返回 v1.7.2，前端首页返回 200
 
 ## Next Step
 V1.8 — 语义搜索 / 向量检索（前置条件：案例库 ≥50 个）
@@ -161,15 +166,13 @@ V1.8 — 语义搜索 / 向量检索（前置条件：案例库 ≥50 个）
 ## Known Issues
 1. GitHub push 需代理（127.0.0.1:7891），代理未运行时 `git push` 失败
 2. Git Bash 下 curl 无法连接 127.0.0.1（用浏览器或用 Python urllib + ProxyHandler({}) 替代）
-3. Docker 配置文件已创建但未在当前环境测试（Docker 不在 PATH）
-4. HTTP_PROXY 环境变量可能导致 Python urllib 本地连接失败（绕过：ProxyHandler({})）
-5. `backend/.env` 里 `DATABASE_URL=sqlite:///./aesthetic.db` 与 V1.7 预期 `data/database/aesthetic.db` 不一致（历史遗留，不要贸然改，否则丢失历史数据）
-6. POST /settings/test-vision 对 OpenAI 只做文本 chat smoke test，不做真实 image input 测试（连通性测试，够用）
-7. 前端 `NEXT_PUBLIC_API_BASE_URL` 是 build-time env，Docker 运行时不变（本地默认可用，自定义部署需注意）
+3. HTTP_PROXY 环境变量可能导致 Python urllib 本地连接失败（绕过：ProxyHandler({})）
+4. `backend/.env` 里 `DATABASE_URL=sqlite:///./aesthetic.db` 与 V1.7 预期 `data/database/aesthetic.db` 不一致（历史遗留，不要贸然改，否则丢失历史数据）
+5. POST /settings/test-vision 对 OpenAI 只做文本 chat smoke test，不做真实 image input 测试（连通性测试，够用）
+6. 前端 `NEXT_PUBLIC_API_BASE_URL` 是 build-time env，Docker 运行时不变（本地默认可用，自定义部署需注意）
 
 ## Not Yet Built
 - 语义搜索 / 向量检索（V1.8，前置条件：案例库 ≥50 个）
-- Docker 本地实测（docker compose up --build）
 - 多人 SaaS / 登录 / 云存储（V2.0）
 - 设置页 "配置来源" 展示（减少 .env 与设置页混用困惑）
 
@@ -238,7 +241,7 @@ bash scripts/start_all.sh --open-browser
 # 检查配置
 python scripts/check-env.py
 
-# 运行测试（121 passed）
+# 运行测试（当前 148 passed）
 cd backend && pytest app/tests/ -v
 
 # 前端 build 检查

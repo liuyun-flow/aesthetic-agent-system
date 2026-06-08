@@ -288,7 +288,7 @@ class MockPromptGeneratorAgent:
         user_judgment: dict | None = None,
         critique_result: dict | None = None,
         iterate_result: dict | None = None,
-        selected_direction: str | None = None,
+        selected_direction: dict | str | None = None,
         reference_comparison: dict | None = None,
         target_tool: str = "general",
     ) -> GeneratedPrompt:
@@ -1705,11 +1705,13 @@ class TestGeneratePromptWithDirection:
         assert "chinese_prompt" in data
 
     def test_generate_prompt_saves_direction_to_session(self, client):
-        """When selected_direction is provided, it should be saved to the latest session."""
+        """When session_id is provided, direction prompt should be saved to that session."""
         # First create a session
         client.post("/iterate", json={
             "work_description": "A poster design that needs iteration.",
         })
+        sessions_resp = client.get("/sessions?limit=1")
+        session_id = sessions_resp.json()["sessions"][0]["id"]
         # Then generate prompt with direction
         direction_json = '{"id":"dir-1","title":"极简主义重构","description":"去掉所有装饰","goal":"最小元素最大信息"}'
         resp = client.post(
@@ -1717,18 +1719,117 @@ class TestGeneratePromptWithDirection:
             json={
                 "work_description": "A poster design that needs iteration.",
                 "selected_direction": direction_json,
+                "session_id": session_id,
             },
         )
         assert resp.status_code == 200
 
-        # Check the latest session has selected_direction
-        sessions_resp = client.get("/sessions?limit=1")
-        latest_id = sessions_resp.json()["sessions"][0]["id"]
-        detail_resp = client.get(f"/sessions/{latest_id}")
+        # Check the matching session has selected_direction
+        detail_resp = client.get(f"/sessions/{session_id}")
         detail = detail_resp.json()
         assert detail["selected_direction"] == direction_json
         assert detail["prompt_result"] is not None
         assert "chinese_prompt" in detail["prompt_result"]
+
+    def test_generate_prompt_saves_to_requested_session_not_latest(self, client):
+        """Direction prompt persistence should not overwrite a newer unrelated session."""
+        client.post("/iterate", json={
+            "work_description": "First iteration that will receive the prompt.",
+        })
+        first_session_id = client.get("/sessions?limit=1").json()["sessions"][0]["id"]
+
+        client.post("/iterate", json={
+            "work_description": "Second iteration that should stay untouched.",
+        })
+        second_session_id = client.get("/sessions?limit=1").json()["sessions"][0]["id"]
+
+        direction_json = '{"id":"dir-2","title":"指定方向"}'
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "First iteration that will receive the prompt.",
+                "selected_direction": direction_json,
+                "session_id": first_session_id,
+            },
+        )
+        assert resp.status_code == 200
+
+        first_detail = client.get(f"/sessions/{first_session_id}").json()
+        second_detail = client.get(f"/sessions/{second_session_id}").json()
+        assert first_detail["selected_direction"] == direction_json
+        assert first_detail["prompt_result"] is not None
+        assert second_detail["selected_direction"] is None
+        assert second_detail["prompt_result"] is None
+
+    def test_generate_prompt_accepts_direction_object_and_passes_json_text(self, client):
+        """selected_direction may be sent as an object and still reaches the agent."""
+        captured = {}
+
+        class CapturingPromptGeneratorAgent(MockPromptGeneratorAgent):
+            def run(
+                self,
+                work_description: str,
+                image_description: str | None = None,
+                user_judgment: dict | None = None,
+                critique_result: dict | None = None,
+                iterate_result: dict | None = None,
+                selected_direction: dict | str | None = None,
+                reference_comparison: dict | None = None,
+                target_tool: str = "general",
+            ) -> GeneratedPrompt:
+                captured["selected_direction"] = selected_direction
+                return MOCK_PROMPT_RESULT
+
+        app.dependency_overrides[get_prompt_generator] = lambda: CapturingPromptGeneratorAgent()
+
+        direction = {
+            "id": "dir-3",
+            "title": "视觉层级强化",
+            "goal": "让主标题和核心卖点更明确",
+            "risk": "可能显得更商业化",
+        }
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "A poster design that needs a stronger hierarchy.",
+                "selected_direction": direction,
+            },
+        )
+        assert resp.status_code == 200
+        selected = captured["selected_direction"]
+        assert isinstance(selected, str)
+        assert json.loads(selected)["id"] == "dir-3"
+
+    def test_generate_prompt_returns_404_for_missing_session_id(self, client):
+        """An explicit session_id must point to an existing session."""
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "A poster design that needs a stronger hierarchy.",
+                "selected_direction": '{"id":"dir-1","title":"Test"}',
+                "session_id": 999999,
+            },
+        )
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "未找到要保存提示词的训练记录。"
+
+    def test_generate_prompt_rejects_non_iterate_session_id(self, client):
+        """Direction prompts should only be persisted on iterate records."""
+        client.post("/analyze", json={
+            "work_description": "A simple blue button on a white page with Helvetica text.",
+        })
+        session_id = client.get("/sessions?limit=1").json()["sessions"][0]["id"]
+
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "A simple blue button on a white page with Helvetica text.",
+                "selected_direction": '{"id":"dir-1","title":"Test"}',
+                "session_id": session_id,
+            },
+        )
+        assert resp.status_code == 400
+        assert resp.json()["detail"] == "只能为迭代记录保存方向提示词。"
 
     def test_generate_prompt_without_direction_does_not_overwrite_session(self, client):
         """Without selected_direction, session fields should remain null."""

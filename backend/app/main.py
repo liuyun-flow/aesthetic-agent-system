@@ -928,7 +928,7 @@ def generate_prompt(
 
     V1.7.2: When selected_direction is provided, the prompt is tightly
     focused on that direction. The selected_direction and generated
-    prompt result are saved to the most recent training session.
+    prompt result are saved to the matching iterate session when possible.
     """
 
     def _to_dict(v: Any) -> dict | None:
@@ -943,6 +943,17 @@ def generate_prompt(
                 return {"raw": v}
         return None
 
+    def _to_json_text(v: Any) -> str | None:
+        if v is None:
+            return None
+        if isinstance(v, str):
+            return v
+        if isinstance(v, dict):
+            return json.dumps(v, ensure_ascii=False, indent=2)
+        return str(v)
+
+    selected_direction_text = _to_json_text(body.selected_direction)
+
     result = _run_agent(
         "Prompt generation",
         lambda: generator.run(
@@ -951,23 +962,40 @@ def generate_prompt(
             user_judgment=body.user_judgment.model_dump() if body.user_judgment else None,
             critique_result=_to_dict(body.critique_result),
             iterate_result=_to_dict(body.iterate_result),
-            selected_direction=body.selected_direction,
+            selected_direction=selected_direction_text,
             reference_comparison=_to_dict(body.reference_comparison),
             target_tool=body.target_tool or "general",
         ),
     )
 
-    # ── V1.7.2: Save selected_direction + prompt_result to latest session ──
-    if body.selected_direction:
+    # V1.7.2: save selected_direction + prompt_result to the iterate
+    # session that produced those directions. Older clients without a
+    # session_id fall back to the latest iterate record only.
+    if selected_direction_text:
         try:
-            latest = session_service.get_recent_records(db, limit=1)
-            if latest:
-                record = latest[0]
-                record.selected_direction = body.selected_direction
+            record = None
+            if body.session_id is not None:
+                record = session_service.get_session_by_id(db, body.session_id)
+                if record is None:
+                    raise HTTPException(status_code=404, detail="未找到要保存提示词的训练记录。")
+                if record.record_type != "iterate":
+                    raise HTTPException(status_code=400, detail="只能为迭代记录保存方向提示词。")
+            else:
+                latest = session_service.get_recent_records(db, limit=1, record_type="iterate")
+                record = latest[0] if latest else None
+
+            if record is not None:
+                record.selected_direction = selected_direction_text
                 record.prompt_result = result.model_dump()
                 db.commit()
-        except Exception:
-            pass  # Non-critical — don't fail the request
+        except HTTPException:
+            raise
+        except Exception as exc:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail="提示词生成成功，但保存到历史记录失败。",
+            ) from exc
 
     return result
 
