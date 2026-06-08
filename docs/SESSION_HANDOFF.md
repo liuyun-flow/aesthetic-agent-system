@@ -1,118 +1,110 @@
 # Session Handoff — 2026-06-08
 
 ## Last Completed
-- **V1.7**: Local settings page / BYOK config (full stack: backend + frontend + tests + docs)
-- V1.6 security hardening (Codex review fixes): .dockerignore, placeholder key unification, DB path fix, README update, test mocks, i18n fallback fixes
-- Git push: V1.6 review fixes + V1.7 committed and pushed to `origin/main`
+- **V1.7 Codex Review Hardening** (commit `f290ac7`): 8 publish-blocker fixes + 4 improvements
+- **V1.7 Vision Fix** (commit `4ac7ee8`): smoke test PNG + error message stratification
+- Both commits: working tree clean, 121 tests passed, frontend build passed
 
-## Key Deliverables
+## Commit Timeline (this session)
+```
+4ac7ee8 fix: improve vision smoke test and error messages
+f290ac7 fix: harden local BYOK settings
+1f86e5f docs: update PROJECT_STATUS and SESSION_HANDOFF for V1.7 session close
+9b4a785 V1.7: Local settings page / BYOK config
+```
 
-### V1.7 — Settings Module
-- `backend/app/settings/config_store.py` — JSON config persistence, TTL cache, atomic writes, masked keys
-- `backend/app/settings/schemas.py` — Pydantic models (SettingsStatusResponse, SettingsSaveRequest, ClearKeyRequest, TestConnectionResponse)
-- `backend/app/settings/routes.py` — APIRouter with 5 endpoints
-- Config priority chain: `data/config/app_config.json` > `.env` > hardcoded defaults
+## Key Deliverables — Post-V1.7 Hardening (f290ac7)
 
-### V1.7 — API Endpoints
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/settings` | Config status with masked API keys |
-| `POST` | `/settings` | Save config (empty fields = no overwrite) |
-| `POST` | `/settings/clear-key` | Clear a provider's API key |
-| `POST` | `/settings/test-deepseek` | Test DeepSeek connection |
-| `POST` | `/settings/test-vision` | Test Vision provider connection |
+### Publish-Blocker Fixes (8)
+| # | Issue | Fix |
+|---|-------|-----|
+| 1 | `backend/data/config/app_config.json` tracked by Git | `.gitignore` + `git rm --cached` |
+| 2 | DEFAULT_CONFIG shadowed .env values | All fields → `""`; real defaults in `get_value()` / callers' `or` |
+| 3 | clear-key didn't suppress .env fallback | `_CLEARED_SENTINEL`; `get_value()` returns `""` for sentinel |
+| 4 | Test connection leaked raw exception text | Fixed Chinese messages in routes.py |
+| 5 | Version string still V1.6 | `1.6.0` → `1.7.0` in main.py (2 places) |
+| 6 | Frontend clear-key didn't check response | `handleClearKey` checks `res.ok` |
+| 7 | Frontend load failure had no error state | `fetchError` state + retry button + i18n |
+| 8 | check-env.py leaked key prefix, missed config_store | Full rewrite: reads both sources, masks all keys |
 
-### V1.7 — Frontend
-- New page: `frontend/src/app/settings/page.tsx`
-- DeepSeek section: API key input (password), base URL, model selects, test/clear buttons
-- Vision section: provider select, OpenAI key input (password), model select, test/clear buttons
-- Security notice banner (Chinese)
-- i18n: `settings:` namespace in `zh.ts` and `en.ts` (25+ keys)
-- Header navigation: Workbench / Settings tabs (active state highlighting)
+### Architecture Improvements
+- `config_store.py`: `PLACEHOLDER_CONFIG_VALUES` centralized, `is_configured_value()` extracted, `get_vision_provider()` / `get_vision_missing_keys()` / `is_vision_configured()` added, `write_config` invalidates cache before I/O
+- `main.py`: `_vision_http_exception()` for safe, stratified vision error messages
+- `openai_adapter.py`: `api_key is not None` → `if api_key:` (empty string → env fallback)
+- `start_all.sh`: removed nested subprocess.Popen; direct `pythonw -m uvicorn` + direct `node next`
 
-### V1.7 — Wiring
-- `deepseek_client.py`: `os.getenv` → `get_value()` for all config reads
-- `get_vision_adapter()`: reads provider/key/model from config_store first
-- `/model/status`: reads from config_store
-- `/vision/status`: reads from config_store
-- `describe_image`: reads VISION_PROVIDER from config_store
-
-### V1.6 Review Fixes
-- `backend/.dockerignore` + `frontend/.dockerignore`: prevent `.env` and data leaks into Docker images
-- Placeholder key unification across 5 files: `deepseek_client.py`, `openai_adapter.py`, `main.py` (2 places), `check-env.py`
-- Root `.env.example` synced with backend: `DATABASE_URL=sqlite:///./data/database/aesthetic.db`
-- `frontend/Dockerfile`: CMD `npm run dev` → `npm run start` (production mode)
-- FastAPI version: `0.1.0` → `1.6.0`
-- Vision error leak: raw exception → fixed Chinese message
-- `docker-compose.yml`: backend healthcheck + frontend `depends_on` condition
-- `start_all.sh`: configurable `PYTHON_HOME` / `NODE_HOME` env vars
-- Frontend i18n: all English error fallbacks → `t.common.*` keys
-- Test mocks: `MockReferenceComparatorAgent`, `MockPromptGeneratorAgent`, `MockWeeklyReviewAgent` added
-
-## Files Created (10)
+### New Files Created
 | File | Purpose |
 |------|---------|
-| `backend/.dockerignore` | Exclude secrets from Docker build |
-| `frontend/.dockerignore` | Exclude node_modules/.next from Docker build |
-| `backend/app/settings/__init__.py` | Package marker |
-| `backend/app/settings/config_store.py` | Config persistence engine |
-| `backend/app/settings/schemas.py` | Settings API models |
-| `backend/app/settings/routes.py` | Settings API endpoints |
-| `backend/app/tests/test_settings.py` | 23 settings tests |
-| `backend/data/config/.gitkeep` | Config dir placeholder |
-| `frontend/src/app/settings/page.tsx` | Settings page component |
+| (none) | All changes were to existing files |
 
-## Files Modified (20)
-| File | Summary |
-|------|---------|
-| `.env.example` | DB path + UPLOAD_DIR + VISION_PROVIDER |
-| `.gitignore` | data/config/* exclusion |
-| `README.md` | V1.7: version, features, API table, BYOK section (EN+CN) |
-| `PROJECT_STATUS.md` | V1.7 status, known issues, file inventory |
-| `docker-compose.yml` | Config volume + healthcheck |
+### Files Modified (17)
+| File | Change Summary |
+|------|----------------|
+| `.gitignore` | +backend/data/config/*, uploads/*, database/*.db |
+| `README.md` | Test command: `pytest app/tests/ -v` |
+| `backend/.env.example` | Synced with data/ layout |
+| `backend/app/main.py` | _vision_http_exception(); version 1.7.0; OpenAI exception imports |
+| `backend/app/settings/config_store.py` | DEFAULT_CONFIG emptied; _CLEARED_SENTINEL; get_masked_status → get_value(); helpers extracted |
+| `backend/app/settings/routes.py` | _make_vision_test_png(); fixed exception messages |
+| `backend/app/vision/openai_adapter.py` | Empty string api_key → env fallback |
+| `backend/app/tests/test_api.py` | +2 ClearKey test fixes; +2 vision describe error tests |
+| `backend/app/tests/test_settings.py` | +4 test fixes; +1 PNG validation test |
+| `scripts/check-env.py` | Full rewrite: config-aware, key masking, source annotation |
+| `scripts/start_all.sh` | Simplified startup: no subprocess.Popen nesting |
+| `frontend/src/app/settings/page.tsx` | Error state; clear-key response check; placeholder improvements |
+| `frontend/src/i18n/zh.ts` | +loadError, retry, clearKeyHint |
+| `frontend/src/i18n/en.ts` | +loadError, retry, clearKeyHint |
+| `PROJECT_STATUS.md` | Updated (this session) |
 | `docs/SESSION_HANDOFF.md` | This file |
-| `backend/app/main.py` | include_router + get_value + version |
-| `backend/app/llm/deepseek_client.py` | get_value fallback chain |
-| `backend/app/vision/openai_adapter.py` | placeholder_keys extended |
-| `backend/app/tests/test_api.py` | 3 Mock agents + 3 config fixes |
-| `scripts/check-env.py` | placeholder_keys extended |
-| `scripts/start_all.sh` | Configurable Python/Node paths |
-| `frontend/Dockerfile` | Production mode CMD |
-| `frontend/src/i18n/zh.ts` | settings namespace |
-| `frontend/src/i18n/en.ts` | settings namespace |
-| `frontend/src/app/layout.tsx` | Header navigation tabs |
-| `frontend/src/app/page.tsx` | Error i18n |
-| `frontend/src/components/TaskForm.tsx` | Error i18n |
-| `frontend/src/components/SessionList.tsx` | Error i18n |
-| `frontend/src/components/ReferencePanel.tsx` | Error i18n |
+
+## Key Deliverables — Vision Fix (4ac7ee8)
+
+### Fixes
+| # | Issue | Fix |
+|---|-------|-----|
+| 1 | `/settings/test-vision` false-failed (1×1 PNG rejected by OpenAI) | Runtime-generated 64×64 valid RGB PNG |
+| 2 | Workbench describe errors too generic (always 502) | `_vision_http_exception()` per exception type (Auth 401 / Connection 502 / BadRequest 400 / RateLimit 502) |
+| 3 | No regression coverage | +3 tests (PNG validation + JSON parse error + raw exception leak) |
+
+### Files Modified (4)
+| File | Change Summary |
+|------|----------------|
+| `backend/app/main.py` | _vision_http_exception() wired into 3 describe endpoints |
+| `backend/app/settings/routes.py` | _make_vision_test_png() + _png_chunk(); test-vision uses new PNG |
+| `backend/app/tests/test_api.py` | +2 describe error regression tests |
+| `backend/app/tests/test_settings.py` | +1 PNG structure validation test |
 
 ## Test Results
-- **111 passed** (88 existing + 23 new settings tests)
-- All tests use mocked agents — no API key required
-- Settings test coverage: GET/POST /settings, clear-key, test-deepseek, test-vision, model/vision status uses config, existing endpoints unaffected, config persistence, priority chain
+- **121 passed** (111 original + 10 new across both commit rounds)
+- All tests use mocked agents/adapters — no API key required
+- New coverage: clear-key sentinel behavior, vision error stratification, PNG validity, raw exception safety
 
 ## Git Status
-- V1.6 review fixes: pushed as `aa1ff1e` through `92de5fa`
-- V1.7: committed as `9b4a785`, pushed to `origin/main`
+- `f290ac7`: fix: harden local BYOK settings (17 files)
+- `4ac7ee8`: fix: improve vision smoke test and error messages (4 files)
 - Working tree: clean
+- Not yet pushed to remote (GitHub push requires proxy 127.0.0.1:7891)
 
 ## Running Services
-- Backend: 127.0.0.1:8000 ✅
+- Backend: 127.0.0.1:8000 ✅ (version v1.7)
 - Frontend: 127.0.0.1:3000 ✅
 - Settings page: http://127.0.0.1:3000/settings ✅
+- Vision: OpenAI configured, test-vision passes ✅
 
 ## Known Issues
-1. GitHub push requires proxy at 127.0.0.1:7891
+1. GitHub push requires proxy at 127.0.0.1:7891 — commits f290ac7 and 4ac7ee8 not pushed
 2. Git Bash curl can't reach 127.0.0.1 services — use browser or Python with `ProxyHandler({})`
 3. Docker not tested locally (not in PATH)
 4. HTTP_PROXY env var may cause local connection failures in Python urllib
-5. Frontend `npm run build` not verified in current session (Node PATH issue in Git Bash)
-6. `set_config` skips empty strings by design — use `write_config` when values must be cleared
-7. 2 env-fallback tests in test_api.py have intermittent failures with monkeypatch + load_dotenv
+5. `backend/.env` DATABASE_URL still points to `./aesthetic.db` (not `data/database/aesthetic.db`) — historical data compatibility; do NOT change without migration
+6. Frontend `NEXT_PUBLIC_API_BASE_URL` is build-time env — custom Docker deployments need rebuild
+7. POST /settings/test-vision only does text chat test, not real image input smoke test (acceptable for connectivity check)
 
 ## Next Session First Steps
 1. Start services: `bash scripts/start_all.sh --open-browser`
-2. Verify settings page: http://127.0.0.1:3000/settings
-3. Run tests: `cd backend && pytest app/tests/ -v` (expect 111 passed)
-4. If Docker available: `docker compose config`
-5. V1.8: Semantic search (prerequisite: ≥50 reference cases in library)
+2. Verify settings page loads with correct masked keys: http://127.0.0.1:3000/settings
+3. Run tests: `cd backend && pytest app/tests/ -v` (expect 121 passed)
+4. Test vision end-to-end: upload an image on the workbench, click auto-describe, verify it works
+5. If proxy available: `git push origin main`
+6. V1.8: Semantic search (prerequisite: ≥50 reference cases in library)
