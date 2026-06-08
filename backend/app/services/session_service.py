@@ -29,11 +29,15 @@ def save_record(
     ai_priority_fixes: str | None = None,
     judgment_gap_summary: str | None = None,
     training_focus_tags: str | None = None,
+    selected_direction: str | None = None,
+    prompt_result: dict[str, Any] | None = None,
 ) -> TrainingRecord:
     """Persist a training record (analyze / critique / iterate).
 
     V1.1: Accepts optional user judgment and AI comparison fields
     for the training-loop feature.
+    V1.7.2: Accepts selected_direction and prompt_result for
+    iteration direction selection + prompt generation persistence.
     """
     if record_type not in VALID_RECORD_TYPES:
         raise ValueError(f"Unsupported record type: {record_type}")
@@ -55,6 +59,8 @@ def save_record(
         ai_priority_fixes=ai_priority_fixes,
         judgment_gap_summary=judgment_gap_summary,
         training_focus_tags=training_focus_tags,
+        selected_direction=selected_direction,
+        prompt_result=prompt_result,
     )
     db.add(record)
     try:

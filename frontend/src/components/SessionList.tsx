@@ -33,6 +33,8 @@ interface SessionDetail {
   ai_priority_fixes: string | null;
   judgment_gap_summary: string | null;
   training_focus_tags: string | null;
+  selected_direction: string | null;
+  prompt_result: Record<string, unknown> | null;
 }
 
 interface Props {
@@ -282,6 +284,62 @@ export default function SessionList({ refreshKey }: Props) {
                         <div className="mt-0.5">{renderValue("training_focus_tags", detail.training_focus_tags)}</div>
                       </div>
                     )}
+                  </Section>
+                )}
+
+                {/* V1.7.2: Selected direction + generated prompt */}
+                {detail.selected_direction && (
+                  <Section title="选择的迭代方向">
+                    {(() => {
+                      try {
+                        const dir = JSON.parse(detail.selected_direction);
+                        return (
+                          <div className="space-y-1">
+                            <p className="text-sm font-semibold text-gray-700">
+                              {dir.id && <span className="text-xs text-gray-400 mr-1">[{dir.id}]</span>}
+                              {dir.title || ""}
+                            </p>
+                            {dir.goal && <p className="text-xs text-gray-500">目标：{dir.goal}</p>}
+                            {dir.description && <p className="text-sm text-gray-600">{dir.description}</p>}
+                          </div>
+                        );
+                      } catch {
+                        return <p className="text-sm text-gray-700 whitespace-pre-wrap">{detail.selected_direction}</p>;
+                      }
+                    })()}
+                  </Section>
+                )}
+
+                {(detail.prompt_result && detail.selected_direction) && (
+                  <Section title="生成的提示词">
+                    <div className="space-y-2 text-sm">
+                      {(["chinese_prompt", "english_prompt", "negative_prompt"] as const).map((key) => {
+                        const value = detail.prompt_result?.[key];
+                        if (!value || (Array.isArray(value) && value.length === 0)) return null;
+                        const text = Array.isArray(value) ? value.join("\n") : String(value);
+                        const labels: Record<string, string> = {
+                          chinese_prompt: "中文提示词",
+                          english_prompt: "英文提示词",
+                          negative_prompt: "反向提示词",
+                        };
+                        return (
+                          <div key={key}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-medium text-gray-500">{labels[key]}</span>
+                              <button
+                                onClick={() => handleCopy(text, `hist-${key}`)}
+                                className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                              >
+                                {copiedKey === `hist-${key}` ? "已复制" : "复制"}
+                              </button>
+                            </div>
+                            <pre className="whitespace-pre-wrap rounded bg-gray-50 p-2 text-xs text-gray-700 max-h-32 overflow-y-auto">
+                              {text}
+                            </pre>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </Section>
                 )}
 

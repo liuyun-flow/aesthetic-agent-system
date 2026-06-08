@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="1.7.1",
+    version="1.7.2",
     lifespan=lifespan,
 )
 
@@ -575,6 +575,8 @@ def get_session_detail(
         ai_priority_fixes=record.ai_priority_fixes,
         judgment_gap_summary=record.judgment_gap_summary,
         training_focus_tags=record.training_focus_tags,
+        selected_direction=record.selected_direction,
+        prompt_result=record.prompt_result,
     )
 
 
@@ -916,12 +918,17 @@ def compare_with_references(
 def generate_prompt(
     body: GeneratePromptRequest,
     generator: PromptGeneratorAgent = Depends(get_prompt_generator),
+    db: Session = Depends(get_db),
 ) -> GeneratedPrompt:
     """Generate copyable prompts for image generation tools.
 
     Accepts analysis results (critique, iterate, reference comparison)
     and produces Chinese + English prompts, negative prompts, design
     notes, and usage tips.
+
+    V1.7.2: When selected_direction is provided, the prompt is tightly
+    focused on that direction. The selected_direction and generated
+    prompt result are saved to the most recent training session.
     """
 
     def _to_dict(v: Any) -> dict | None:
@@ -936,7 +943,7 @@ def generate_prompt(
                 return {"raw": v}
         return None
 
-    return _run_agent(
+    result = _run_agent(
         "Prompt generation",
         lambda: generator.run(
             work_description=body.work_description,
@@ -949,6 +956,20 @@ def generate_prompt(
             target_tool=body.target_tool or "general",
         ),
     )
+
+    # ── V1.7.2: Save selected_direction + prompt_result to latest session ──
+    if body.selected_direction:
+        try:
+            latest = session_service.get_recent_records(db, limit=1)
+            if latest:
+                record = latest[0]
+                record.selected_direction = body.selected_direction
+                record.prompt_result = result.model_dump()
+                db.commit()
+        except Exception:
+            pass  # Non-critical — don't fail the request
+
+    return result
 
 
 # ── V1.5: Training workbench ──────────────────────────────────────────
@@ -1106,7 +1127,7 @@ def weekly_review(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "backend", "version": "v1.7.1"}
+    return {"status": "ok", "service": "backend", "version": "v1.7.2"}
 
 
 @app.get("/model/status")

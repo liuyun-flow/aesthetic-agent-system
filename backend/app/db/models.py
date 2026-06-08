@@ -45,6 +45,10 @@ class TrainingRecord(Base):
     before_score = Column(Integer, nullable=True)
     after_score = Column(Integer, nullable=True)
 
+    # ── V1.7.2: Iteration direction selection + generated prompt ─────
+    selected_direction = Column(Text, nullable=True)
+    prompt_result = Column(JSON, nullable=True)
+
     def __repr__(self) -> str:
         return (
             f"<TrainingRecord id={self.id} type={self.record_type} "

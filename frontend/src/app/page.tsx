@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import TaskForm, { type UserJudgment, type ImageData } from "@/components/TaskForm";
-import ResultCard from "@/components/ResultCard";
+import ResultCard, { type DirectionData } from "@/components/ResultCard";
 import SessionList from "@/components/SessionList";
 import ReferencePanel from "@/components/ReferencePanel";
 import TrainingPanel from "@/components/TrainingPanel";
@@ -31,6 +31,13 @@ export default function Home() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [lastSessionId, setLastSessionId] = useState<number | null>(null);
 
+  // V1.7.2: Iteration direction selection + direction-based prompt generation
+  const [selectedDirection, setSelectedDirection] = useState<DirectionData | null>(null);
+  const [generatingDirectionPrompt, setGeneratingDirectionPrompt] = useState(false);
+  const [directionPromptResult, setDirectionPromptResult] = useState<Record<string, unknown> | null>(null);
+  const [directionPromptError, setDirectionPromptError] = useState<string | null>(null);
+  const [directionPromptCopiedKey, setDirectionPromptCopiedKey] = useState<string | null>(null);
+
   // Stash last submission for compare + prompt
   const [lastDescription, setLastDescription] = useState("");
   const [lastJudgment, setLastJudgment] = useState<UserJudgment | null>(null);
@@ -54,6 +61,9 @@ export default function Home() {
     async (description: string, type: TaskType, judgment: UserJudgment | null, image: ImageData | null) => {
       setLoading(true); setError(null); setResult(null);
       setCompareResult(null); setPromptResult(null);
+      setSelectedDirection(null);
+      setDirectionPromptResult(null);
+      setDirectionPromptError(null);
       setTaskType(type); setLastDescription(description);
       setLastJudgment(judgment); setLastImage(image); setLastType(type);
 
@@ -111,6 +121,62 @@ export default function Home() {
     catch { /* ignore */ }
   };
 
+  // V1.7.2: Direction selection & prompt generation
+  const handleSelectDirection = (direction: DirectionData) => {
+    setSelectedDirection(direction);
+    setDirectionPromptResult(null);
+    setDirectionPromptError(null);
+  };
+
+  const handleGenerateDirectionPrompt = async (direction: DirectionData) => {
+    setGeneratingDirectionPrompt(true);
+    setDirectionPromptError(null);
+    setDirectionPromptResult(null);
+    try {
+      const body: Record<string, unknown> = {
+        work_description: lastDescription,
+        image_description: lastImage?.image_description || null,
+        target_tool: "general",
+        selected_direction: JSON.stringify(direction, null, 2),
+      };
+      if (lastJudgment) {
+        body.user_judgment = {
+          score: lastJudgment.score,
+          strengths: lastJudgment.strengths.length > 0 ? lastJudgment.strengths : null,
+          weaknesses: lastJudgment.weaknesses.length > 0 ? lastJudgment.weaknesses : null,
+          priority_fixes: lastJudgment.priority_fixes.length > 0 ? lastJudgment.priority_fixes : null,
+          target_audience: lastJudgment.target_audience || null,
+          price_band: lastJudgment.price_band || null,
+        };
+      }
+      if (result) {
+        body.iterate_result = result;
+      }
+      if (compareResult) {
+        body.reference_comparison = compareResult;
+      }
+      const res = await fetch(`${base}/generate-prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || t.common.generateFailed);
+      }
+      setDirectionPromptResult(await res.json());
+    } catch (err: unknown) {
+      setDirectionPromptError(err instanceof Error ? err.message : t.common.generateFailed);
+    } finally {
+      setGeneratingDirectionPrompt(false);
+    }
+  };
+
+  const handleDirectionPromptCopy = async (text: string, key: string) => {
+    try { await navigator.clipboard.writeText(text); setDirectionPromptCopiedKey(key); setTimeout(() => setDirectionPromptCopiedKey(null), 2000); }
+    catch { /* ignore */ }
+  };
+
   return (
     <div className="space-y-8">
       {/* V1.7.1: Config status bar */}
@@ -127,7 +193,14 @@ export default function Home() {
 
       {result && taskType && (
         <>
-          <ResultCard data={result} taskType={taskType} />
+          <ResultCard
+            data={result}
+            taskType={taskType}
+            selectedDirectionId={selectedDirection?.id ?? null}
+            onSelectDirection={handleSelectDirection}
+            onGeneratePrompt={handleGenerateDirectionPrompt}
+            generatingPrompt={generatingDirectionPrompt}
+          />
 
           {/* V1.4 Compare */}
           <button onClick={handleCompare} disabled={comparing}
@@ -136,6 +209,18 @@ export default function Home() {
           </button>
           {compareError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{compareError}</div>}
           {compareResult && <CompareResultCard data={compareResult} t={t} />}
+
+          {/* V1.7.2 Direction-based prompt result */}
+          {directionPromptError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{directionPromptError}</div>}
+          {directionPromptResult && selectedDirection && (
+            <DirectionPromptResultCard
+              data={directionPromptResult}
+              direction={selectedDirection}
+              t={t}
+              copiedKey={directionPromptCopiedKey}
+              onCopy={handleDirectionPromptCopy}
+            />
+          )}
 
           {/* V1.4.1 Generate Prompt */}
           <button onClick={handleGeneratePrompt} disabled={generatingPrompt}
@@ -280,6 +365,67 @@ function ConfigStatusBar({
         )}
       </div>
     </div>
+  );
+}
+
+/* ── V1.7.2 Direction-based Prompt Result ────────────────────────── */
+
+function DirectionPromptResultCard({
+  data,
+  direction,
+  t,
+  copiedKey,
+  onCopy,
+}: {
+  data: Record<string, unknown>;
+  direction: DirectionData;
+  t: ReturnType<typeof useT>["t"];
+  copiedKey: string | null;
+  onCopy: (text: string, key: string) => void;
+}) {
+  const fields: [string, string][] = [
+    ["chinese_prompt", t.result.chinesePrompt],
+    ["english_prompt", t.result.englishPrompt],
+    ["negative_prompt", t.result.negativePrompt],
+    ["design_notes", t.result.designNotes],
+    ["copywriting_prompt", t.result.copywritingPrompt],
+    ["usage_tips", t.result.usageTips],
+  ];
+
+  return (
+    <section className="rounded border border-indigo-300 bg-indigo-50/50 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="text-sm font-semibold text-indigo-800">
+          基于「{direction.title}」生成的提示词
+        </span>
+        <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs text-indigo-600">
+          {direction.id}
+        </span>
+      </div>
+      <div className="space-y-3">
+        {fields.map(([key, label]) => {
+          const value = data[key];
+          if (!value || (Array.isArray(value) && value.length === 0)) return null;
+          const text = Array.isArray(value) ? value.join("\n") : String(value);
+          return (
+            <div key={key}>
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="text-xs font-semibold text-indigo-600">{label}</h4>
+                <button
+                  onClick={() => onCopy(text, `dir-${key}`)}
+                  className="rounded border border-indigo-300 px-2 py-0.5 text-xs text-indigo-600 hover:bg-indigo-100"
+                >
+                  {copiedKey === `dir-${key}` ? t.result.copied : t.result.copy}
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap rounded bg-white p-2 text-xs text-gray-700 border border-indigo-100">
+                {text}
+              </pre>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

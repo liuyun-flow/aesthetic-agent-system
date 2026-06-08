@@ -51,9 +51,17 @@ class CritiqueResponse(BaseModel):
 # ── /iterate ──────────────────────────────────────────────────────────
 
 class IterationDirection(BaseModel):
-    title: str = Field(..., min_length=1)
-    description: str = Field(..., min_length=1)
-    expected_impact: str = Field(..., min_length=1)
+    id: str = Field(default="", min_length=1, description="Unique direction id, e.g. dir-1")
+    title: str = Field(..., min_length=1, description="Short, punchy name for this direction")
+    description: str = Field(default="", description="2-3 sentences describing the visual approach")
+    expected_impact: str = Field(default="", description="What this direction would likely improve or change")
+    goal: str = Field(default="", description="Core design goal of this iteration")
+    visual_changes: str = Field(default="", description="Visual/风格层面的具体变化")
+    color_changes: str = Field(default="", description="色彩层面的具体变化")
+    typography_changes: str = Field(default="", description="字体排版层面的具体变化")
+    layout_changes: str = Field(default="", description="布局构图层面的具体变化")
+    commercial_rationale: str = Field(default="", description="商业层面的理由/目标用户考量")
+    risk: str = Field(default="", description="Potential risk or downside of this direction")
 
 
 class IterateResponse(BaseModel):
@@ -115,6 +123,9 @@ class SessionDetailResponse(BaseModel):
     # Judgment gap
     judgment_gap_summary: str | None = None
     training_focus_tags: str | None = None
+    # V1.7.2: Iteration direction selection + generated prompt
+    selected_direction: str | None = None
+    prompt_result: dict | None = None
 
 
 # ── /upload ───────────────────────────────────────────────────────────

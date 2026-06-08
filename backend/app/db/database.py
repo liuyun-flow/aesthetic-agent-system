@@ -42,6 +42,24 @@ def init_db() -> None:
     _migrate_v1_4()
     _migrate_v1_5()
     _migrate_v1_5_1()
+    _migrate_v1_7_2()
+
+
+def _migrate_v1_7_2() -> None:
+    """V1.7.2: Add selected_direction and prompt_result to training_records."""
+    v1_7_2_columns: list[tuple[str, str]] = [
+        ("selected_direction", "TEXT"),
+        ("prompt_result", "JSON"),
+    ]
+    with engine.connect() as conn:
+        for col_name, col_type in v1_7_2_columns:
+            try:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE training_records ADD COLUMN {col_name} {col_type}"
+                )
+            except Exception:
+                pass
+        conn.commit()
 
 
 def _migrate_v1_5_1() -> None:

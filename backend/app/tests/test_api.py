@@ -122,24 +122,56 @@ MOCK_CRITIQUE_RESULT = CritiqueResponse(
 MOCK_ITERATE_RESULT = IterateResponse(
     directions=[
         IterationDirection(
-            title="Brutalist Raw",
-            description="Strip away all decoration. Use raw typography, hard edges, and black/white only. Embrace the unpolished aesthetic.",
-            expected_impact="Would create striking distinctiveness and strong brand personality for an edgy audience.",
+            id="dir-1",
+            title="极简主义重构",
+            description="剥离所有装饰元素，使用原始字体、硬边线和纯粹黑白。拥抱未经修饰的粗粝美学。",
+            expected_impact="为追求个性的受众创造强烈的品牌辨识度和差异化。",
+            goal="用最少元素传递最强信息",
+            visual_changes="去除所有装饰性元素，仅保留核心内容框架",
+            color_changes="全面采用黑白灰单色体系，去掉所有彩色元素",
+            typography_changes="切换为单一无衬线字体，字号层级从3级简化为2级",
+            layout_changes="采用非对称网格布局，大幅增加留白，信息密度降低40%",
+            commercial_rationale="适合面向设计师、建筑师等审美敏感群体的品牌",
+            risk="可能让普通用户感到过于冷淡，降低亲和力",
         ),
         IterationDirection(
-            title="Warm Organic",
-            description="Introduce warm earth tones, rounded corners, hand-drawn illustrations, and a friendly voice.",
-            expected_impact="Would increase approachability and emotional connection for lifestyle/wellness contexts.",
+            id="dir-2",
+            title="温暖有机风",
+            description="引入温暖的土色调、圆角设计、手绘插图和友好的品牌语调。",
+            expected_impact="提升亲和力和情感连接，适合生活方式/健康类品牌。",
+            goal="营造自然有机的品牌温度",
+            visual_changes="所有尖锐转角改为圆角，图标从线性改为手绘风格",
+            color_changes="引入暖土色系（陶土红、杏仁黄、鼠尾草绿），降低饱和度",
+            typography_changes="主标题切换为衬线体，正文保留无衬线但字重减半",
+            layout_changes="卡片间距增大，采用不规则瀑布流替代整齐网格",
+            commercial_rationale="瞄准25-40岁注重生活方式的城市中产女性",
+            risk="可能显得不够专业，不适合严肃B2B场景",
         ),
         IterationDirection(
-            title="Data-Driven Precision",
-            description="Add data visualizations, metric cards, progress indicators. Emphasize precision and performance.",
-            expected_impact="Would build trust for B2B/SaaS audiences who value transparency and measurable results.",
+            id="dir-3",
+            title="数据驱动精准风",
+            description="添加数据可视化、指标卡片、进度指示器，强调精确性和性能感。",
+            expected_impact="为重视透明度和可衡量结果的B2B/SaaS受众建立信任。",
+            goal="用数据叙事建立专业权威",
+            visual_changes="引入数据图表、数字指标、进度条等可视化元素",
+            color_changes="保留品牌主色，增加数据可视化专用配色（蓝色渐变、绿色/红色指示色）",
+            typography_changes="全面采用等宽数字字体（Tabular Figures），正文字号增大0.5pt",
+            layout_changes="采用仪表盘式网格，每个数据模块独立卡片，顶部固定KPI条",
+            commercial_rationale="适合企业级SaaS、金融科技、数据分析类产品",
+            risk="过度数据化可能压抑情感连接，需要平衡人性化元素",
         ),
         IterationDirection(
-            title="Immersive Narrative",
-            description="Use full-bleed imagery, scroll-triggered animations, and story-driven copy to create a journey.",
-            expected_impact="Would increase engagement time and emotional investment for brand-story contexts.",
+            id="dir-4",
+            title="沉浸叙事风",
+            description="使用全屏大图、滚动触发动画和故事化文案，创造沉浸式品牌旅程。",
+            expected_impact="为品牌故事类场景提升用户停留时长和情感投入。",
+            goal="用叙事驱动品牌体验",
+            visual_changes="全屏大图替代卡片式布局，滚动视差动画贯穿全页",
+            color_changes="图片主导配色，UI元素降低至辅助地位，使用半透明叠加",
+            typography_changes="标题采用大号定制字体（display font），正文保持简洁",
+            layout_changes="线性叙事结构，每屏一个核心信息，放弃传统导航栏",
+            commercial_rationale="适合高端消费品牌、奢侈品、文旅类产品",
+            risk="加载性能显著下降，低端设备体验较差，SEO不友好",
         ),
     ],
 )
@@ -1639,3 +1671,127 @@ class TestSetupEndpoints:
         resp = client.post("/setup/complete")
         assert resp.status_code == 200
         assert resp.json()["setup_completed"] is True
+
+
+# ── V1.7.2: Iteration direction selection + prompt generation ─────────
+
+class TestGeneratePromptWithDirection:
+    """Tests for POST /generate-prompt with selected_direction."""
+
+    def test_generate_prompt_with_selected_direction(self, client):
+        """Prompt generation should succeed when selected_direction is provided."""
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "A minimalist poster with red accent.",
+                "selected_direction": '{"id":"dir-1","title":"极简主义重构","goal":"用最少元素传递最强信息","visual_changes":"去除所有装饰","color_changes":"黑白灰单色","typography_changes":"单一无衬线","layout_changes":"非对称网格","commercial_rationale":"适合设计师品牌","risk":"可能太冷"}',
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        for key in ("chinese_prompt", "english_prompt", "negative_prompt", "design_notes"):
+            assert key in data, f"Missing key: {key}"
+
+    def test_generate_prompt_without_direction_still_works(self, client):
+        """Backward compatibility: prompt generation works without selected_direction."""
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "A minimalist poster with red accent.",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "chinese_prompt" in data
+
+    def test_generate_prompt_saves_direction_to_session(self, client):
+        """When selected_direction is provided, it should be saved to the latest session."""
+        # First create a session
+        client.post("/iterate", json={
+            "work_description": "A poster design that needs iteration.",
+        })
+        # Then generate prompt with direction
+        direction_json = '{"id":"dir-1","title":"极简主义重构","description":"去掉所有装饰","goal":"最小元素最大信息"}'
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "A poster design that needs iteration.",
+                "selected_direction": direction_json,
+            },
+        )
+        assert resp.status_code == 200
+
+        # Check the latest session has selected_direction
+        sessions_resp = client.get("/sessions?limit=1")
+        latest_id = sessions_resp.json()["sessions"][0]["id"]
+        detail_resp = client.get(f"/sessions/{latest_id}")
+        detail = detail_resp.json()
+        assert detail["selected_direction"] == direction_json
+        assert detail["prompt_result"] is not None
+        assert "chinese_prompt" in detail["prompt_result"]
+
+    def test_generate_prompt_without_direction_does_not_overwrite_session(self, client):
+        """Without selected_direction, session fields should remain null."""
+        client.post("/iterate", json={
+            "work_description": "Another poster design.",
+        })
+        resp = client.post(
+            "/generate-prompt",
+            json={
+                "work_description": "Another poster design.",
+                # No selected_direction
+            },
+        )
+        assert resp.status_code == 200
+
+        sessions_resp = client.get("/sessions?limit=1")
+        latest_id = sessions_resp.json()["sessions"][0]["id"]
+        detail_resp = client.get(f"/sessions/{latest_id}")
+        detail = detail_resp.json()
+        assert detail["selected_direction"] is None
+        assert detail["prompt_result"] is None
+
+
+class TestIterationDirectionSchema:
+    """Tests for V1.7.2 structured IterationDirection."""
+
+    def test_direction_has_id_field(self, client):
+        """Iteration directions should include id field."""
+        resp = client.post("/iterate", json={
+            "work_description": "A poster that needs multiple iterations.",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        for d in data["directions"]:
+            assert "id" in d, f"Direction missing id: {d}"
+            assert d["id"], f"Direction id is empty: {d}"
+
+    def test_direction_has_structured_fields(self, client):
+        """Iteration directions should include all V1.7.2 structured fields."""
+        resp = client.post("/iterate", json={
+            "work_description": "A poster that needs iterations.",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        for d in data["directions"]:
+            for key in ("goal", "visual_changes", "color_changes", "typography_changes",
+                         "layout_changes", "commercial_rationale", "risk"):
+                assert key in d, f"Direction missing key: {key}"
+
+    def test_session_detail_includes_new_fields(self, client):
+        """Session detail should include selected_direction and prompt_result."""
+        # Create a session
+        client.post("/iterate", json={
+            "work_description": "Test work for detail check.",
+        })
+        # Generate prompt with direction
+        client.post("/generate-prompt", json={
+            "work_description": "Test work for detail check.",
+            "selected_direction": '{"id":"dir-1","title":"Test"}',
+        })
+        # Check detail
+        sessions_resp = client.get("/sessions?limit=1")
+        lid = sessions_resp.json()["sessions"][0]["id"]
+        detail = client.get(f"/sessions/{lid}").json()
+        assert "selected_direction" in detail
+        assert "prompt_result" in detail

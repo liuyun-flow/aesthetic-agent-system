@@ -1,7 +1,43 @@
-# Project Status — V1.7.1
+# Project Status — V1.7.2
 
 ## Current Version
-**V1.7.1** — 首次使用向导 / 帮助中心 / 配置状态条 / 系统状态端点
+**V1.7.2** — 迭代方向选择 / 基于方向生成提示词 / 结构化迭代字段
+
+## Completed Capabilities (V1.7.2 additions)
+
+### Structured Iteration Directions
+- 每个 IterationDirection 包含：id, title, description, expected_impact, goal, visual_changes, color_changes, typography_changes, layout_changes, commercial_rationale, risk
+- IteratorAgent 提示词更新，要求所有字段用中文输出
+- 向后兼容：LLM 未提供 id 时自动分配 dir-1, dir-2…
+
+### Direction-Based Prompt Generation
+- `/generate-prompt` 接收 `selected_direction`（JSON 字符串）
+- PromptGeneratorAgent focus block：有选择方向时强烈聚焦该方向
+- 生成结果保存到最新 session 的 `selected_direction` + `prompt_result`
+- 无选择方向时完全兼容旧流程
+
+### Frontend: Iteration Direction Cards
+- 每个迭代方向显示为可交互卡片
+- 展开/收起详情（目标、视觉/色彩/字体/布局变化、商业理由、风险）
+- 选择方向按钮 + 高亮已选择方向
+- 基于该方向生成提示词按钮 + 加载状态
+- 提示词结果卡片展示（可逐项复制）
+
+### History Detail Enhancement
+- 训练详情弹窗展示选择的迭代方向和生成的提示词
+- 提示词可逐项复制
+
+## Test Results
+- **144 passed**（V1.7.1 原 137 + V1.7.2 新增 7 个）
+- 新增测试覆盖：TestGeneratePromptWithDirection × 4, TestIterationDirectionSchema × 3
+- 全部使用 mocked agents，无需 API key
+
+## Build Results
+- Frontend `npm run build`: ✅ 通过
+- Backend pytest: ✅ 144 passed
+
+## Next Step
+V1.8 — 语义搜索 / 向量检索（前置条件：案例库 ≥50 个）
 
 ## Completed Capabilities (V1.7.1 additions)
 
