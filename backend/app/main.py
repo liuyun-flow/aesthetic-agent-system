@@ -10,7 +10,13 @@ from typing import Annotated, Any, Callable, TypeVar
 from fastapi import FastAPI, Depends, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from openai import OpenAIError
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    AuthenticationError,
+    BadRequestError,
+    OpenAIError,
+)
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -232,6 +238,52 @@ def _run_agent(operation: str, runner: Callable[[], AgentResultT]) -> AgentResul
         ) from exc
 
 
+def _vision_http_exception(exc: Exception) -> HTTPException:
+    """Map Vision adapter failures to safe, actionable API errors."""
+    if isinstance(exc, (json.JSONDecodeError, ValidationError)):
+        return HTTPException(
+            status_code=502,
+            detail="OpenAI Vision 返回格式不是预期 JSON，请稍后重试。",
+        )
+    if isinstance(exc, ValueError):
+        return HTTPException(status_code=400, detail=str(exc))
+    if isinstance(exc, FileNotFoundError):
+        return HTTPException(
+            status_code=404,
+            detail="图片文件不存在，请重新上传后再试。",
+        )
+    if isinstance(exc, AuthenticationError):
+        return HTTPException(
+            status_code=401,
+            detail="OpenAI API Key 无效或已失效，请在设置页重新保存 Key 后再试。",
+        )
+    if isinstance(exc, APIConnectionError):
+        return HTTPException(
+            status_code=502,
+            detail="无法连接 OpenAI Vision 服务，请检查本机网络、代理或稍后重试。",
+        )
+    if isinstance(exc, BadRequestError):
+        return HTTPException(
+            status_code=400,
+            detail="OpenAI Vision 拒绝了这张图片或当前模型参数，请确认图片格式有效且模型支持图片输入。",
+        )
+    if isinstance(exc, APIStatusError):
+        if exc.status_code == 429:
+            detail = "OpenAI Vision 请求被限流或额度不足，请检查账号额度后稍后重试。"
+        else:
+            detail = "OpenAI Vision 服务返回异常状态，请稍后重试。"
+        return HTTPException(status_code=502, detail=detail)
+    if isinstance(exc, OpenAIError):
+        return HTTPException(
+            status_code=502,
+            detail="OpenAI Vision 调用失败，请检查 Vision 配置或稍后重试。",
+        )
+    return HTTPException(
+        status_code=502,
+        detail="视觉适配器调用失败，请检查 Vision 配置或稍后重试。",
+    )
+
+
 def _save_record(
     db: Session,
     record_type: RecordType,
@@ -400,8 +452,8 @@ def _resolve_image_description(
             uploaded.file_path,
             hint=request.image_description,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise _vision_http_exception(exc) from exc
 
 
 @app.post("/critique", response_model=CritiqueResponse)
@@ -618,16 +670,8 @@ def describe_image(
 
     try:
         desc = vision.describe_image_structured(uploaded.file_path)
-    except ValueError as exc:
-        # Missing API key or bad config — return 400 so frontend shows the message
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception:
-        raise HTTPException(
-            status_code=502,
-            detail="视觉适配器调用失败，请检查 Vision 配置或稍后重试。",
-        )
+    except Exception as exc:
+        raise _vision_http_exception(exc) from exc
 
     # Persist the description on the image record
     import json as _json
@@ -798,8 +842,8 @@ def describe_reference_case(
 
     try:
         desc = vision.describe_image_structured(uploaded.file_path)
-    except Exception:
-        raise HTTPException(status_code=502, detail="视觉适配器调用失败，请检查 Vision 配置或稍后重试。")
+    except Exception as exc:
+        raise _vision_http_exception(exc) from exc
 
     reference_service.update_case(
         db,

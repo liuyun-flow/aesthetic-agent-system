@@ -1,6 +1,7 @@
 """API endpoint tests — uses mocked agents and in-memory SQLite."""
 
 import io
+import json
 from types import SimpleNamespace
 
 import pytest
@@ -1032,6 +1033,42 @@ class TestImageDescribeEndpoint:
     def test_describe_nonexistent_image_returns_404(self, client):
         resp = client.post("/images/99999/describe")
         assert resp.status_code == 404
+
+    def test_describe_json_parse_error_returns_safe_message(self, client):
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        upload_resp = client.post(
+            "/upload",
+            files={"file": ("img.png", fake_img, "image/png")},
+        )
+        image_id = upload_resp.json()["image_id"]
+
+        class BadJsonVisionAdapter(ManualAdapter):
+            def describe_image_structured(self, image_path: str) -> VisionDescription:
+                raise json.JSONDecodeError("bad json", "not json", 0)
+
+        app.dependency_overrides[get_vision_adapter] = lambda: BadJsonVisionAdapter()
+        resp = client.post(f"/images/{image_id}/describe")
+
+        assert resp.status_code == 502
+        assert "JSON" in resp.json()["detail"]
+
+    def test_describe_generic_error_does_not_expose_raw_exception(self, client):
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        upload_resp = client.post(
+            "/upload",
+            files={"file": ("img.png", fake_img, "image/png")},
+        )
+        image_id = upload_resp.json()["image_id"]
+
+        class ExplodingVisionAdapter(ManualAdapter):
+            def describe_image_structured(self, image_path: str) -> VisionDescription:
+                raise RuntimeError("provider failed with sk-secret-value")
+
+        app.dependency_overrides[get_vision_adapter] = lambda: ExplodingVisionAdapter()
+        resp = client.post(f"/images/{image_id}/describe")
+
+        assert resp.status_code == 502
+        assert "sk-secret-value" not in resp.json()["detail"]
 
     def test_describe_persists_on_image_record(self, client):
         fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)

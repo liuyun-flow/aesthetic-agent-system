@@ -1,6 +1,8 @@
 """FastAPI router for settings management — BYOK config, test connections."""
 
+import struct
 import tempfile
+import zlib
 from pathlib import Path
 
 from fastapi import APIRouter
@@ -32,11 +34,33 @@ def _is_configured(val: str) -> bool:
     return bool(val) and val not in PLACEHOLDER_KEYS
 
 
-_VISION_TEST_PNG = bytes.fromhex(
-    "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
-    "1f15c4890000000a49444154789c6360000002000100ffff0300000600"
-    "0557bfab0000000049454e44ae426082"
-)
+def _png_chunk(kind: bytes, data: bytes) -> bytes:
+    return (
+        struct.pack(">I", len(data))
+        + kind
+        + data
+        + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    )
+
+
+def _make_vision_test_png() -> bytes:
+    """Create a small but valid RGB PNG for OpenAI Vision smoke tests."""
+    width = 64
+    height = 64
+    rows: list[bytes] = []
+    for y in range(height):
+        row = bytearray([0])  # PNG filter type 0
+        for x in range(width):
+            row.extend((40 + x * 2, 80 + y * 2, 160))
+        rows.append(bytes(row))
+
+    ihdr = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + _png_chunk(b"IHDR", ihdr)
+        + _png_chunk(b"IDAT", zlib.compress(b"".join(rows), level=9))
+        + _png_chunk(b"IEND", b"")
+    )
 
 
 def _test_openai_vision_adapter(api_key: str, model: str) -> None:
@@ -45,7 +69,7 @@ def _test_openai_vision_adapter(api_key: str, model: str) -> None:
     tmp_path = ""
     try:
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            tmp.write(_VISION_TEST_PNG)
+            tmp.write(_make_vision_test_png())
             tmp_path = tmp.name
         adapter.describe_image_structured(tmp_path)
     finally:

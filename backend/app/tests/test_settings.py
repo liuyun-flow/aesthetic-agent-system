@@ -281,6 +281,18 @@ class TestTestDeepSeek:
 # ── Test: POST /settings/test-vision ───────────────────────────────────
 
 class TestTestVision:
+    def test_vision_test_image_is_valid_png(self):
+        from app.settings.routes import _make_vision_test_png
+
+        png = _make_vision_test_png()
+        width = int.from_bytes(png[16:20], "big")
+        height = int.from_bytes(png[20:24], "big")
+
+        assert png.startswith(b"\x89PNG\r\n\x1a\n")
+        assert width == 64
+        assert height == 64
+        assert b"IDAT" in png
+
     def test_placeholder_returns_success_with_note(self, settings_client, monkeypatch):
         # Ensure provider=placeholder and no OpenAI key in env/config
         monkeypatch.setenv("VISION_PROVIDER", "placeholder")
