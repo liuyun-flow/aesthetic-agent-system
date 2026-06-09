@@ -96,7 +96,7 @@ function DiagnosticsPanel() {
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-base font-semibold text-gray-700">
           系统诊断
-          <span className="ml-2 text-xs font-normal text-gray-400">v{data.version}</span>
+          <span className="ml-2 text-xs font-normal text-gray-400">{data.version}</span>
         </h3>
         <button onClick={fetchDiagnostics} className="text-xs text-blue-600 underline hover:text-blue-800">重新检测</button>
       </div>

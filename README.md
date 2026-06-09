@@ -371,18 +371,27 @@ aesthetic-agent-system/
 
 ### 快速开始
 
-#### Docker（推荐）
+#### Docker（推荐）— 一键启动
 
 ```bash
 # 1. 复制并编辑环境变量文件
 cp backend/.env.example backend/.env
-# 编辑 backend/.env — 设置 DEEPSEEK_API_KEY，如需 Vision 可设置 OPENAI_API_KEY
+# 编辑 backend/.env — 设置 DEEPSEEK_API_KEY
 
-# 2. 启动服务
-docker compose up --build
+# 2. 一键启动（自动检测环境、创建目录、启动并等待健康检查）
+bash scripts/start.sh     # Mac/Linux
+scripts\start.bat          # Windows（双击运行）
 
-# 3. 打开浏览器
-# http://127.0.0.1:3000
+# 3. 打开浏览器 → http://127.0.0.1:3000
+```
+
+停止服务：`bash scripts/stop.sh` 或 `docker compose down`
+
+#### Docker（手动）
+
+```bash
+cp backend/.env.example backend/.env
+docker compose up --build    # http://127.0.0.1:3000
 ```
 
 #### 本地开发
@@ -614,15 +623,11 @@ backend/data/
 └── uploads/                # 上传的图片（git-ignored）
 ```
 
-### 重建 SQLite 数据库
+### 升级与数据库迁移
 
-如果升级后表结构不兼容，删除数据库文件后重启即可：
+升级前务必先导出数据备份（设置页 → 数据管理 → 导出）。详见 [docs/UPGRADE.md](docs/UPGRADE.md)。
 
-```bash
-rm backend/data/database/aesthetic.db    # Linux/macOS
-del backend\data\database\aesthetic.db   # Windows
-# 重启后端 — 启动时会自动建表
-```
+如果升级后遇到表结构不兼容：**先导出备份**，再联系升级指南中的迁移步骤。一般情况下向后兼容的自动迁移无需手动操作。
 
 ### 为什么这个系统有意义
 

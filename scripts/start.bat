@@ -2,6 +2,9 @@
 REM start.bat — Windows 一键启动脚本（Docker 方式）
 REM 双击运行，或在终端中执行 scripts\start.bat
 
+REM Ensure we run from project root regardless of double-click location
+cd /d "%~dp0.."
+
 echo ============================================
 echo  Aesthetic Training Agent System - 启动脚本
 echo ============================================

@@ -91,6 +91,33 @@ V2.0 新增了训练效果评估系统和案例库质量管理。升级步骤同
 
 ---
 
+## 迁移旧数据库路径
+
+如果你的 `backend/.env` 中 DATABASE_URL 为旧版路径：
+
+```
+DATABASE_URL=sqlite:///./aesthetic.db
+```
+
+在 Docker 下此路径不被 volume 保护，`docker compose down` 后数据可能丢失。请迁移：
+
+```bash
+# 1. 停止服务
+bash scripts/stop.sh
+
+# 2. 移动数据库文件
+mv backend/aesthetic.db backend/data/database/aesthetic.db
+
+# 3. 修改 backend/.env
+# DATABASE_URL=sqlite:///./aesthetic.db          # 旧
+DATABASE_URL=sqlite:///./data/database/aesthetic.db  # 新
+
+# 4. 重新启动
+bash scripts/start.sh
+```
+
+启动脚本会检测旧路径并给出提示。
+
 ## 环境要求
 
 - Docker Desktop 最新版

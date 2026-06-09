@@ -1473,7 +1473,13 @@ def system_preflight(db: Session = Depends(get_db)) -> dict:
     result["backend"] = "ok"
 
     # ── Database ──────────────────────────────────────────────────────
-    db_path = _UPLOAD_DIR.parent / "database" / "aesthetic.db"
+    # Read actual DATABASE_URL (not a guessed path)
+    db_url = os.getenv("DATABASE_URL", "sqlite:///./data/database/aesthetic.db")
+    if db_url.startswith("sqlite:///"):
+        db_file = db_url[len("sqlite:///"):]
+        db_path = Path(db_file) if Path(db_file).is_absolute() else Path(db_file).resolve()
+    else:
+        db_path = _UPLOAD_DIR.parent / "database" / "aesthetic.db"
     db_exists = db_path.exists()
     db_size_kb = round(db_path.stat().st_size / 1024, 1) if db_exists else 0
     try:
@@ -1490,6 +1496,12 @@ def system_preflight(db: Session = Depends(get_db)) -> dict:
     }
     if not db_writable:
         result["recommendations"].append("数据库不可写，请检查 data/database/ 目录权限。")
+    if db_url == "sqlite:///./aesthetic.db":
+        result["recommendations"].append(
+            "检测到旧版 DATABASE_URL=sqlite:///./aesthetic.db。"
+            "在 Docker 下此路径不受 volume 保护，docker compose down 后数据可能丢失。"
+            "建议改为 DATABASE_URL=sqlite:///./data/database/aesthetic.db，然后重新构建。"
+        )
 
     # ── Config directory ──────────────────────────────────────────────
     config_dir = _UPLOAD_DIR.parent / "config"

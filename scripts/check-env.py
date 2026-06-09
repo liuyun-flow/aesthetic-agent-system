@@ -137,7 +137,18 @@ def main() -> int:
             print(f"[WARN] data/{subdir}/ does not exist (will be created on startup)")
 
     # ── Database ──────────────────────────────────────────────────────
+    db_url = env.get("DATABASE_URL", "")
+    if db_url == "sqlite:///./aesthetic.db":
+        print("[WARN] DATABASE_URL=sqlite:///./aesthetic.db is the old default.")
+        print("       Under Docker this path is NOT volume-protected — data may be lost on 'docker compose down'.")
+        print("       Recommended: DATABASE_URL=sqlite:///./data/database/aesthetic.db")
+
     db_path = BACKEND_DIR / "data" / "database" / "aesthetic.db"
+    old_db = BACKEND_DIR / "aesthetic.db"
+    if old_db.exists() and not db_path.exists():
+        print(f"[WARN] Found database at old location: {old_db}")
+        print(f"       Move it to the Docker-persistent path: {db_path}")
+
     if db_path.exists():
         size_kb = db_path.stat().st_size / 1024
         print(f"[OK] Database exists ({size_kb:.0f} KB)")

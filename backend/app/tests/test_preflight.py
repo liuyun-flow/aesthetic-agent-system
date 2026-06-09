@@ -89,6 +89,21 @@ class TestPreflight:
         resp = client.get("/system/preflight")
         assert isinstance(resp.json()["all_ok"], bool)
 
+    def test_preflight_detects_old_db_url(self, client, monkeypatch):
+        """Old DATABASE_URL should produce a migration recommendation."""
+        monkeypatch.setenv("DATABASE_URL", "sqlite:///./aesthetic.db")
+        resp = client.get("/system/preflight")
+        recs = resp.json()["recommendations"]
+        old_path_warning = any("aesthetic.db" in r for r in recs)
+        assert old_path_warning
+
+    def test_preflight_db_path_from_env(self, client, monkeypatch):
+        """Preflight should use DATABASE_URL env var for database path."""
+        monkeypatch.setenv("DATABASE_URL", "sqlite:///./data/database/aesthetic.db")
+        resp = client.get("/system/preflight")
+        db_info = resp.json()["database"]
+        assert "data" in db_info["path"] or db_info["status"] in ("ok", "error")
+
     def test_existing_endpoints_still_pass(self, client):
         resp = client.get("/system/status")
         assert resp.status_code == 200

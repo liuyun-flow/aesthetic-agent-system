@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# start_all.sh — Start both backend and frontend using pythonw (detached from Git Bash)
+# start_all.sh — [DEV ONLY] Start both backend and frontend locally (pythonw detached)
 # Usage: bash scripts/start_all.sh [--open-browser]
+#
+# NOTE: This is a developer convenience script with hardcoded paths.
+# For end users, use scripts/start.sh (Docker one-click) instead.
 #
 # NOTE: Uses pythonw.exe to detach processes from the terminal.
 # If your Python is installed elsewhere, set PYTHON_HOME and NODE_HOME
