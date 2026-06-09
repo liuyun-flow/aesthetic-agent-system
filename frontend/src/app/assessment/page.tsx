@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 
 interface AssessmentOverview {
   total_sessions: number;
+  valid_scored_sessions: number;
   completed_sessions: number;
   sessions_last_7_days: number;
   sessions_last_30_days: number;
@@ -213,7 +214,7 @@ export default function AssessmentPage() {
 
   if (!overview) return null;
 
-  const hasData = overview.total_sessions >= 5;
+  const hasData = (overview.valid_scored_sessions ?? 0) >= 5;
 
   // ── Insufficient data ─────────────────────────────────────────────
 
@@ -230,7 +231,7 @@ export default function AssessmentPage() {
             建议先完成至少 5 次训练（包含自评和 AI 评分），再回来查看评估结果。
           </p>
           <p className="text-gray-400 text-xs mt-2">
-            当前已完成 {overview.total_sessions} 次训练
+            当前共 {overview.total_sessions} 条记录，其中 {overview.valid_scored_sessions ?? 0} 条有效评分
           </p>
         </div>
       </div>

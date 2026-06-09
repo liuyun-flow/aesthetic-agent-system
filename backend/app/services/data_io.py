@@ -254,7 +254,7 @@ def import_data(
                 if not isinstance(manifest, dict):
                     raise ValueError("export_manifest.json 格式不正确")
                 version = manifest.get("version", "")
-                if not isinstance(version, str) or not version.startswith("v1."):
+                if not isinstance(version, str) or not (version.startswith("v1.") or version.startswith("v2.")):
                     result.warnings.append(f"导出包版本 {version} 可能不兼容，当前版本 {EXPORT_VERSION}")
 
             # ── Step 1: Import images ────────────────────────────────

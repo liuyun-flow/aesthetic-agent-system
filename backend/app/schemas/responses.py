@@ -332,6 +332,7 @@ class CompareWithReferencesResponse(BaseModel):
 class AssessmentOverview(BaseModel):
     """Training effectiveness overview statistics."""
     total_sessions: int = 0
+    valid_scored_sessions: int = 0
     completed_sessions: int = 0
     sessions_last_7_days: int = 0
     sessions_last_30_days: int = 0

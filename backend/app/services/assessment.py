@@ -246,7 +246,7 @@ def compute_overview(db: Session) -> dict[str, Any]:
     else:
         trend = "stable"
 
-    if total < INSUFFICIENT_DATA_THRESHOLD:
+    if not _has_sufficient_data(all_records):
         summary = "训练数据不足，建议先完成至少 5 次训练（包含自评和 AI 评分），再回来查看评估结果。"
         next_focus: list[str] = []
     elif trend == "improving":
@@ -261,6 +261,7 @@ def compute_overview(db: Session) -> dict[str, Any]:
 
     return {
         "total_sessions": total,
+        "valid_scored_sessions": len(scored),
         "completed_sessions": completed,
         "sessions_last_7_days": len(records_7),
         "sessions_last_30_days": len(records_30),
@@ -282,7 +283,7 @@ def compute_mistake_patterns(db: Session) -> list[dict[str, Any]]:
     from app.services.session_service import get_all_records
 
     all_records = get_all_records(db, limit=MAX_RECORDS)
-    if len(all_records) < INSUFFICIENT_DATA_THRESHOLD:
+    if not _has_sufficient_data(all_records):
         return []
 
     results: list[dict[str, Any]] = []
@@ -314,8 +315,9 @@ def compute_mistake_patterns(db: Session) -> list[dict[str, Any]]:
         for r in iterate_records:
             try:
                 d = json.loads(r.selected_direction or "{}")
-                dirs.add(d.get("id", "") or d.get("title", ""))
-            except (json.JSONDecodeError, TypeError):
+                if isinstance(d, dict):
+                    dirs.add(d.get("id", "") or d.get("title", ""))
+            except (json.JSONDecodeError, TypeError, AttributeError):
                 pass
         # If more than 3 different directions in <10 iterate sessions, flag as unstable
         if len(dirs) >= 3 and len(iterate_records) <= 10:
@@ -366,7 +368,7 @@ def compute_dimension_scores(db: Session) -> list[dict[str, Any]]:
     from app.services.session_service import get_all_records
 
     all_records = get_all_records(db, limit=MAX_RECORDS)
-    if len(all_records) < INSUFFICIENT_DATA_THRESHOLD:
+    if not _has_sufficient_data(all_records):
         return [
             {
                 "dimension_key": d["key"],

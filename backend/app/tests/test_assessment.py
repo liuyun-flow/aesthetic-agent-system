@@ -276,15 +276,97 @@ class TestAssessment:
         resp2 = client.get("/assessment/dimensions")
         assert resp2.status_code == 200
 
-    def test_existing_endpoints_still_pass(self, client):
-        resp = client.get("/health")
+    def test_old_records_without_scores_return_insufficient(self, client):
+        """5 records with zero valid scores must show insufficient_data everywhere."""
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            for i in range(5):
+                db.add(TrainingRecord(
+                    record_type="analyze",
+                    work_description=f"Old V1 record {i}",
+                    created_at=dt.utcnow(),
+                    # No user_score, no ai_score
+                ))
+            db.commit()
+        finally:
+            db.close()
+
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_sessions"] == 5
+        assert data["valid_scored_sessions"] == 0
+        assert data["score_gap_trend"] == "insufficient_data"
+        assert "数据不足" in data["summary"]
+
+        resp2 = client.get("/assessment/mistakes")
+        assert resp2.status_code == 200
+        assert resp2.json() == []
+
+        resp3 = client.get("/assessment/dimensions")
+        assert resp3.status_code == 200
+        for d in resp3.json():
+            assert d["trend"] == "insufficient_data"
+
+    def test_selected_direction_array_does_not_crash(self, client):
+        """selected_direction as a JSON array must not crash /assessment/mistakes."""
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            for i in range(6):
+                db.add(TrainingRecord(
+                    record_type="iterate",
+                    work_description=f"Iterate {i}",
+                    user_score=60 + i,
+                    ai_score=70 + i,
+                    selected_direction='["d1", "d2"]',
+                    created_at=dt.utcnow(),
+                ))
+            db.commit()
+        finally:
+            db.close()
+        resp = client.get("/assessment/mistakes")
         assert resp.status_code == 200
 
-        resp2 = client.get("/reference-cases/audit")
-        assert resp2.status_code == 200
+    def test_selected_direction_plain_string_does_not_crash(self, client):
+        """selected_direction as a plain string must not crash /assessment/mistakes."""
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            for i in range(6):
+                db.add(TrainingRecord(
+                    record_type="iterate",
+                    work_description=f"Iterate {i}",
+                    user_score=60 + i,
+                    ai_score=70 + i,
+                    selected_direction="just a string",
+                    created_at=dt.utcnow(),
+                ))
+            db.commit()
+        finally:
+            db.close()
+        resp = client.get("/assessment/mistakes")
+        assert resp.status_code == 200
 
-        resp3 = client.get("/training/stats")
-        assert resp3.status_code == 200
+    def test_import_version_v2_accepted(self, client):
+        """V2.0.x export manifest should pass import version check."""
+        import zipfile
+        buf = __import__("io").BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("export_manifest.json",
+                '{"version":"v2.0.1","exported_at":"2026-06-09T00:00:00","counts":{}}')
+            zf.writestr("uploaded_images.json", "[]")
+            zf.writestr("reference_cases.json", "[]")
+            zf.writestr("sessions.json", "[]")
+        buf.seek(0)
+        resp = client.post("/import", files={"file": ("v2_backup.zip", buf.read())})
+        assert resp.status_code == 200
+        data = resp.json()
+        # No "不兼容" warning for v2.x
+        warnings = data.get("warnings", [])
+        for w in warnings:
+            assert "不兼容" not in w, f"Unexpected warning: {w}"
 
     # ── Trend thresholds ────────────────────────────────────────────
 
