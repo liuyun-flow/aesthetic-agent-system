@@ -1,7 +1,7 @@
-# Project Status — V1.9.1
+# Project Status — V2.0.0
 
 ## Current Version
-**V1.9.1** — 案例库质量管理稳定版 / 安全加固 / 回归测试
+**V2.0.0** — 训练效果评估系统 / 规则化分析引擎
 
 ---
 

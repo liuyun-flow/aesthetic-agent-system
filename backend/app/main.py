@@ -44,13 +44,17 @@ from app.schemas.requests import (
 )
 from app.schemas.responses import (
     AnalyzeResponse,
+    AssessmentOverview,
+    AssessmentReport,
     CaseAuditResponse,
     CompareWithReferencesResponse,
     CritiqueResponse,
+    DimensionAssessment,
     GeneratedPrompt,
     ImageDescribeResponse,
     IterateResponse,
     JudgmentGap,
+    MistakePattern,
     ProfileResponse,
     RecordType,
     ReferenceCaseListResponse,
@@ -90,7 +94,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="1.9.1",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -1263,6 +1267,53 @@ def weekly_review(
     )
 
 
+# ── V2.0: Training effectiveness assessment ────────────────────────────
+
+@app.get("/assessment/overview", response_model=AssessmentOverview)
+def assessment_overview(db: Session = Depends(get_db)):
+    """Return training effectiveness overview statistics.
+
+    Includes training frequency, score gaps, gap trend, and
+    a Chinese summary with suggested next steps.
+    """
+    from app.services.assessment import compute_overview
+    return compute_overview(db)
+
+
+@app.get("/assessment/mistakes", response_model=list[MistakePattern])
+def assessment_mistakes(db: Session = Depends(get_db)):
+    """Return common mistake patterns detected from training history.
+
+    Uses keyword-based rule matching across judgment_gap_summary,
+    training_focus_tags, user_weaknesses, and ai_main_problems.
+    """
+    from app.services.assessment import compute_mistake_patterns
+    return compute_mistake_patterns(db)
+
+
+@app.get("/assessment/dimensions", response_model=list[DimensionAssessment])
+def assessment_dimensions(db: Session = Depends(get_db)):
+    """Return aesthetic judgment dimension scores (0-100) and trends.
+
+    Evaluates 7 dimensions: typography, color, composition, texture/material,
+    price-band, commercial-fit, and iteration.
+    """
+    from app.services.assessment import compute_dimension_scores
+    return compute_dimension_scores(db)
+
+
+@app.get("/assessment/report", response_model=AssessmentReport)
+def assessment_report(
+    days: int = Query(default=7, ge=1, le=90, description="Review period in days"),
+    db: Session = Depends(get_db),
+):
+    """Return a period review report with progress summary,
+    weakest dimensions, training plan, and recommended themes.
+    """
+    from app.services.assessment import compute_report
+    return compute_report(db, days=days)
+
+
 # ── V1.8: Data export / import ──────────────────────────────────────────
 
 @app.get("/export")
@@ -1323,7 +1374,7 @@ async def import_data(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "backend", "version": "v1.9.1"}
+    return {"status": "ok", "service": "backend", "version": "v2.0.0"}
 
 
 @app.get("/model/status")
@@ -1386,7 +1437,7 @@ def system_status(db: Session = Depends(get_db)) -> dict:
 
     return {
         "backend": "ok",
-        "version": "v1.9.1",
+        "version": "v2.0.0",
         "deepseek": {"configured": deepseek_configured},
         "vision": {
             "configured": vision_configured,

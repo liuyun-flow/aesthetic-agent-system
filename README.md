@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V1.9.1** | 测试：181 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
+**当前版本：V2.0.0** | 测试：192 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
 
 ---
 
@@ -97,7 +97,8 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.8 | Data export/import (zip backup), semantic search over reference cases (embeddings), data management UI |
 | V1.8.1 | Stability fixes, regression tests, pre-release cleanup |
 | V1.9 | Case quality management (completeness scoring, training readiness, audit report, duplicate detection) |
-| V1.9.1 | Stability fixes: aesthetic_level validation, null safety, audit issue is_training_ready+reason fields, frontend defensive guards |
+| V1.9.1 | Stability fixes: aesthetic_level validation, null safety, audit field completion |
+| V2.0 | Training effectiveness assessment (overview, mistake patterns, dimension scoring, period review) |
 
 ### API Endpoints
 
@@ -130,6 +131,20 @@ npm run dev                      # http://127.0.0.1:3000
 | `POST` | `/reference-cases/search-semantic` | Semantic search over reference cases (V1.8) |
 | `GET` | `/embedding/status` | Embedding provider config status (V1.8) |
 | `GET` | `/reference-cases/audit` | Case library quality audit report (V1.9) |
+| `GET` | `/assessment/overview` | Training effectiveness overview (V2.0) |
+| `GET` | `/assessment/mistakes` | Common mistake patterns (V2.0) |
+| `GET` | `/assessment/dimensions` | Aesthetic dimension scores (V2.0) |
+| `GET` | `/assessment/report` | Period review report (V2.0) |
+
+### Training Effectiveness Assessment (V2.0)
+
+The assessment system evaluates your training progress using rule-based analytics (no LLM calls):
+
+- **Overview (训练总览)** — Total sessions, recent activity, score gap trends, Chinese summary with next steps.
+- **Mistake Patterns (常见误判)** — 10 keyword-based mistake types detected from judgment gaps, focus tags, and weaknesses. Each with severity, explanation, and targeted training suggestion.
+- **Dimension Scores (能力维度)** — 7 aesthetic judgment dimensions scored 0-100: typography, color, composition, texture/material, price-band, commercial fit, and iteration judgment. Each with trend indicator.
+- **Period Review (周期复盘)** — 7/30 day review reports with progress summary, weakest/strongest dimensions, top mistakes, training plan, and recommended themes.
+- Visit `/assessment` for the full assessment dashboard with tabbed views.
 
 ### Case Quality Management (V1.9)
 

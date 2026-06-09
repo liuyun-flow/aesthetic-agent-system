@@ -59,6 +59,16 @@ function Header() {
           >
             {lang === "en" ? "Audit" : "案例库体检"}
           </Link>
+          <Link
+            href="/assessment"
+            className={`rounded px-2 py-1 text-xs font-medium transition ${
+              pathname === "/assessment"
+                ? "bg-blue-50 text-blue-600"
+                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {lang === "en" ? "Assessment" : "训练评估"}
+          </Link>
         </div>
         <button
           onClick={toggle}

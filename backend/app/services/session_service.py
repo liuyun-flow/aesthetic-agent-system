@@ -1,5 +1,6 @@
 """Session service — persists and retrieves training records and uploaded images."""
 
+from datetime import date
 from typing import Any, Optional
 
 from fastapi.encoders import jsonable_encoder
@@ -95,6 +96,42 @@ def get_record_count(db: Session, record_type: Optional[str] = None) -> int:
     if record_type:
         query = query.filter(TrainingRecord.record_type == record_type)
     return query.count()
+
+
+def get_all_records(
+    db: Session,
+    limit: int = 2000,
+) -> list[TrainingRecord]:
+    """Return all training records (most recent first), without type filter.
+
+    V2.0: Used by assessment service for full historical analysis.
+    """
+    return (
+        db.query(TrainingRecord)
+        .order_by(TrainingRecord.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_records_in_range(
+    db: Session,
+    start_date: date,
+    end_date: date,
+    limit: int = 2000,
+) -> list[TrainingRecord]:
+    """Return training records whose created_at falls in [start_date, end_date].
+
+    V2.0: Used by assessment service for period-based analysis.
+    """
+    return (
+        db.query(TrainingRecord)
+        .filter(TrainingRecord.created_at >= start_date)
+        .filter(TrainingRecord.created_at <= end_date)
+        .order_by(TrainingRecord.created_at.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 def get_history_for_profile(db: Session, limit: int = 50) -> list[dict[str, Any]]:

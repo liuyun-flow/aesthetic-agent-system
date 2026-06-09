@@ -327,6 +327,58 @@ class CompareWithReferencesResponse(BaseModel):
     next_practice: list[str] = Field(default_factory=list)
 
 
+# ── V2.0: Training effectiveness assessment ──────────────────────────
+
+class AssessmentOverview(BaseModel):
+    """Training effectiveness overview statistics."""
+    total_sessions: int = 0
+    completed_sessions: int = 0
+    sessions_last_7_days: int = 0
+    sessions_last_30_days: int = 0
+    average_user_score: float | None = None
+    average_ai_score: float | None = None
+    average_score_gap: float | None = None
+    average_score_gap_last_7: float | None = None
+    average_score_gap_last_30: float | None = None
+    score_gap_trend: str = "insufficient_data"  # improving/stable/worsening/insufficient_data
+    summary: str = ""
+    next_focus: list[str] = Field(default_factory=list)
+
+
+class MistakePattern(BaseModel):
+    """A recurring mistake pattern detected from training history."""
+    mistake_type: str = ""
+    count: int = 0
+    severity: str = "low"  # low/medium/high
+    evidence_sessions: list[int] = Field(default_factory=list)
+    explanation: str = ""
+    training_suggestion: str = ""
+
+
+class DimensionAssessment(BaseModel):
+    """Evaluation of a single aesthetic judgment dimension."""
+    dimension_key: str = ""
+    dimension_name: str = ""
+    score: int = 50  # 0-100
+    level: str = "medium"  # weak/medium/strong
+    trend: str = "insufficient_data"  # improving/stable/worsening/insufficient_data
+    evidence: str = ""
+    suggestion: str = ""
+
+
+class AssessmentReport(BaseModel):
+    """Period review report for training effectiveness."""
+    period_days: int = 7
+    training_count: int = 0
+    score_gap_summary: str = ""
+    top_mistakes: list[MistakePattern] = Field(default_factory=list)
+    strongest_dimensions: list[DimensionAssessment] = Field(default_factory=list)
+    weakest_dimensions: list[DimensionAssessment] = Field(default_factory=list)
+    progress_summary: str = ""
+    next_training_plan: list[str] = Field(default_factory=list)
+    recommended_themes: list[str] = Field(default_factory=list)
+
+
 # Resolve forward references (JudgmentGap is referenced as a string
 # in AnalyzeResponse, CritiqueResponse, and IterateResponse above).
 AnalyzeResponse.model_rebuild()

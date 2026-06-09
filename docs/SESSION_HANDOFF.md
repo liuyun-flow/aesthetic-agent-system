@@ -1,62 +1,72 @@
 # Session Handoff — 2026-06-09
 
 ## Last Completed
-- **V1.9.1: Case quality management stability release**
+- **V2.0.0: Training effectiveness assessment system**
 
 ---
 
-## V1.9.1 变更详情
+## V2.0.0 变更详情
 
-V1.9.1 是 V1.9 的稳定性修复版，不新增业务功能。通过对抗性代码审查发现 22 个问题，全部修复。
+### New: Training Effectiveness Assessment
+- Rule-based analytics (no LLM calls) over TrainingRecord history
+- 4 new endpoints under `/assessment/`
+- New `/assessment` page with 3-tab dashboard
 
-### 后端修复
+### Backend
 
-| 修复 | 说明 |
-|------|------|
-| aesthetic_level 验证统一 | 4 处内联检查统一为 `_is_present()`，同时拒绝 "unknown"/"n/a"/"none"/"暂无" 等占位值 |
-| `_is_present()` 增强 | 新增 list/dict/tuple/set 非空判断 |
-| `_tokenize_title` None 防护 | title=None 时审计端点不崩溃 |
-| `_case_summary` 字段补全 | 新增 `is_training_ready` 和 `reason` 字段 |
-| AuditIssue schema | 同步新增 `is_training_ready: bool` 和 `reason: str` |
-| 重复检测全量匹配 | 移除 embedding 匹配中只记录第一条结果的 `break` |
-| `missing_learning_notes` 修复 | AND → OR，缺 learn_from_this 或 avoid_copying 即标记 |
-| `_TRAINING_REQUIRED_FIELDS` | 移除死代码 |
+| File | Change |
+|------|--------|
+| `backend/app/services/assessment.py` | **New** — compute_overview, compute_mistake_patterns, compute_dimension_scores, compute_report |
+| `backend/app/services/session_service.py` | +get_all_records(), +get_records_in_range() |
+| `backend/app/schemas/responses.py` | +AssessmentOverview, MistakePattern, DimensionAssessment, AssessmentReport |
+| `backend/app/main.py` | +4 GET /assessment/* endpoints; version v2.0.0 |
+| `backend/app/services/data_io.py` | EXPORT_VERSION → v2.0.0 |
+| `backend/app/tests/test_api.py` | +version assertions |
+| `backend/app/tests/test_assessment.py` | **New** — 11 tests |
 
-### 前端修复
+### Frontend
 
-| 修复 | 说明 |
-|------|------|
-| null 安全加固 | 所有数组访问 (`recommendations`, `possible_duplicates`, `group.cases`, `missing_fields`) 添加 `?? []` 守卫 |
-| StatCard 防 NaN | 新增 `Number.isNaN()` 和 `isFinite()` 检查，负值 clamp 到 0 |
-| completenessColor/Bg | 新增 null/NaN → 灰色处理 |
-| 空状态页面 | total_cases === 0 时显示专用空状态提示 |
-| readyPct clamp | 限制在 [0, 100] 区间 |
-| IssueList 接收 null | `items` 参数类型改为 `AuditIssue[] \| null \| undefined` |
-| React keys 改进 | 数组索引替换为稳定 key |
+| File | Change |
+|------|--------|
+| `frontend/src/app/assessment/page.tsx` | **New** — Full assessment dashboard |
+| `frontend/src/app/layout.tsx` | +训练评估 nav link |
 
-### 测试增强
+### Assessment Design
 
-- 181 passed (178 → 181, 3 new tests)
-- `test_audit_issues_include_is_training_ready` — 审计 issue 必须含 is_training_ready + reason
-- `test_unknown_level_treated_as_missing` — 'unknown' level 应在 missing_fields
-- `test_aesthetic_level_missing_handled` — 无 level 的案例正常处理
+- **Overview**: total/completed/7d/30d session counts, avg user/AI scores, gap trend (improving/stable/worsening/insufficient_data), Chinese summary
+- **Mistake Patterns**: 10 keyword-based rules checking training_focus_tags, judgment_gap_summary, user_weaknesses, ai_main_problems
+- **Dimension Scores**: 7 dimensions (typography, color, composition, texture, price-band, commercial, iteration) scored 0-100 via keyword frequency analysis
+- **Report**: Period review (7/30 day toggle) with progress summary, weakest/strongest dimensions, top mistakes, training plan, recommended themes
+
+### Key Decisions
+- No LLM calls — all rule-based, deterministic, works offline
+- No DB migration — all computed dynamically from existing TrainingRecord data
+- `INSUFFICIENT_DATA_THRESHOLD = 5` — less than 5 scored records returns friendly prompt
+- Handles old data with missing fields gracefully
 
 ---
 
 ## Test Results
-- **181 passed**, 1 warning
-- Frontend build: ✅ 6 routes
+- **192 passed** (181 existing + 11 new V2.0 tests)
+- Frontend build: ✅ 7 routes (+ /assessment)
 - Docker compose config: ✅
 
 ---
 
 ## Git Status
-- Working tree: **clean** (not yet committed)
-- Branch: main
+- Working tree: clean (not yet committed)
 
 ---
 
-## Next Session First Steps
-1. Commit and push V1.9.1 changes
-2. Quick smoke test: backend → /health → v1.9.1; frontend → /audit → empty state
-3. V2.0: Training effectiveness evaluation system
+## Known Limitations
+1. Mistake patterns are keyword-based — may miss nuanced issues; future versions can use LLM
+2. Dimension scores use indirect keyword frequency, not direct semantic assessment
+3. No chart/graph (text-only progress bars); chart library could be added later
+4. Before_score field on TrainingRecord is never populated by any endpoint
+
+---
+
+## Next Session
+1. Commit and push V2.0.0
+2. V2.0.1: Stability fixes and regression testing
+3. Future: V2.1 local release edition

@@ -1,0 +1,287 @@
+"""V2.0: Training effectiveness assessment tests."""
+
+import pytest
+from sqlalchemy import create_engine, StaticPool
+from sqlalchemy.orm import sessionmaker
+
+from app.db.database import Base, get_db
+from app.db.models import TrainingRecord
+from app.main import app
+from fastapi.testclient import TestClient
+
+# ── Test database ────────────────────────────────────────────────────
+
+TEST_DATABASE_URL = "sqlite:///:memory:"
+test_engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+
+# ── Mock agent overrides (same as test_api.py, for import safety) ────
+
+def override_get_db():
+    db = TestSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# ── Fixtures ──────────────────────────────────────────────────────────
+
+@pytest.fixture(autouse=True)
+def setup_test_db():
+    Base.metadata.create_all(bind=test_engine)
+    yield
+    Base.metadata.drop_all(bind=test_engine)
+
+
+@pytest.fixture()
+def client(setup_test_db):
+    app.dependency_overrides[get_db] = override_get_db
+    # Override all agent deps to prevent API key errors
+    from app.main import (
+        get_analyzer, get_critic, get_iterator, get_profile_agent,
+        get_vision_adapter, get_comparator, get_reference_comparator,
+        get_prompt_generator, get_weekly_reviewer,
+    )
+    from app.schemas.responses import (
+        AnalyzeResponse, CritiqueResponse, CompareWithReferencesResponse,
+        GeneratedPrompt, IterateResponse, IterationDirection,
+        JudgmentGap, ProfileResponse, VisionDescription, WeeklyReviewResponse,
+    )
+    from types import SimpleNamespace
+
+    class MockAnalyzerAgent:
+        def run(self, **kw): return AnalyzeResponse(
+            color="", composition="", typography="", material="", emotion="",
+            brand_sense="", premium_sources="", cheapness_sources="",
+            improvement_suggestions="")
+
+    class MockCriticAgent:
+        def run(self, **kw): return CritiqueResponse(
+            total_score=7.0,
+            dimensions=SimpleNamespace(color=7,composition=7,typography=7,material=7,emotion=7,brand_sense=7),
+            main_issues=[], cheapness_sources=[], priority_fixes=[])
+
+    class MockIteratorAgent:
+        def run(self, **kw): return IterateResponse(directions=[
+            IterationDirection(id="d1", title="T", description="D", expected_impact="E",
+                goal="G", visual_changes="V", color_changes="C", typography_changes="T",
+                layout_changes="L", commercial_rationale="R", risk="R")])
+
+    class MockProfileAgent:
+        def run(self, history, total_sessions): return ProfileResponse(
+            preferences="", common_mistakes="", next_week_focus="", total_sessions=total_sessions)
+
+    class MockComparatorAgent:
+        def run(self, **kw): return JudgmentGap(
+            accurate_judgments=[], missed_issues=[], misjudgments=[],
+            commercial_blind_spots=[], aesthetic_blind_spots=[],
+            next_training_focus=[], short_summary="")
+
+    class MockRefComparatorAgent:
+        def run(self, **kw): return CompareWithReferencesResponse()
+
+    class MockPromptGenAgent:
+        def run(self, **kw): return GeneratedPrompt()
+
+    class MockWeeklyAgent:
+        def run(self, history): return WeeklyReviewResponse()
+
+    from app.vision.manual_adapter import ManualAdapter
+
+    app.dependency_overrides[get_analyzer] = lambda: MockAnalyzerAgent()
+    app.dependency_overrides[get_critic] = lambda: MockCriticAgent()
+    app.dependency_overrides[get_iterator] = lambda: MockIteratorAgent()
+    app.dependency_overrides[get_profile_agent] = lambda: MockProfileAgent()
+    app.dependency_overrides[get_vision_adapter] = lambda: ManualAdapter()
+    app.dependency_overrides[get_comparator] = lambda: MockComparatorAgent()
+    app.dependency_overrides[get_reference_comparator] = lambda: MockRefComparatorAgent()
+    app.dependency_overrides[get_prompt_generator] = lambda: MockPromptGenAgent()
+    app.dependency_overrides[get_weekly_reviewer] = lambda: MockWeeklyAgent()
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+# ── Tests ─────────────────────────────────────────────────────────────
+
+class TestAssessment:
+    """Tests for /assessment endpoints."""
+
+    @staticmethod
+    def _seed_record(db, **overrides):
+        from datetime import datetime as dt
+        defaults = {
+            "record_type": "critique",
+            "work_description": "A test design for assessment.",
+            "user_score": 70,
+            "ai_score": 75,
+            "created_at": dt.utcnow(),
+            "completed": 0,
+        }
+        defaults.update(overrides)
+        r = TrainingRecord(**defaults)
+        db.add(r)
+        db.commit()
+        db.refresh(r)
+        return r
+
+    # ── Overview ──────────────────────────────────────────────────
+
+    def test_overview_empty_returns_defaults(self, client):
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_sessions"] == 0
+        assert data["score_gap_trend"] == "insufficient_data"
+        assert data["average_score_gap"] is None
+        assert len(data["summary"]) > 0
+
+    def test_overview_insufficient_data_below_threshold(self, client):
+        db = TestSessionLocal()
+        try:
+            for i in range(3):
+                self._seed_record(db, user_score=60 + i * 5, ai_score=70 + i * 3)
+        finally:
+            db.close()
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_sessions"] == 3
+        assert data["score_gap_trend"] == "insufficient_data"
+
+    def test_overview_with_data_computes_avg_gap(self, client):
+        db = TestSessionLocal()
+        try:
+            self._seed_record(db, user_score=70, ai_score=80)
+            self._seed_record(db, user_score=60, ai_score=75)
+            self._seed_record(db, user_score=80, ai_score=85)
+            self._seed_record(db, user_score=65, ai_score=70)
+            self._seed_record(db, user_score=75, ai_score=80)
+        finally:
+            db.close()
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_sessions"] >= 5
+        assert data["average_score_gap"] is not None
+        assert 7.0 <= data["average_score_gap"] <= 9.0
+
+    def test_gap_trend_improving(self, client):
+        from datetime import datetime as dt, timedelta
+        db = TestSessionLocal()
+        try:
+            for i in range(5):
+                self._seed_record(db, user_score=50, ai_score=80,
+                    created_at=dt.utcnow() - timedelta(days=10 + i))
+            for i in range(5):
+                self._seed_record(db, user_score=70, ai_score=72,
+                    created_at=dt.utcnow() - timedelta(days=i))
+        finally:
+            db.close()
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["score_gap_trend"] in ("improving", "stable")
+
+    # ── Mistakes ──────────────────────────────────────────────────
+
+    def test_mistakes_returns_empty_for_no_data(self, client):
+        resp = client.get("/assessment/mistakes")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    def test_mistakes_returns_patterns_with_data(self, client):
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            for i in range(6):
+                self._seed_record(db,
+                    training_focus_tags='["字体", "排版", "层次"]',
+                    judgment_gap_summary="用户的字体判断与AI存在较大差异",
+                    created_at=dt.utcnow(),
+                )
+        finally:
+            db.close()
+        resp = client.get("/assessment/mistakes")
+        assert resp.status_code == 200
+        patterns = resp.json()
+        assert len(patterns) > 0
+        for p in patterns:
+            assert "mistake_type" in p
+            assert "count" in p
+            assert "severity" in p
+            assert "explanation" in p
+            assert "training_suggestion" in p
+
+    # ── Dimensions ────────────────────────────────────────────────
+
+    def test_dimensions_all_seven_returned(self, client):
+        resp = client.get("/assessment/dimensions")
+        assert resp.status_code == 200
+        dims = resp.json()
+        assert len(dims) == 7
+        keys = {d["dimension_key"] for d in dims}
+        expected = {
+            "typography_judgment", "color_judgment", "composition_judgment",
+            "texture_material_judgment", "price_band_judgment",
+            "commercial_fit_judgment", "iteration_judgment",
+        }
+        assert keys == expected
+        for d in dims:
+            assert 0 <= d["score"] <= 100
+            assert d["level"] in ("weak", "medium", "strong")
+
+    # ── Report ────────────────────────────────────────────────────
+
+    def test_report_7_days_returns_structure(self, client):
+        resp = client.get("/assessment/report?days=7")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["period_days"] == 7
+        for key in ("training_count", "score_gap_summary", "top_mistakes",
+                     "strongest_dimensions", "weakest_dimensions",
+                     "progress_summary", "next_training_plan", "recommended_themes"):
+            assert key in data, f"Missing key: {key}"
+
+    def test_report_30_days_works(self, client):
+        resp = client.get("/assessment/report?days=30")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["period_days"] == 30
+
+    # ── Backward compat ───────────────────────────────────────────
+
+    def test_old_data_without_scores_no_crash(self, client):
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            db.add(TrainingRecord(
+                record_type="analyze",
+                work_description="Old record without scores",
+                created_at=dt.utcnow(),
+            ))
+            db.commit()
+        finally:
+            db.close()
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        resp2 = client.get("/assessment/dimensions")
+        assert resp2.status_code == 200
+
+    def test_existing_endpoints_still_pass(self, client):
+        resp = client.get("/health")
+        assert resp.status_code == 200
+
+        resp2 = client.get("/reference-cases/audit")
+        assert resp2.status_code == 200
+
+        resp3 = client.get("/training/stats")
+        assert resp3.status_code == 200

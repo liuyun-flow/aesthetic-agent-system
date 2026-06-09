@@ -1598,9 +1598,9 @@ class TestSystemStatus:
         resp = client.get("/system/status")
         assert resp.json()["backend"] == "ok"
 
-    def test_version_is_v1_9_1(self, client):
+    def test_version_is_v2_0_0(self, client):
         resp = client.get("/system/status")
-        assert resp.json()["version"] == "v1.9.1"
+        assert resp.json()["version"] == "v2.0.0"
 
     def test_deepseek_has_configured_flag(self, client):
         resp = client.get("/system/status")
@@ -2119,7 +2119,7 @@ class TestEmbeddings:
         data = resp.json()
         assert "embedding" in data
         assert "configured" in data["embedding"]
-        assert data["version"] == "v1.9.1"
+        assert data["version"] == "v2.0.0"
 
 
 class TestCompareWithSemanticFallback:
@@ -2369,7 +2369,7 @@ class TestCaseQuality:
         assert resp.status_code == 200
         with zipfile.ZipFile(io.BytesIO(resp.content), "r") as zf:
             manifest = json.loads(zf.read("export_manifest.json"))
-            assert manifest.get("version", "").startswith("v1.")
+            assert manifest.get("version", "").startswith("v2.")
 
     # ── Audit detail fields ──────────────────────────────────────────
 
