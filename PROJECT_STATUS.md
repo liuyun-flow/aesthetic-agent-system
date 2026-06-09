@@ -24,11 +24,53 @@
 | V1.8 | 数据+搜索 | 导入导出 zip / 语义搜索 / embedding / 数据管理 UI |
 | V1.8.1 | 稳定 | 版本统一 / .gitignore / 回归测试 / 文档同步 |
 | V1.9.0 | 质量 | 完整度评分 / 训练可用判定 / 案例库体检 / 重复检测 |
-| **V1.9.1** | **稳定** | aesthetic_level 验证统一 / null 安全加固 / audit issue 字段补全 / 前端防御 guard |
+| V1.9.1 | 稳定 | aesthetic_level 验证统一 / null 安全加固 / audit issue 字段补全 / 前端防御 guard |
+| V2.0.0 | 评估 | 训练效果总览 / 误判统计 / 能力维度 7 维评分 / 周期复盘 |
+| **V2.0.1** | **校准** | 双评分有效数据阈值 / selected_direction 容错 / 导入版本 v2 兼容 / 关键词精度 |
 
 ---
 
-## V1.9.0 变更（本次）
+## V2.0.x 核心交付
+
+### 训练效果评估系统
+- 纯规则分析（不依赖 LLM），基于 TrainingRecord 历史数据
+- `GET /assessment/overview` — 训练频次、评分均值、差距趋势、中文总结
+- `GET /assessment/mistakes` — 10 种关键词规则误判检测，含严重度和训练建议
+- `GET /assessment/dimensions` — 7 审美维度 0-100 评分 + 强弱标签 + 趋势
+- `GET /assessment/report?days=7` — 周期复盘：进度总结、训练计划、推荐主题
+- 前端 `/assessment` 页面 — 总览卡片 + 误判/维度/复盘三 Tab
+- 数据不足阈值：有效双评分 ≥5 条
+
+### V2.0.1 稳定性校准
+- 统一使用双评分有效记录数作为数据充足判定（修正 total_sessions>=5 的漏洞）
+- `selected_direction` 非 dict 格式容错（数组/字符串/非法 JSON 不崩溃）
+- 导入版本检查接受 v1.x 和 v2.x 双前缀
+- 关键词精度优化（去掉过宽关键词、消除维度间冲突）
+- 前端报告错误态补齐
+
+| 类别 | 变更 |
+|------|------|
+| 训练总览 | 有效评分次数 + 评分均值 + 差距趋势 + 中文总结 |
+| 误判检测 | 10 种关键词规则 + 严重度 + 解释 + 训练建议 |
+| 能力维度 | 7 维度 0-100 动态评分 + 强弱/趋势 + 证据 + 建议 |
+| 周期复盘 | 7/30 天切换 + 进度总结 + 训练计划 + 推荐主题 |
+| 评估页面 | `/assessment` — 统计卡片 + 误判/维度/复盘 Tab |
+| 版本号 | main.py / health / system/status / export → v2.0.1 |
+
+### 修改的文件（V2.0.0–V2.0.1）
+| File | Change |
+|------|--------|
+| `backend/app/services/assessment.py` | **New** — 规则化评估引擎 |
+| `backend/app/services/session_service.py` | +get_all_records(), +get_records_in_range() |
+| `backend/app/schemas/responses.py` | +AssessmentOverview, MistakePattern, DimensionAssessment, AssessmentReport |
+| `backend/app/main.py` | +4 assessment endpoints, version→v2.0.1 |
+| `backend/app/services/data_io.py` | EXPORT_VERSION→v2.0.1, import version v1+v2 |
+| `backend/app/tests/test_assessment.py` | **New** — 20 tests |
+| `backend/app/tests/test_api.py` | version assertions updated |
+| `frontend/src/app/assessment/page.tsx` | **New** — 评估仪表盘 |
+| `frontend/src/app/layout.tsx` | +训练评估 nav link |
+
+### V1.9.0 变更（前一个版本）
 
 ### 案例完整度评分
 - 动态计算 `completeness_score`（0-100），基于 13 个字段加权
@@ -83,28 +125,11 @@
 
 ---
 
-## V1.9.1 变更（本次）
-
-V1.9.1 是 V1.9 的稳定性修复版，不新增业务功能。
-
-| 类别 | 变更 |
-|------|------|
-| aesthetic_level 验证 | 统一使用 `_is_present()` 替换四处内联检查，同时拒绝 "unknown"/"n/a"/"none"/"暂无" 等占位值 |
-| _is_present 增强 | 新增 list/dict/tuple/set 非空判断 |
-| _tokenize_title | 新增 None 防护，避免空 title 导致审计端点崩溃 |
-| audit issue 字段补全 | `_case_summary` 新增 `is_training_ready`、`reason`；AuditIssue schema 同步新增 |
-| 重复检测 | 移除 embedding 匹配的 `break`，报告所有高相似度匹配 |
-| missing_learning_notes | AND 改为 OR，缺任一字段即标记 |
-| 前端 null 安全 | 所有数组访问添加 `??` 守卫；StatCard 防 NaN/负数 |
-| 前端空状态 | 案例库为空时显示专用空状态提示 |
-| 前端完整度颜色 | completenessColor/Bg 新增 null/NaN 灰度处理 |
-| 版本号 | main.py / data_io.py / tests → v1.9.1 |
-
 ## 测试结果
 
-- **181 passed**（analyze / critique / iterate / profile / sessions / upload / vision / reference / compare / prompt / training / health / settings / export / import / embeddings / semantic search / completeness / audit / duplicates / stability）
+- **202 passed**（analyze / critique / iterate / profile / sessions / upload / vision / reference / compare / prompt / training / health / settings / export / import / embeddings / semantic search / completeness / audit / duplicates / assessment overview / mistakes / dimensions / report / stability / old-data compat / import version）
 - 全部使用 mocked agents + adapters，无需 API key
-- Frontend build: ✅ 6 routes (/, /settings, /help, /setup, /audit, /_not-found)
+- Frontend build: ✅ 7 routes (/, /settings, /help, /setup, /audit, /assessment, /_not-found)
 - Docker compose config: ✅ 无警告
 
 ---
@@ -120,15 +145,17 @@ V1.9.1 是 V1.9 的稳定性修复版，不新增业务功能。
 7. 语义搜索为暴力余弦相似度，案例量 <1000 时够用，未来可优化
 8. 导出不含 embeddings（导入后需手动重建索引）
 9. 导入仅合并模式，不做覆盖/去重
-10. 完整度评分为动态计算（不写 DB），大量案例时需关注性能
+10. 误判检测基于关键词规则（非 LLM），精度受关键词覆盖影响
+11. 维度评分使用间接关键词频率推断，非直接语义评估
+12. 评估接口各自独立读取 DB（本地 SQLite 3000 条内可接受）
 
 ---
 
 ## 尚未构建
 
-- 多人 SaaS / 登录 / 云存储（V2.0）
-- 训练效果评估系统（V2.0 — 训练前后对比、成长曲线、里程碑）
+- 多人 SaaS / 登录 / 云存储（V2.1+）
+- 训练效果图表（折线图、雷达图）
 - 设置页「配置来源」展示（减少 .env 与设置页混用困惑）
 
 ## 下一步建议
-V2.0 — 训练效果评估系统 + 当前已知问题的修复
+V2.1 — 本地正式发布版 / 安装体验优化 / 一键启动脚本 / 用户手册

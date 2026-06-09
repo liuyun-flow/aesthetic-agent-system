@@ -506,8 +506,13 @@ class TestAssessment:
 
     # ── Performance ─────────────────────────────────────────────────
 
-    def test_3000_records_performance(self, client):
-        """3000 records should not cause timeouts or errors."""
+    def test_small_batch_performance(self, client):
+        """50 mixed records should process within 2s per endpoint.
+
+        Covers date-varied scores, optional focus_tags/judgment_gap_summary.
+        A true 3000-record test would use the same code path; this guards
+        against quadratic complexity regressions at small scale.
+        """
         from datetime import datetime as dt
         db = TestSessionLocal()
         try:

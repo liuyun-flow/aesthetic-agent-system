@@ -154,6 +154,7 @@ export default function AssessmentPage() {
   const [reportDays, setReportDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"mistakes" | "dimensions" | "report">("mistakes");
 
@@ -181,11 +182,19 @@ export default function AssessmentPage() {
 
   const fetchReport = useCallback(async (days: number) => {
     setReportLoading(true);
+    setReportError(null);
     try {
       const res = await fetch(`${base}/assessment/report?days=${days}`);
-      if (res.ok) setReport(await res.json());
-    } catch { /* ignore */ }
-    finally { setReportLoading(false); }
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || `请求失败 (${res.status})`);
+      }
+      setReport(await res.json());
+    } catch (err: unknown) {
+      setReportError(err instanceof Error ? err.message : "复盘报告生成失败");
+    } finally {
+      setReportLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -376,6 +385,12 @@ export default function AssessmentPage() {
             ))}
           </div>
 
+          {reportError && (
+            <div className="rounded border border-red-200 bg-red-50 p-4 text-center">
+              <p className="text-red-600 text-xs mb-2">复盘报告生成失败</p>
+              <p className="text-red-400 text-xs">{reportError}</p>
+            </div>
+          )}
           {reportLoading ? (
             <p className="text-xs text-gray-400 py-4">正在生成复盘报告…</p>
           ) : report ? (

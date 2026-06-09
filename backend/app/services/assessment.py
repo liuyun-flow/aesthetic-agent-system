@@ -411,8 +411,7 @@ def compute_dimension_scores(db: Session) -> list[dict[str, Any]]:
                 recent_problem_count += 1
 
         # Score: fewer problems = higher score
-        # Base 70, subtract based on problem frequency
-        base_score = 70
+        # Base starting point: no problems → 100; every record has problem → 30
         if total_checks > 0:
             problem_rate = problem_count / total_checks
             # Scale: 0% problems = 100, 100% problems = 30
