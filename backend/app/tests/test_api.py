@@ -1909,10 +1909,75 @@ class TestExport:
         assert "application/zip" in resp.headers.get("content-type", "")
 
     def test_export_does_not_contain_api_key(self, client):
+        import zipfile
+
+        deepseek_key = "FAKE_DEEPSEEK_EXPORT_TOKEN_123456"
+        openai_key = "FAKE_OPENAI_EXPORT_TOKEN_ABCDEF"
+        cs.write_config({
+            "deepseek": {
+                "api_key": deepseek_key,
+                "base_url": "https://api.deepseek.com",
+                "default_model": "deepseek-v4-flash",
+                "reasoning_model": "deepseek-v4-pro",
+            },
+            "vision": {
+                "provider": "openai",
+                "openai_api_key": openai_key,
+                "openai_vision_model": "gpt-4o-mini",
+            },
+            "setup": {"completed": "true"},
+        })
+
         resp = client.get("/export")
-        data = resp.content
-        # The zip should not contain real API keys
-        assert b"sk-" not in data or data.count(b"sk-") <= 2  # masked keys are fine
+        assert resp.status_code == 200
+
+        with zipfile.ZipFile(io.BytesIO(resp.content), "r") as zf:
+            names = set(zf.namelist())
+            assert "export_manifest.json" in names
+            assert "reference_cases.json" in names
+            assert "sessions.json" in names
+            assert "uploaded_images.json" in names
+            assert "config_summary.json" in names
+
+            for name in names:
+                if name.endswith(".json"):
+                    text = zf.read(name).decode("utf-8")
+                    assert deepseek_key not in text
+                    assert openai_key not in text
+
+            summary = json.loads(zf.read("config_summary.json").decode("utf-8"))
+            summary_text = json.dumps(summary).lower()
+            assert "api_key" not in summary_text
+            assert "secret" not in summary_text
+
+    def test_export_skips_image_file_outside_upload_dir(self, client, tmp_path):
+        """Export should not package files outside the configured upload directory."""
+        import zipfile
+        from app.db.models import UploadedImage
+
+        outside = tmp_path / "outside.png"
+        outside.write_bytes(b"outside-file-content")
+
+        db = TestSessionLocal()
+        try:
+            db.add(UploadedImage(
+                original_filename="outside.png",
+                stored_filename="safe.png",
+                file_path=str(outside),
+                content_type="image/png",
+                size_bytes=outside.stat().st_size,
+            ))
+            db.commit()
+        finally:
+            db.close()
+
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        with zipfile.ZipFile(io.BytesIO(resp.content), "r") as zf:
+            assert "uploads/safe.png" not in zf.namelist()
+            for name in zf.namelist():
+                if name.endswith(".json"):
+                    assert "outside-file-content" not in zf.read(name).decode("utf-8")
 
 
 class TestImport:
@@ -1920,7 +1985,7 @@ class TestImport:
 
     def test_import_rejects_non_zip(self, client):
         resp = client.post("/import", files={"file": ("test.txt", b"not a zip")})
-        assert resp.status_code in (400, 422, 500)  # bad request, validation error, or internal zip error
+        assert resp.status_code == 400
 
     def test_import_zip_slip_prevention(self, client):
         """Zip with path traversal names should be rejected."""
@@ -1931,6 +1996,75 @@ class TestImport:
         buf.seek(0)
         resp = client.post("/import", files={"file": ("evil.zip", buf.read())})
         assert resp.status_code == 400
+        assert "不安全" in resp.json()["detail"]
+
+    def test_import_rejects_unsafe_stored_filename(self, client):
+        """Zip metadata cannot inject traversal filenames into upload records."""
+        import zipfile
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("export_manifest.json", json.dumps({"version": "v1.8.1"}))
+            zf.writestr("uploaded_images.json", json.dumps([
+                {
+                    "id": 1,
+                    "original_filename": "evil.png",
+                    "stored_filename": "../evil.png",
+                    "content_type": "image/png",
+                    "size_bytes": 10,
+                }
+            ]))
+        buf.seek(0)
+
+        resp = client.post("/import", files={"file": ("evil-meta.zip", buf.read())})
+        assert resp.status_code == 400
+        assert "不安全" in resp.json()["detail"]
+
+    def test_import_missing_image_file_does_not_create_bad_image_mapping(self, client):
+        """Missing upload files should not create image records or map cases to bad image_ids."""
+        import zipfile
+        from app.db.models import ReferenceCase, UploadedImage
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr("export_manifest.json", json.dumps({"version": "v1.8.1"}))
+            zf.writestr("uploaded_images.json", json.dumps([
+                {
+                    "id": 1,
+                    "original_filename": "missing.png",
+                    "stored_filename": "missing.png",
+                    "content_type": "image/png",
+                    "size_bytes": 10,
+                }
+            ]))
+            zf.writestr("reference_cases.json", json.dumps([
+                {
+                    "id": 1,
+                    "title": "Imported case with missing image",
+                    "aesthetic_level": "high",
+                    "image_id": 1,
+                }
+            ]))
+            zf.writestr("sessions.json", "[]")
+        buf.seek(0)
+
+        resp = client.post("/import", files={"file": ("missing-image.zip", buf.read())})
+        assert resp.status_code == 200
+        result = resp.json()
+        assert result["images_imported"] == 0
+        assert result["reference_cases_imported"] == 1
+        assert result["skipped_items"] >= 1
+
+        db = TestSessionLocal()
+        try:
+            assert db.query(UploadedImage).count() == 0
+            case = db.query(ReferenceCase).filter(
+                ReferenceCase.title == "Imported case with missing image"
+            ).first()
+            assert case is not None
+            assert case.image_id is None
+        finally:
+            db.close()
 
     def test_export_then_import_roundtrip(self, client):
         """Export a zip, then import it back — should succeed."""

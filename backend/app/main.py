@@ -1275,15 +1275,13 @@ async def import_data(
         raise HTTPException(status_code=400, detail="无法读取上传文件")
     try:
         result = _import(db, zip_bytes, _UPLOAD_DIR)
-    except (ValueError, Exception) as e:
-        # zipfile.BadZipFile, invalid input, path traversal → 400
-        if isinstance(e, ValueError):
-            raise HTTPException(status_code=400, detail=str(e))
-        # Catch zipfile errors and other import-specific issues
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
         import zipfile as _zipfile
         if isinstance(e, _zipfile.BadZipFile):
             raise HTTPException(status_code=400, detail="无效的 zip 文件格式")
-        raise HTTPException(status_code=500, detail=f"导入失败: {e}")
+        raise HTTPException(status_code=500, detail="导入失败，请检查备份包内容后重试。")
     return result.to_dict()
 
 
