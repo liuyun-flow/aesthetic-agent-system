@@ -257,11 +257,49 @@ class ReferenceCaseResponse(BaseModel):
     avoid_copying: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    # V1.9: Quality fields (computed, not persisted)
+    completeness_score: int = 0
+    is_training_ready: bool = False
+    missing_fields: list[str] = Field(default_factory=list)
 
 
 class ReferenceCaseListResponse(BaseModel):
     cases: list[ReferenceCaseResponse]
     total: int
+
+
+# ── V1.9: Case quality audit ─────────────────────────────────────────
+
+class AuditIssue(BaseModel):
+    """A single issue found during case quality audit."""
+    id: int
+    title: str
+    aesthetic_level: str | None = None
+    completeness_score: int = 0
+    missing_fields: list[str] = Field(default_factory=list)
+
+
+class DuplicateGroup(BaseModel):
+    """A group of possibly duplicate cases."""
+    method: str = "title_similarity"
+    cases: list[AuditIssue] = Field(default_factory=list)
+
+
+class CaseAuditResponse(BaseModel):
+    """Full case library quality audit report."""
+    total_cases: int = 0
+    training_ready_count: int = 0
+    incomplete_count: int = 0
+    average_completeness: float = 0.0
+    missing_image: list[AuditIssue] = Field(default_factory=list)
+    missing_description: list[AuditIssue] = Field(default_factory=list)
+    missing_aesthetic_level: list[AuditIssue] = Field(default_factory=list)
+    missing_price_band: list[AuditIssue] = Field(default_factory=list)
+    missing_premium_sources: list[AuditIssue] = Field(default_factory=list)
+    missing_cheapness_sources: list[AuditIssue] = Field(default_factory=list)
+    missing_learning_notes: list[AuditIssue] = Field(default_factory=list)
+    possible_duplicates: list[DuplicateGroup] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
 
 
 # ── V1.4.1: Generated prompt ─────────────────────────────────────────

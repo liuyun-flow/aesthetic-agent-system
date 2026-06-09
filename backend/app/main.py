@@ -44,6 +44,7 @@ from app.schemas.requests import (
 )
 from app.schemas.responses import (
     AnalyzeResponse,
+    CaseAuditResponse,
     CompareWithReferencesResponse,
     CritiqueResponse,
     GeneratedPrompt,
@@ -66,6 +67,7 @@ from app.schemas.responses import (
     WeeklyReviewResponse,
 )
 from app.services import session_service, reference_service
+from app.services.case_quality import compute_completeness_score, get_missing_fields, is_training_ready
 from app.settings.config_store import get_config, get_value, get_vision_missing_keys, get_vision_provider, is_vision_configured
 from app.vision.base import VisionAdapter
 from app.vision.manual_adapter import ManualAdapter
@@ -88,7 +90,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="1.8.1",
+    version="1.9.0",
     lifespan=lifespan,
 )
 
@@ -740,7 +742,7 @@ def vision_status() -> VisionStatusResponse:
 # ── V1.4: Reference Cases ────────────────────────────────────────────
 
 def _ref_response(case, db):
-    """Build ReferenceCaseResponse with image_url."""
+    """Build ReferenceCaseResponse with image_url and V1.9 quality fields."""
     image_url = None
     if case.image_id:
         img = session_service.get_image_by_id(db, case.image_id)
@@ -756,6 +758,9 @@ def _ref_response(case, db):
         premium_sources=case.premium_sources, cheapness_sources=case.cheapness_sources,
         learn_from_this=case.learn_from_this, avoid_copying=case.avoid_copying,
         created_at=case.created_at, updated_at=case.updated_at,
+        completeness_score=compute_completeness_score(case),
+        is_training_ready=is_training_ready(case),
+        missing_fields=get_missing_fields(case),
     )
 
 @app.post("/reference-cases", response_model=ReferenceCaseResponse, status_code=201)
@@ -811,6 +816,19 @@ def list_reference_cases(
         cases=[_ref_response(c, db) for c in cases],
         total=len(cases),
     )
+
+
+# ── V1.9: Case quality audit ──────────────────────────────────────────
+
+@app.get("/reference-cases/audit", response_model=CaseAuditResponse)
+def audit_reference_cases(db: Session = Depends(get_db)):
+    """Run a full quality audit on the reference case library.
+
+    Returns completeness stats, missing-field breakdowns, possible
+    duplicates, and actionable recommendations.  No API keys are used.
+    """
+    from app.services.case_quality import audit_cases as _audit
+    return _audit(db)
 
 
 @app.get("/reference-cases/{case_id}", response_model=ReferenceCaseResponse)
@@ -890,7 +908,8 @@ def search_semantic(body: dict, db: Session = Depends(get_db)):
         top_k: int (default 10) — number of results
         filters: {category?, aesthetic_level?, price_band?} (all optional)
 
-    Returns scored results with similarity and match reason.
+    V1.9: Results include completeness_score and is_training_ready.
+    Training-ready cases are sorted first, then by similarity.
     """
     query = body.get("query", "")
     if not query or not query.strip():
@@ -899,7 +918,24 @@ def search_semantic(body: dict, db: Session = Depends(get_db)):
     filters = body.get("filters") or {}
 
     from app.services.embeddings import search_semantic as _search
-    return _search(db, query=query.strip(), top_k=top_k, filters=filters)
+    result = _search(db, query=query.strip(), top_k=top_k, filters=filters)
+
+    # ── V1.9: Add quality fields to each result ─────────────────────
+    results = result.get("results", [])
+    if results:
+        for r in results:
+            case = reference_service.get_case(db, r["case_id"])
+            if case:
+                r["completeness_score"] = compute_completeness_score(case)
+                r["is_training_ready"] = is_training_ready(case)
+            else:
+                r["completeness_score"] = 0
+                r["is_training_ready"] = False
+        # Sort: training-ready first, then by similarity descending
+        results.sort(key=lambda r: (not r.get("is_training_ready", False), -r.get("similarity", 0)))
+        result["results"] = results
+
+    return result
 
 
 @app.get("/embedding/status")
@@ -1287,7 +1323,7 @@ async def import_data(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "backend", "version": "v1.8.1"}
+    return {"status": "ok", "service": "backend", "version": "v1.9.0"}
 
 
 @app.get("/model/status")
@@ -1350,7 +1386,7 @@ def system_status(db: Session = Depends(get_db)) -> dict:
 
     return {
         "backend": "ok",
-        "version": "v1.8.1",
+        "version": "v1.9.0",
         "deepseek": {"configured": deepseek_configured},
         "vision": {
             "configured": vision_configured,

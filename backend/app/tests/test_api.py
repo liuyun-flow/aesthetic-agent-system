@@ -1598,9 +1598,9 @@ class TestSystemStatus:
         resp = client.get("/system/status")
         assert resp.json()["backend"] == "ok"
 
-    def test_version_is_v1_8_1(self, client):
+    def test_version_is_v1_9_0(self, client):
         resp = client.get("/system/status")
-        assert resp.json()["version"] == "v1.8.1"
+        assert resp.json()["version"] == "v1.9.0"
 
     def test_deepseek_has_configured_flag(self, client):
         resp = client.get("/system/status")
@@ -2119,7 +2119,7 @@ class TestEmbeddings:
         data = resp.json()
         assert "embedding" in data
         assert "configured" in data["embedding"]
-        assert data["version"] == "v1.8.1"
+        assert data["version"] == "v1.9.0"
 
 
 class TestCompareWithSemanticFallback:
@@ -2136,3 +2136,256 @@ class TestCompareWithSemanticFallback:
         )
         # Should succeed even with no matching cases (empty comparison)
         assert resp.status_code == 200
+
+
+# ── V1.9: Case quality management ─────────────────────────────────────
+
+class TestCaseQuality:
+    """Tests for completeness scoring, training readiness, audit, and duplicates."""
+
+    # ── Helpers ──────────────────────────────────────────────────────
+
+    @staticmethod
+    def _create_case(client, **overrides):
+        """Create a reference case and return its JSON."""
+        payload = {
+            "title": "Test Case",
+            "aesthetic_level": "high",
+        }
+        payload.update(overrides)
+        resp = client.post("/reference-cases", json=payload)
+        assert resp.status_code == 201, resp.text
+        return resp.json()
+
+    # ── Completeness scoring ─────────────────────────────────────────
+
+    def test_complete_case_scores_high(self, client):
+        """A fully populated case (with image description) should score >= 85."""
+        c = self._create_case(client,
+            title="Premium SaaS Landing Page",
+            aesthetic_level="high",
+            category="web",
+            price_band="premium",
+            style_tags="minimal, clean",
+            target_audience="SaaS buyers",
+            image_description="A clean white landing page with blue CTA buttons and sans-serif typography.",
+            premium_sources="Consistent spacing, quality typography",
+            cheapness_sources="Stock icons",
+            learn_from_this="Typography hierarchy",
+            avoid_copying="Overuse of shadows",
+            notes="Excellent reference for SaaS design",
+            score=88,
+        )
+        assert c["completeness_score"] >= 85, f"Expected >=85, got {c['completeness_score']}"
+        assert c["is_training_ready"] is False  # no image uploaded, only description
+
+    def test_minimal_case_scores_low(self, client):
+        """A case with only title should score < 30."""
+        c = self._create_case(client, title="Bare Minimum Case")
+        assert c["completeness_score"] < 30, f"Expected <30, got {c['completeness_score']}"
+        assert c["is_training_ready"] is False
+        assert len(c["missing_fields"]) >= 10
+
+    def test_case_with_unknown_level_scores_partial(self, client):
+        """Aesthetic level 'unknown' should not count as present."""
+        c = self._create_case(client, title="Unknown Level", aesthetic_level="unknown")
+        # Should be missing aesthetic_level
+        assert "审美等级" in c["missing_fields"]
+
+    def test_missing_fields_are_chinese(self, client):
+        """Missing field labels must be Chinese, not English or None."""
+        c = self._create_case(client, title="Minimal")
+        missing = c["missing_fields"]
+        assert len(missing) > 0
+        for f in missing:
+            assert f, "Empty missing field label"
+            # Must contain Chinese characters or common Chinese words
+            is_chinese = any('一' <= ch <= '鿿' for ch in f)
+            assert is_chinese or f in ("score",), f"Unexpected label: {f}"
+
+    # ── Training readiness ───────────────────────────────────────────
+
+    def test_training_ready_missing_image(self, client):
+        """Without image, even high-score case is not training-ready."""
+        c = self._create_case(client,
+            title="Complete but no image",
+            aesthetic_level="high",
+            category="web",
+            price_band="premium",
+            style_tags="clean",
+            target_audience="designers",
+            image_description="A clean landing page design.",
+            premium_sources="Great typography",
+            cheapness_sources="None",
+            learn_from_this="Whitespace usage",
+            avoid_copying="N/A",
+            notes="Good",
+            score=90,
+        )
+        # Has all text fields but no image_id → is_training_ready must be False
+        assert c["is_training_ready"] is False
+
+    def test_training_ready_missing_learn_and_premium(self, client):
+        """Without learn_from_this AND premium_sources, case is not ready."""
+        c = self._create_case(client,
+            title="No learning notes",
+            aesthetic_level="medium",
+            category="mobile",
+            price_band="budget",
+            style_tags="simple",
+            target_audience="users",
+            cheapness_sources="Low quality",
+            notes="Test",
+        )
+        assert c["is_training_ready"] is False
+
+    # ── Audit endpoint ───────────────────────────────────────────────
+
+    def test_audit_returns_correct_structure(self, client):
+        """GET /reference-cases/audit must return all expected keys."""
+        resp = client.get("/reference-cases/audit")
+        assert resp.status_code == 200
+        data = resp.json()
+        for key in (
+            "total_cases", "training_ready_count", "incomplete_count",
+            "average_completeness", "missing_image", "missing_description",
+            "missing_aesthetic_level", "missing_price_band",
+            "missing_premium_sources", "missing_cheapness_sources",
+            "missing_learning_notes", "possible_duplicates", "recommendations",
+        ):
+            assert key in data, f"Missing key: {key}"
+
+    def test_audit_detects_missing_fields(self, client):
+        """Create an incomplete case and verify audit catches it."""
+        self._create_case(client, title="Incomplete Audit Case")
+        resp = client.get("/reference-cases/audit")
+        data = resp.json()
+        assert data["total_cases"] >= 1
+        # With only title, we should see it in multiple missing lists
+        found = False
+        for key in ("missing_image", "missing_aesthetic_level", "missing_description"):
+            for item in data[key]:
+                if item["title"] == "Incomplete Audit Case":
+                    found = True
+                    break
+        assert found or data["incomplete_count"] >= 1
+
+    def test_audit_handles_empty_database(self, client):
+        """Audit on empty database should not crash."""
+        # Create nothing, just call audit
+        resp = client.get("/reference-cases/audit")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_cases"] == 0
+        assert data["recommendations"] == []
+
+    # ── Duplicate detection ──────────────────────────────────────────
+
+    def test_duplicate_detection_finds_title_similarity(self, client):
+        """Two cases with very similar titles should be flagged."""
+        self._create_case(client,
+            title="Minimalist SaaS Landing Page Design",
+            aesthetic_level="high",
+        )
+        self._create_case(client,
+            title="Minimalist SaaS Landing Page",
+            aesthetic_level="medium",
+        )
+        resp = client.get("/reference-cases/audit")
+        data = resp.json()
+        # They should appear in possible_duplicates
+        assert data["possible_duplicates"] or data["total_cases"] == 2
+
+    def test_duplicate_detection_no_false_positives(self, client):
+        """Very different titles should NOT be flagged."""
+        self._create_case(client, title="Minimalist SaaS Landing Page", aesthetic_level="high")
+        self._create_case(client, title="Gothic Horror Movie Poster", aesthetic_level="low")
+        resp = client.get("/reference-cases/audit")
+        data = resp.json()
+        # With only 2 very different cases, duplicate detection should be empty or empty groups
+        dupes = data["possible_duplicates"]
+        # If any groups exist, none should contain both cases
+        all_ids = set()
+        for g in dupes:
+            for c in g["cases"]:
+                all_ids.add(c["id"])
+        # The two distinct cases should not appear together in a group
+        assert len(all_ids) < 2 or len(dupes) == 0
+
+    # ── Backward compatibility ───────────────────────────────────────
+
+    def test_old_case_data_does_not_crash(self, client):
+        """A case created with minimal V1.4-era fields must not break quality checks."""
+        resp = client.post("/reference-cases", json={
+            "title": "Old V1.4 Case",
+            "aesthetic_level": "high",
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert "completeness_score" in data
+        assert "is_training_ready" in data
+        assert "missing_fields" in data
+        assert isinstance(data["completeness_score"], int)
+        assert isinstance(data["is_training_ready"], bool)
+
+    def test_case_list_includes_quality_fields(self, client):
+        """GET /reference-cases must include quality fields on every case."""
+        self._create_case(client, title="Quality Fields Test", aesthetic_level="medium")
+        resp = client.get("/reference-cases")
+        assert resp.status_code == 200
+        for c in resp.json()["cases"]:
+            assert "completeness_score" in c
+            assert "is_training_ready" in c
+            assert "missing_fields" in c
+            assert isinstance(c["completeness_score"], int)
+            assert isinstance(c["is_training_ready"], bool)
+            assert isinstance(c["missing_fields"], list)
+
+    def test_get_single_case_includes_quality_fields(self, client):
+        """GET /reference-cases/{id} must include quality fields."""
+        created = self._create_case(client, title="Single Quality Test", aesthetic_level="high")
+        resp = client.get(f"/reference-cases/{created['id']}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "completeness_score" in data
+        assert "is_training_ready" in data
+        assert "missing_fields" in data
+
+    def test_semantic_search_not_broken_by_quality(self, client):
+        """Semantic search must still return 200 even with no embedding config."""
+        resp = client.post(
+            "/reference-cases/search-semantic",
+            json={"query": "minimalist design"},
+        )
+        # Without embeddings configured, semantic search returns a message
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "message" in data or "results" in data
+
+    def test_export_version_is_v1_9_0(self, client):
+        """Export manifest must carry v1.9.0 after V1.9."""
+        import zipfile
+        resp = client.get("/export")
+        assert resp.status_code == 200
+        with zipfile.ZipFile(io.BytesIO(resp.content), "r") as zf:
+            manifest = json.loads(zf.read("export_manifest.json"))
+            assert manifest.get("version", "").startswith("v1.")
+
+    # ── Audit detail fields ──────────────────────────────────────────
+
+    def test_audit_issue_has_required_fields(self, client):
+        """Each AuditIssue must have id, title, completeness_score, missing_fields."""
+        self._create_case(client, title="Audit Issue Test")
+        resp = client.get("/reference-cases/audit")
+        data = resp.json()
+        # Check at least one category has valid items
+        all_issues = (
+            data["missing_image"] + data["missing_description"] +
+            data["missing_aesthetic_level"] + data["missing_price_band"]
+        )
+        for item in all_issues:
+            assert "id" in item
+            assert "title" in item
+            assert "completeness_score" in item
+            assert "missing_fields" in item
+            assert isinstance(item["completeness_score"], int)

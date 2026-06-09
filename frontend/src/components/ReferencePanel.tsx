@@ -14,6 +14,8 @@ interface SemResult {
   image_url: string | null;
   image_description: string | null;
   reason: string;
+  completeness_score?: number;
+  is_training_ready?: boolean;
 }
 
 interface RefCase {
@@ -34,6 +36,9 @@ interface RefCase {
   cheapness_sources: string | null;
   learn_from_this: string | null;
   avoid_copying: string | null;
+  completeness_score?: number;
+  is_training_ready?: boolean;
+  missing_fields?: string[];
 }
 
 const EMPTY_FORM = { title: "", level: "unknown", category: "", priceBand: "", score: "", notes: "", styleTags: "", audience: "", premiumSources: "", cheapnessSources: "", learnFrom: "", avoidCopying: "", imageDesc: "" };
@@ -184,6 +189,20 @@ export default function ReferencePanel() {
     return m[l ?? ""] ?? t.reference.unknown;
   };
 
+  const completenessBadge = (score: number | undefined | null) => {
+    const s = score ?? 0;
+    if (s >= 75) return "bg-green-100 text-green-700";
+    if (s >= 50) return "bg-amber-100 text-amber-700";
+    return "bg-red-100 text-red-700";
+  };
+
+  const completenessLabel = (c: RefCase) => {
+    const s = c.completeness_score ?? 0;
+    const missing = c.missing_fields || [];
+    if (missing.length === 0) return `完整度 ${s}/100`;
+    return `完整度 ${s}/100，缺少：${missing.slice(0, 2).join("、")}${missing.length > 2 ? `等${missing.length}项` : ""}`;
+  };
+
   const imgSrc = (c: RefCase) => c.image_url ? (c.image_url.startsWith("http") ? c.image_url : `${base}${c.image_url}`) : null;
 
   return (
@@ -247,6 +266,12 @@ export default function ReferencePanel() {
               >
                 <span className="text-indigo-600 font-medium w-10 text-right">
                   {Math.round(r.similarity * 100)}%
+                </span>
+                {r.is_training_ready && (
+                  <span className="text-green-500 text-xs font-bold" title="训练可用">✓</span>
+                )}
+                <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${completenessBadge(r.completeness_score)}`}>
+                  {r.completeness_score ?? "?"}
                 </span>
                 <span className={`rounded px-1 py-0.5 font-medium ${levelBadge(r.aesthetic_level)}`}>
                   {levelLabel(r.aesthetic_level)}
@@ -316,6 +341,12 @@ export default function ReferencePanel() {
               onClick={() => setDetail(c)}>
               {imgSrc(c) && <img src={imgSrc(c)!} alt="" className="h-10 w-10 rounded object-cover" />}
               <span className={`rounded px-1 py-0.5 font-medium ${levelBadge(c.aesthetic_level)}`}>{levelLabel(c.aesthetic_level)}</span>
+              {c.is_training_ready && (
+                <span className="text-green-500 text-xs font-bold" title="可用于训练">✓</span>
+              )}
+              <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${completenessBadge(c.completeness_score)}`} title={completenessLabel(c)}>
+                {c.completeness_score ?? "?"}
+              </span>
               <span className="flex-1 truncate font-medium">{c.title}</span>
               {c.category && <span className="text-gray-400">{c.category}</span>}
               {c.score != null && <span className="text-gray-400">{c.score}</span>}
@@ -347,6 +378,32 @@ export default function ReferencePanel() {
               <KV label="值得学习" value={detail.learn_from_this} />
               <KV label="不能误学" value={detail.avoid_copying} />
               <KV label="备注" value={detail.notes} />
+              {/* V1.9: Quality analysis */}
+              <div className="border-t pt-3 mt-3">
+                <p className="text-xs font-medium text-gray-500 mb-2">案例质量分析</p>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${completenessBadge(detail.completeness_score)}`}>
+                    完整度 {detail.completeness_score ?? 0}/100
+                  </span>
+                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${detail.is_training_ready ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    {detail.is_training_ready ? "✓ 可用于训练" : "✗ 未达到训练标准"}
+                  </span>
+                </div>
+                {detail.missing_fields && detail.missing_fields.length > 0 && (
+                  <div>
+                    <p className="text-xs text-amber-600 font-medium">缺失字段：</p>
+                    <p className="text-xs text-amber-500">
+                      {detail.missing_fields.join("、")}
+                    </p>
+                    <p className="text-xs text-amber-400 mt-1">
+                      建议补全以上字段以提升训练质量。
+                    </p>
+                  </div>
+                )}
+                {detail.missing_fields && detail.missing_fields.length === 0 && (
+                  <p className="text-xs text-green-600">所有字段完整，数据质量优秀。</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

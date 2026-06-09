@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V1.8.1** | 测试：158 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
+**当前版本：V1.9.0** | 测试：178 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
 
 ---
 
@@ -95,6 +95,8 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.7.1 | Setup wizard (`/setup`), Help center (`/help`), config status bar, system status endpoint |
 | V1.7.2 | Iteration direction selection, direction-based prompt generation, structured iteration fields |
 | V1.8 | Data export/import (zip backup), semantic search over reference cases (embeddings), data management UI |
+| V1.8.1 | Stability fixes, regression tests, pre-release cleanup |
+| V1.9 | Case quality management (completeness scoring, training readiness, audit report, duplicate detection) |
 
 ### API Endpoints
 
@@ -126,6 +128,17 @@ npm run dev                      # http://127.0.0.1:3000
 | `POST` | `/reference-cases/reindex-embeddings` | Rebuild semantic search index (V1.8) |
 | `POST` | `/reference-cases/search-semantic` | Semantic search over reference cases (V1.8) |
 | `GET` | `/embedding/status` | Embedding provider config status (V1.8) |
+| `GET` | `/reference-cases/audit` | Case library quality audit report (V1.9) |
+
+### Case Quality Management (V1.9)
+
+The case library now includes quality assessment for every reference case:
+
+- **Completeness Score (完整度评分)** — Each case gets a 0-100 score calculated dynamically from 13 weighted fields. No database changes needed — it works with existing data.
+- **Training Readiness (训练可用状态)** — A case is "training-ready" when it scores ≥75 and has an image, aesthetic level, description, and learning notes. Training-ready cases are prioritized in semantic search.
+- **Audit Report (案例库体检)** — `GET /reference-cases/audit` returns a full quality report: completeness stats, missing-field breakdowns, possible duplicates, and actionable recommendations.
+- **Audit Page (体检页面)** — Visit `/audit` for a dashboard showing case quality stats, missing-field categories, duplicate detection, and recommendations.
+- **Duplicate Detection** — Two-tier approach: title token overlap (always available) + embedding cosine similarity (if configured). No crashes when embeddings are unavailable.
 
 ### First-Time Users (V1.7.1)
 
