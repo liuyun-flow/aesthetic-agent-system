@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V2.1.1** | 测试：210 passed | [升级指南](docs/UPGRADE.md) | [变更日志](docs/CHANGELOG.md) | [发布说明](docs/RELEASE_NOTES.md) | [路线图](ROADMAP.md)
+**当前版本：V2.1.2** | 测试：212 passed | [升级指南](docs/UPGRADE.md) | [变更日志](docs/CHANGELOG.md) | [发布说明](docs/RELEASE_NOTES.md) | [路线图](ROADMAP.md)
 
 ---
 

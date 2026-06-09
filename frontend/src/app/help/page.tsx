@@ -90,6 +90,41 @@ const FAQ_ITEMS: FaqItem[] = [
       en: "Several signs indicate effective training: 1) The gap between your scores and AI scores is narrowing (your judgment is aligning with professional standards); 2) You can spot more issues before AI points them out (your eye is improving); 3) You can break down a design's quality without needing the 'Analyze' function (you've internalized the aesthetic framework); 4) Your reference case library is growing and you can clearly articulate why each case is good/bad. The Training Workbench stats panel and weekly review help track these changes.",
     },
   },
+  {
+    q: { zh: "Embedding 是什么？需要配置吗？", en: "What is Embedding? Do I need it?" },
+    a: {
+      zh: "Embedding 是把案例文本转成高维向量的技术，用于语义搜索。它不是必须项。不配置 Embedding 时，普通筛选（按分类、审美等级、价格带）仍然可用。配置后，你可以用自然语言搜索案例库，例如输入「高考直播封面，年轻有冲击力但不要廉价」，系统会找到风格相似的案例。需要 OpenAI API Key 和 EMBEDDING_PROVIDER=openai 配置。配置后需要在参考案例面板点击「重建索引」。",
+      en: "Embedding converts case text into high-dimensional vectors for semantic search. It is optional. Without it, regular filters (by category, aesthetic level, price band) still work. With it enabled, you can search using natural language like 'young, impactful design without looking cheap'. Requires OpenAI API Key and EMBEDDING_PROVIDER=openai. After configuring, click 'Rebuild Index' in the Reference Case panel.",
+    },
+  },
+  {
+    q: { zh: "语义搜索和普通筛选有什么区别？", en: "Semantic search vs regular filters?" },
+    a: {
+      zh: "普通筛选是按分类、审美等级、价格带精确匹配。语义搜索是按含义匹配——找到「感觉相似」的案例，即使标签不完全匹配。语义搜索需要先配置 Embedding。如果未配置，搜索框输入后会自动降级为普通筛选，不会报错。",
+      en: "Regular filters match exactly by category, aesthetic level, and price band. Semantic search matches by meaning — finding cases that 'feel similar' even if tags don't match exactly. Semantic search requires Embedding to be configured. If not configured, the search gracefully falls back to regular filters.",
+    },
+  },
+  {
+    q: { zh: "为什么打开页面白屏或崩溃？", en: "Why does the page go blank or crash?" },
+    a: {
+      zh: "这通常是浏览器缓存了旧版页面资源导致的。系统已内置自动恢复：首次遇到资源加载失败会自动刷新。如果仍白屏，请按 Ctrl+F5 强制刷新，或清除浏览器最近一小时的缓存。如果使用 Docker 部署，可以运行 docker compose restart frontend 重启前端服务。",
+      en: "This is usually caused by the browser caching old page resources. The system has built-in recovery: it auto-refreshes on first resource load failure. If still blank, press Ctrl+F5 to force refresh, or clear browser cache for the last hour. For Docker deployments, run docker compose restart frontend.",
+    },
+  },
+  {
+    q: { zh: "Windows 下双击 start.bat 打不开怎么办？", en: "What if start.bat won't run on Windows?" },
+    a: {
+      zh: "1) 确认已安装 Docker Desktop 并且正在运行（右下角任务栏有 Docker 图标）。2) 如果双击闪退，右键点击 start.bat，选择「以管理员身份运行」。3) 如果提示「未检测到 Docker」，打开命令提示符（cmd）输入 docker --version 确认 Docker 已加入 PATH。4) 仍然不行的话，在终端中 cd 到项目目录，手动执行 docker compose up --build。",
+      en: "1) Make sure Docker Desktop is installed and running (check the taskbar for the Docker icon). 2) If it flashes and closes, right-click start.bat and select 'Run as administrator'. 3) If it says Docker not found, open Command Prompt and type docker --version to verify Docker is in PATH. 4) If all else fails, cd to the project directory in terminal and run docker compose up --build manually.",
+    },
+  },
+  {
+    q: { zh: "Docker 没安装怎么用？", en: "How to use without Docker?" },
+    a: {
+      zh: "本工具推荐使用 Docker 部署。如果你无法安装 Docker，可以使用本地开发模式：后端需要 Python 3.11+，运行 pip install -r backend/requirements.txt 然后 uvicorn app.main:app --host 127.0.0.1 --port 8000。前端需要 Node.js 18+，运行 npm install 然后 npm run dev。详见 README.md 中的本地开发说明。",
+      en: "Docker is the recommended deployment method. If you cannot install Docker, use local dev mode: Backend requires Python 3.11+, run pip install -r backend/requirements.txt then uvicorn app.main:app. Frontend requires Node.js 18+, run npm install then npm run dev. See README.md for detailed local dev instructions.",
+    },
+  },
 ];
 
 export default function HelpPage() {
@@ -264,6 +299,101 @@ export default function HelpPage() {
               {zh
                 ? "每个等级建议收集 3-5 个案例。案例越丰富，AI 在做对比分析时越有参考价值。"
                 : "Aim for 3-5 cases per level. The richer your library, the more valuable AI's comparison analysis becomes."}
+            </p>
+          </div>
+        </Section>
+
+        {/* Semantic Search & Embedding */}
+        <Section
+          title={zh ? "语义搜索与 Embedding" : "Semantic Search & Embedding"}
+          icon="🔍"
+        >
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>
+              {zh
+                ? "案例库支持两种搜索方式：普通筛选和语义搜索。"
+                : "The case library supports two search modes: regular filters and semantic search."}
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>
+                <b>{zh ? "普通筛选" : "Regular filters"}</b>: {zh ? "按分类、审美等级、价格带精确匹配" : "Exact match by category, aesthetic level, price band"}
+              </li>
+              <li>
+                <b>{zh ? "语义搜索" : "Semantic search"}</b>: {zh ? "用自然语言描述你想找的风格，系统按含义匹配。例如输入「高考直播封面，年轻有冲击力但不要廉价」" : "Describe the style you're looking for in natural language — the system matches by meaning"}
+              </li>
+            </ul>
+            <p className="text-xs text-gray-400">
+              {zh
+                ? "语义搜索需要配置 Embedding（设置页或 .env 中 EMBEDDING_PROVIDER=openai，需要 OpenAI API Key）。配置后在参考案例面板点击「重建索引」。未配置时语义搜索自动降级为普通筛选，不会报错。"
+                : "Semantic search requires Embedding (configure EMBEDDING_PROVIDER=openai in Settings or .env, requires OpenAI API Key). After configuring, click 'Rebuild Index' in the Reference Case panel. Falls back to regular filters gracefully when not configured."}
+            </p>
+          </div>
+        </Section>
+
+        {/* Training Assessment */}
+        <Section
+          title={zh ? "训练效果评估" : "Training Assessment"}
+          icon="📊"
+        >
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>
+              {zh
+                ? "训练评估页面（/assessment）基于历史训练记录进行分析（不依赖 AI，纯规则计算），帮助你了解："
+                : "The Assessment page (/assessment) analyzes your training history using rule-based computation (no AI calls), helping you understand:"}
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>{zh ? "总训练次数、近 7/30 天训练频率" : "Total sessions, recent 7/30 day frequency"}</li>
+              <li>{zh ? "你的自评分数 vs AI 评分差距趋势" : "Your self-score vs AI score gap trend"}</li>
+              <li>{zh ? "常见误判类型（高估高级感、忽略构图等）" : "Common mistake patterns (overestimating premium feel, ignoring composition, etc.)"}</li>
+              <li>{zh ? "7 个审美能力维度的强弱评估" : "7 aesthetic dimension strengths/weaknesses"}</li>
+              <li>{zh ? "7/30 天周期复盘与训练建议" : "7/30 day review with training recommendations"}</li>
+            </ul>
+            <p className="text-xs text-gray-400">
+              {zh
+                ? "需要至少 5 次包含自评和 AI 评分的训练记录才能生成评估。评估结果是辅助指标，不是绝对评价。"
+                : "Requires at least 5 training sessions with both self-scores and AI scores. Results are training aids, not absolute ratings."}
+            </p>
+          </div>
+        </Section>
+
+        {/* System Diagnostics */}
+        <Section
+          title={zh ? "系统诊断" : "System Diagnostics"}
+          icon="🩺"
+        >
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>
+              {zh
+                ? "设置页顶部的「系统诊断」面板显示 DeepSeek、Vision、Embedding、数据库、上传目录的状态。绿色 ✅ 表示正常，红色 ❌ 表示需要关注。"
+                : "The System Diagnostics panel at the top of Settings shows the status of DeepSeek, Vision, Embedding, database, and upload directory. Green ✅ means OK, red ❌ means needs attention."}
+            </p>
+            <p>
+              {zh
+                ? "未配置 Key 不代表系统坏了，只是对应功能暂时不可用。面板会给出中文建议告诉你下一步该做什么。"
+                : "An unconfigured key doesn't mean the system is broken — that feature is simply unavailable. The panel gives actionable suggestions in Chinese."}
+            </p>
+          </div>
+        </Section>
+
+        {/* Data Export/Import */}
+        <Section
+          title={zh ? "数据导入/导出" : "Data Import/Export"}
+          icon="📦"
+        >
+          <div className="text-sm text-gray-600 space-y-2">
+            <p>
+              {zh
+                ? "设置页的数据管理区支持导出和导入备份包（.zip）。"
+                : "The Data Management area in Settings supports exporting and importing backup packages (.zip)."}
+            </p>
+            <ul className="list-disc list-inside space-y-1">
+              <li><b>{zh ? "导出" : "Export"}</b>: {zh ? "包含参考案例、训练记录、提示词历史、上传的图片、配置摘要。不包含 API Key。" : "Includes reference cases, training records, prompt history, uploaded images, config summary. Does NOT include API keys."}</li>
+              <li><b>{zh ? "导入" : "Import"}</b>: {zh ? "合并导入，不会清空或覆盖当前数据。图片和案例 ID 自动重映射。" : "Merge import — never clears or overwrites existing data. Image and case IDs are auto-remapped."}</li>
+            </ul>
+            <p className="text-xs text-gray-400">
+              {zh
+                ? "升级前务必导出备份！备份包妥善保存，不要分享给他人。"
+                : "Always export a backup before upgrading! Keep the backup file safe and don't share it."}
             </p>
           </div>
         </Section>
