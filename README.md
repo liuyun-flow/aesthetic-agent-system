@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V2.0.1** | 测试：199 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
+**当前版本：V2.1.0** | 测试：210 passed | [升级指南](docs/UPGRADE.md) | [变更日志](docs/CHANGELOG.md) | [发布说明](docs/RELEASE_NOTES.md) | [路线图](ROADMAP.md)
 
 ---
 
@@ -37,18 +37,27 @@ aesthetic-agent-system/
 
 ### Quick Start
 
-#### Docker (推荐 / Recommended)
+#### Docker（推荐 / Recommended）— 一键启动
 
 ```bash
 # 1. Copy and edit the environment file
 cp backend/.env.example backend/.env
-# Edit backend/.env — set DEEPSEEK_API_KEY, optionally OPENAI_API_KEY for Vision
+# Edit backend/.env — set DEEPSEEK_API_KEY
 
-# 2. Start both services
-docker compose up --build
+# 2. Run the startup script（自动检测环境、创建目录、启动服务）
+bash scripts/start.sh     # Mac/Linux
+scripts\start.bat          # Windows（双击运行）
 
-# 3. Open browser
-# http://127.0.0.1:3000
+# 3. Open browser → http://127.0.0.1:3000
+```
+
+停止服务：`bash scripts/stop.sh` 或 `docker compose down`
+
+#### Docker（手动）
+
+```bash
+cp backend/.env.example backend/.env   # 编辑 .env
+docker compose up --build              # http://127.0.0.1:3000
 ```
 
 #### 本地开发 (Local Dev)
@@ -99,6 +108,8 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.9 | Case quality management (completeness scoring, training readiness, audit report, duplicate detection) |
 | V1.9.1 | Stability fixes: aesthetic_level validation, null safety, audit field completion |
 | V2.0 | Training effectiveness assessment (overview, mistake patterns, dimension scoring, period review) |
+| V2.0.1 | Stability fixes: data-sufficiency threshold, selected_direction crash, import v2 compat |
+| V2.1 | One-click startup scripts, system diagnostics panel, preflight endpoint, upgrade guide |
 
 ### API Endpoints
 
@@ -135,6 +146,15 @@ npm run dev                      # http://127.0.0.1:3000
 | `GET` | `/assessment/mistakes` | Common mistake patterns (V2.0) |
 | `GET` | `/assessment/dimensions` | Aesthetic dimension scores (V2.0) |
 | `GET` | `/assessment/report` | Period review report (V2.0) |
+| `GET` | `/system/preflight` | Comprehensive environment diagnostic (V2.1) |
+
+### One-Click Startup (V2.1)
+
+Run `bash scripts/start.sh` (Mac/Linux) or double-click `scripts\start.bat` (Windows). The script automatically checks Docker, creates data directories, verifies the `.env` file, and starts both services. See [UPGRADE.md](docs/UPGRADE.md) for version upgrade instructions and [CHANGELOG.md](docs/CHANGELOG.md) for full version history.
+
+### System Diagnostics (V2.1)
+
+Open Settings → the "System Diagnostics" panel shows the real-time status of every component: backend, database, config directory, uploads directory, DeepSeek, Vision, and Embedding. Recommendations are displayed in Chinese. Also available programmatically via `GET /system/preflight`.
 
 ### Training Effectiveness Assessment (V2.0)
 

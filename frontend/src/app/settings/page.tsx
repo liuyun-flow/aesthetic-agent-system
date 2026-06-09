@@ -21,6 +21,114 @@ interface SettingsStatus {
   };
 }
 
+// ── V2.1: System Diagnostics Panel ──────────────────────────────────────
+
+interface PreflightData {
+  version: string;
+  backend: string;
+  database: { status: string; path: string; exists: boolean; writable: boolean; size_kb: number };
+  config_dir: { status: string; path: string; exists: boolean; writable: boolean };
+  uploads_dir: { status: string; path: string; exists: boolean; writable: boolean; file_count: number };
+  deepseek: { configured: boolean; model: string; reasoning_model: string; hint: string };
+  vision: { configured: boolean; provider: string; is_placeholder: boolean; hint: string };
+  embedding: { configured: boolean; hint: string };
+  recommendations: string[];
+  all_ok: boolean;
+  is_docker: boolean;
+}
+
+function statusIcon(ok: boolean): string { return ok ? "✅" : "❌"; }
+
+function DiagnosticsPanel() {
+  const [data, setData] = useState<PreflightData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDiagnostics = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${BASE}/system/preflight`);
+      if (!res.ok) throw new Error("无法获取诊断数据");
+      setData(await res.json());
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "诊断失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchDiagnostics(); }, []);
+
+  if (loading) {
+    return (
+      <section className="rounded border bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-gray-700">系统诊断</h3>
+        </div>
+        <p className="text-xs text-gray-400">正在检测系统状态…</p>
+      </section>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <section className="rounded border bg-red-50 border-red-200 p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold text-gray-700">系统诊断</h3>
+          <button onClick={fetchDiagnostics} className="text-xs text-blue-600 underline">重新检测</button>
+        </div>
+        <p className="text-xs text-red-500">{error || "诊断数据不可用"}</p>
+      </section>
+    );
+  }
+
+  const Row = ({ label, ok, detail }: { label: string; ok: boolean; detail: string }) => (
+    <div className="flex items-center gap-2 text-xs py-1">
+      <span className="w-5 text-center">{statusIcon(ok)}</span>
+      <span className="w-24 shrink-0 font-medium text-gray-700">{label}</span>
+      <span className={`flex-1 ${ok ? "text-green-600" : "text-red-500"}`}>{detail}</span>
+    </div>
+  );
+
+  return (
+    <section className="rounded border bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-base font-semibold text-gray-700">
+          系统诊断
+          <span className="ml-2 text-xs font-normal text-gray-400">v{data.version}</span>
+        </h3>
+        <button onClick={fetchDiagnostics} className="text-xs text-blue-600 underline hover:text-blue-800">重新检测</button>
+      </div>
+
+      <div className="space-y-0.5 mb-3">
+        <Row label="后端服务" ok={data.backend === "ok"} detail={data.backend === "ok" ? "正常" : "异常"} />
+        <Row label="数据库" ok={data.database.status === "ok"} detail={data.database.status === "ok" ? `正常 (${data.database.size_kb} KB)` : "异常"} />
+        <Row label="配置目录" ok={data.config_dir.writable} detail={data.config_dir.writable ? "可读写" : "不可写"} />
+        <Row label="上传目录" ok={data.uploads_dir.writable} detail={data.uploads_dir.writable ? `可读写，${data.uploads_dir.file_count} 个文件` : "不可写"} />
+        <Row label="DeepSeek" ok={data.deepseek.configured} detail={data.deepseek.configured ? `已配置 (${data.deepseek.model})` : "未配置"} />
+        <Row
+          label="Vision"
+          ok={data.vision.configured || data.vision.is_placeholder}
+          detail={data.vision.is_placeholder ? "占位模式" : data.vision.configured ? `已配置 (${data.vision.provider})` : "未配置"}
+        />
+        <Row label="Embedding" ok={data.embedding.configured} detail={data.embedding.configured ? "已配置" : "未配置"} />
+      </div>
+
+      {(data.recommendations ?? []).length > 0 && (
+        <div className="rounded border border-blue-200 bg-blue-50 p-3">
+          <p className="text-xs font-medium text-blue-700 mb-1">建议操作</p>
+          <ul className="space-y-0.5">
+            {(data.recommendations ?? []).map((r, i) => (
+              <li key={i} className="text-xs text-blue-600">• {r}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function SettingsPage() {
   const { t } = useT();
 
@@ -212,6 +320,9 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <h2 className="text-lg font-semibold text-gray-800">{t.settings.title}</h2>
+
+      {/* ── V2.1: System Diagnostics ───────────────────────────────── */}
+      <DiagnosticsPanel />
 
       {/* ── DeepSeek Section ────────────────────────────────────────── */}
       <section className="rounded border bg-white p-5 shadow-sm">

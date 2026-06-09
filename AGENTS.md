@@ -20,7 +20,7 @@ aesthetic-agent-system/
 │       ├── components/ # TaskForm, ResultCard, SessionList, ReferencePanel, TrainingPanel
 │       ├── i18n/       # zh.ts, en.ts, index.tsx
 │       └── lib/        # formatters.ts
-├── scripts/            # kill_port.sh, start_all.sh
+├── scripts/            # start.sh, stop.sh, start.bat, start_all.sh, kill_port.sh, check-env.py
 ├── AI_CONTEXT.md       # 跨平台工程规范
 └── docs/
 ```
@@ -29,7 +29,7 @@ aesthetic-agent-system/
 - Python 3.11+, TypeScript strict
 - Backend: 127.0.0.1 (not localhost) for all internal calls
 - Frontend: Chinese UI only; i18n keys sync en.ts ⇔ zh.ts
-- Tests: 85+ pytest (mock agents, no API key needed for tests)
+- Tests: 210 pytest (mock agents, no API key needed for tests)
 - DB: SQLite, auto-migration on startup, delete aesthetic.db to reset
 
 ## DO NOT

@@ -1,7 +1,7 @@
-# Project Status — V2.0.1
+# Project Status — V2.1.0
 
 ## Current Version
-**V2.0.1** — 训练评估稳定性校准 / 旧数据兼容 / 规则阈值文档化
+**V2.1.0** — 本地正式发布版 / 一键启动 / 系统诊断 / 安装体验优化
 
 ---
 
@@ -127,7 +127,7 @@
 
 ## 测试结果
 
-- **202 passed**（analyze / critique / iterate / profile / sessions / upload / vision / reference / compare / prompt / training / health / settings / export / import / embeddings / semantic search / completeness / audit / duplicates / assessment overview / mistakes / dimensions / report / stability / old-data compat / import version）
+- **210 passed**（analyze / critique / iterate / profile / sessions / upload / vision / reference / compare / prompt / training / health / settings / export / import / embeddings / semantic search / completeness / audit / duplicates / assessment / preflight / stability / old-data compat / import version）
 - 全部使用 mocked agents + adapters，无需 API key
 - Frontend build: ✅ 7 routes (/, /settings, /help, /setup, /audit, /assessment, /_not-found)
 - Docker compose config: ✅ 无警告

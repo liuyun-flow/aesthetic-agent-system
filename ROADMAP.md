@@ -36,13 +36,20 @@
 - 导出包结构验证
 - 文档同步
 
-## ✅ V2.0.1 — 训练评估稳定性与数据校准（当前版本）
+## ✅ V2.1.0 — 本地正式发布版 / 安装体验优化（当前版本）
+- 一键启动脚本（start.sh / start.bat）
+- 停止脚本（stop.sh）
+- /system/preflight 系统预检端点
+- 设置页系统诊断面板
+- CHANGELOG / UPGRADE / RELEASE_NOTES 文档
+- 一键启动 + 启动后诊断 + 备份提醒
+- 210 tests passed
+
+## ✅ V2.0.1 — 训练评估稳定性与数据校准
 - 趋势判断阈值文档化（±3 gap, ±5pp rate）
 - 关键词精度优化（去歧义、去冲突）
-- 旧数据兼容增强（V1.0-V1.9 各版本缺字段不崩溃）
-- 移除死代码（_safe_int, _safe_json_list, unused Counter）
-- 前端 StatCard 修正（零值显示、NaN 保护）
-- 199 测试 passed（含 worsening/stable trend、老数据兼容、性能测试）
+- 旧数据兼容增强
+- 199 tests passed
 
 ## ✅ V2.0.0 — 训练效果评估系统
 - 训练效果总览（频率、评分、差距趋势）

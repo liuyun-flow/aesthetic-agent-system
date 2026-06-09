@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="2.0.1",
+    version="2.1.0",
     lifespan=lifespan,
 )
 
@@ -1374,7 +1374,7 @@ async def import_data(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "backend", "version": "v2.0.1"}
+    return {"status": "ok", "service": "backend", "version": "v2.1.0"}
 
 
 @app.get("/model/status")
@@ -1437,7 +1437,7 @@ def system_status(db: Session = Depends(get_db)) -> dict:
 
     return {
         "backend": "ok",
-        "version": "v2.0.1",
+        "version": "v2.1.0",
         "deepseek": {"configured": deepseek_configured},
         "vision": {
             "configured": vision_configured,
@@ -1449,6 +1449,127 @@ def system_status(db: Session = Depends(get_db)) -> dict:
         "uploads": "ok" if uploads_ok else "error",
         "setup_completed": setup_completed,
     }
+
+
+# ── V2.1: Preflight check (comprehensive local environment diagnostic) ────
+
+@app.get("/system/preflight")
+def system_preflight(db: Session = Depends(get_db)) -> dict:
+    """Run a comprehensive preflight check suitable for first-time setup.
+
+    Returns per-component status with Chinese hints, file counts, and
+    actionable recommendations.  No API keys are exposed.
+    """
+    from datetime import datetime as dt
+    from sqlalchemy import text
+
+    result: dict[str, Any] = {
+        "version": "v2.1.0",
+        "timestamp": dt.utcnow().isoformat(),
+        "recommendations": [],
+    }
+
+    # ── Backend ───────────────────────────────────────────────────────
+    result["backend"] = "ok"
+
+    # ── Database ──────────────────────────────────────────────────────
+    db_path = _UPLOAD_DIR.parent / "database" / "aesthetic.db"
+    db_exists = db_path.exists()
+    db_size_kb = round(db_path.stat().st_size / 1024, 1) if db_exists else 0
+    try:
+        db.execute(text("SELECT 1"))
+        db_writable = True
+    except Exception:
+        db_writable = False
+    result["database"] = {
+        "status": "ok" if db_writable else "error",
+        "path": str(db_path),
+        "exists": db_exists,
+        "size_kb": db_size_kb,
+        "writable": db_writable,
+    }
+    if not db_writable:
+        result["recommendations"].append("数据库不可写，请检查 data/database/ 目录权限。")
+
+    # ── Config directory ──────────────────────────────────────────────
+    config_dir = _UPLOAD_DIR.parent / "config"
+    config_exists = config_dir.exists()
+    config_writable = config_exists and os.access(str(config_dir), os.W_OK)
+    result["config_dir"] = {
+        "status": "ok" if config_writable else "error",
+        "path": str(config_dir),
+        "exists": config_exists,
+        "writable": config_writable,
+    }
+    if not config_writable:
+        result["recommendations"].append("配置目录不可写，请检查 data/config/ 目录权限。")
+
+    # ── Uploads directory ─────────────────────────────────────────────
+    uploads_exists = _UPLOAD_DIR.exists()
+    uploads_writable = uploads_exists and os.access(str(_UPLOAD_DIR), os.W_OK)
+    uploads_count = len(list(_UPLOAD_DIR.iterdir())) if uploads_exists else 0
+    result["uploads_dir"] = {
+        "status": "ok" if uploads_writable else "error",
+        "path": str(_UPLOAD_DIR),
+        "exists": uploads_exists,
+        "writable": uploads_writable,
+        "file_count": uploads_count,
+    }
+    if not uploads_writable:
+        result["recommendations"].append("上传目录不可写，请检查 data/uploads/ 目录权限。")
+
+    # ── DeepSeek ──────────────────────────────────────────────────────
+    key = get_value("deepseek", "api_key", env_var="DEEPSEEK_API_KEY").strip()
+    placeholder_keys = {
+        "", "replace-me", "your_deepseek_api_key_here", "replace-with-your-key",
+    }
+    ds_configured = bool(key) and key not in placeholder_keys
+    result["deepseek"] = {
+        "configured": ds_configured,
+        "model": get_value("deepseek", "default_model", env_var="DEEPSEEK_DEFAULT_MODEL") or "deepseek-v4-flash",
+        "reasoning_model": get_value("deepseek", "reasoning_model", env_var="DEEPSEEK_REASONING_MODEL") or "deepseek-v4-pro",
+        "hint": "已配置" if ds_configured else "未配置，请在设置页或 backend/.env 中配置 DEEPSEEK_API_KEY",
+    }
+    if not ds_configured:
+        result["recommendations"].append("DeepSeek API Key 未配置，无法进行审美分析。请在设置页或 backend/.env 中配置。")
+
+    # ── Vision ────────────────────────────────────────────────────────
+    provider = get_vision_provider()
+    vision_configured = is_vision_configured(provider)
+    is_placeholder = provider == "placeholder"
+    if is_placeholder:
+        vision_hint = "占位模式 — 返回固定示例描述，不调用真实视觉模型。如需真实图片识别，请在设置页切换为 OpenAI。"
+    elif vision_configured:
+        vision_hint = f"已配置 {provider}"
+    else:
+        vision_hint = f"已选择 {provider} 但未配置有效的 API Key"
+    result["vision"] = {
+        "configured": vision_configured,
+        "provider": provider,
+        "is_placeholder": is_placeholder,
+        "hint": vision_hint,
+    }
+
+    # ── Embedding ─────────────────────────────────────────────────────
+    from app.services.embeddings import is_embedding_configured as _emb_ok
+    emb_configured = _emb_ok()
+    result["embedding"] = {
+        "configured": emb_configured,
+        "hint": "已配置，语义搜索可用" if emb_configured else "未配置，语义搜索不可用。设置 EMBEDDING_PROVIDER=openai 并确保 OPENAI_API_KEY 有效。",
+    }
+
+    # ── Docker detection ──────────────────────────────────────────────
+    result["is_docker"] = os.path.exists("/.dockerenv") or os.environ.get("DOCKER_CONTAINER", "") != ""
+
+    # ── Recommendations ───────────────────────────────────────────────
+    if is_placeholder:
+        result["recommendations"].append("当前使用占位 Vision 模式，建议配置 OpenAI Vision 以启用真实图片识别。")
+    result["recommendations"].append("升级前请先导出数据备份（设置页 → 数据管理 → 导出）。")
+
+    # ── Overall ───────────────────────────────────────────────────────
+    result["all_ok"] = ds_configured and db_writable and config_writable and uploads_writable
+
+    return result
 
 
 # ── V1.7.1: Setup wizard state ──────────────────────────────────────────
