@@ -1,7 +1,7 @@
-# Project Status — V2.1.1
+# Project Status — V2.1.2
 
 ## Current Version
-**V2.1.1** — 本地正式发布版稳定性修复 / 版本同步 / 发布候选
+**V2.1.2** — 本地发布体验热修复 / Windows 启动脚本 / chunk 缓存恢复 / Help 刷新
 
 ---
 
@@ -24,11 +24,12 @@
 | V1.8 | 数据+搜索 | 导入导出 zip / 语义搜索 / embedding / 数据管理 UI |
 | V1.8.1 | 稳定 | 版本统一 / .gitignore / 回归测试 / 文档同步 |
 | V1.9.0 | 质量 | 完整度评分 / 训练可用判定 / 案例库体检 / 重复检测 |
-| V1.9.1 | 稳定 | aesthetic_level 验证统一 / null 安全加固 / audit issue 字段补全 / 前端防御 guard |
+| V1.9.1 | 稳定 | aesthetic_level 验证统一 / null 安全加固 / audit issue 字段补全 |
 | V2.0.0 | 评估 | 训练效果总览 / 误判统计 / 能力维度 7 维评分 / 周期复盘 |
 | V2.0.1 | 校准 | 双评分有效数据阈值 / selected_direction 容错 / 导入 v2 兼容 |
 | V2.1.0 | 发布 | 一键启动脚本 / 系统诊断 / 设置页诊断面板 / 文档体系 |
-| **V2.1.1** | **候选** | 版本同步 / 启动脚本健壮性 / 旧 DB 迁移提示 |
+| V2.1.1 | 候选 | 版本同步 / 启动脚本健壮性 / 旧 DB 迁移提示 |
+| **V2.1.2** | **热修复** | Windows start.bat 纯 CMD 重写 / chunk 缓存自动恢复 / Help 内容刷新 |
 
 ---
 
@@ -127,9 +128,22 @@
 
 ---
 
+## V2.1.2 变更（本次）
+
+V2.1.2 是本地发布体验热修复，修复三个实际使用中发现的阻塞问题。
+
+| 类别 | 变更 |
+|------|------|
+| start.bat | 全重写为纯 Windows CMD，`cd /d "%~dp0.."` 解决双击路径错误，动态 compose 检测，中文提示 + pause |
+| stop.bat | 新增纯 CMD 停止脚本 |
+| restart.bat | 新增纯 CMD 重启脚本 |
+| chunk 缓存恢复 | layout.tsx 全局 unhandledrejection 兜底，ChunkLoadError 自动刷新一次，二次显示 Ctrl+F5 指引 |
+| Help 刷新 | 新增语义搜索/Embedding/训练评估/系统诊断/导入导出 Section + 6 FAQ（白屏/start.bat/Docker） |
+| 版本号 | main.py / data_io.py / tests → v2.1.2 |
+
 ## 测试结果
 
-- **210 passed**（analyze / critique / iterate / profile / sessions / upload / vision / reference / compare / prompt / training / health / settings / export / import / embeddings / semantic search / completeness / audit / duplicates / assessment / preflight / stability / old-data compat / import version）
+- **212 passed**（analyze / critique / iterate / profile / sessions / upload / vision / reference / compare / prompt / training / health / settings / export / import / embeddings / semantic search / completeness / audit / duplicates / assessment / preflight / old-data compat / import version / DATABASE_URL detection）
 - 全部使用 mocked agents + adapters，无需 API key
 - Frontend build: ✅ 7 routes (/, /settings, /help, /setup, /audit, /assessment, /_not-found)
 - Docker compose config: ✅ 无警告
@@ -141,23 +155,25 @@
 1. GitHub push 需代理（127.0.0.1:7891），代理未运行时 push 失败
 2. Git Bash 下 curl 无法连接 127.0.0.1（用浏览器或 Python + ProxyHandler({}) 替代）
 3. HTTP_PROXY 环境变量可能导致 Python urllib 本地连接失败
-4. `backend/.env` DATABASE_URL 仍指向 `./aesthetic.db`（历史遗留，**不要贸然改**）
-5. POST /settings/test-vision 只做文本 chat smoke test，不做真实 image input 测试
-6. 前端 `NEXT_PUBLIC_API_BASE_URL` 是 build-time env，Docker 自定义部署需 rebuild
-7. 语义搜索为暴力余弦相似度，案例量 <1000 时够用，未来可优化
-8. 导出不含 embeddings（导入后需手动重建索引）
-9. 导入仅合并模式，不做覆盖/去重
-10. 误判检测基于关键词规则（非 LLM），精度受关键词覆盖影响
-11. 维度评分使用间接关键词频率推断，非直接语义评估
-12. 评估接口各自独立读取 DB（本地 SQLite 3000 条内可接受）
+4. POST /settings/test-vision 只做文本 chat smoke test，不做真实 image input 测试
+5. 前端 `NEXT_PUBLIC_API_BASE_URL` 是 build-time env，Docker 自定义部署需 rebuild
+6. 语义搜索为暴力余弦相似度，案例量 <1000 时够用，未来可优化
+7. 导出不含 embeddings（导入后需手动重建索引）
+8. 导入仅合并模式，不做覆盖/去重
+9. 误判检测基于关键词规则（非 LLM），精度受关键词覆盖影响
+10. 维度评分使用间接关键词频率推断，非直接语义评估
+11. 评估接口各自独立读取 DB（本地 SQLite 3000 条内可接受）
+12. 无 Windows stop.bat 对应的一键停止（已有 stop.bat）
+13. preflight 返回本地绝对路径可能暴露用户名
 
 ---
 
 ## 尚未构建
 
-- 多人 SaaS / 登录 / 云存储（V2.1+）
+- 多人 SaaS / 登录 / 云存储（远期）
 - 训练效果图表（折线图、雷达图）
-- 设置页「配置来源」展示（减少 .env 与设置页混用困惑）
+- 设置页「配置来源」展示
+- 行业训练模板（V2.2）
 
 ## 下一步建议
-V2.1 — 本地正式发布版 / 安装体验优化 / 一键启动脚本 / 用户手册
+V2.2 — 行业训练模板 / 案例库推荐 / 图表可视化
