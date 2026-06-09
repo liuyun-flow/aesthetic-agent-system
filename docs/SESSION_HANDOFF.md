@@ -1,72 +1,47 @@
 # Session Handoff — 2026-06-09
 
 ## Last Completed
-- **V2.0.0: Training effectiveness assessment system**
+- **V2.0.1: Assessment stability calibration & real-data hardening**
 
 ---
 
-## V2.0.0 变更详情
+## V2.0.1 变更
 
-### New: Training Effectiveness Assessment
-- Rule-based analytics (no LLM calls) over TrainingRecord history
-- 4 new endpoints under `/assessment/`
-- New `/assessment` page with 3-tab dashboard
+V2.0.1 是 V2.0 训练评估系统的稳定性校准版，不新增业务功能。
 
-### Backend
+### 修复
 
-| File | Change |
-|------|--------|
-| `backend/app/services/assessment.py` | **New** — compute_overview, compute_mistake_patterns, compute_dimension_scores, compute_report |
-| `backend/app/services/session_service.py` | +get_all_records(), +get_records_in_range() |
-| `backend/app/schemas/responses.py` | +AssessmentOverview, MistakePattern, DimensionAssessment, AssessmentReport |
-| `backend/app/main.py` | +4 GET /assessment/* endpoints; version v2.0.0 |
-| `backend/app/services/data_io.py` | EXPORT_VERSION → v2.0.0 |
-| `backend/app/tests/test_api.py` | +version assertions |
-| `backend/app/tests/test_assessment.py` | **New** — 11 tests |
+| 类别 | 变更 |
+|------|------|
+| 趋势阈值文档化 | ±3 gap diff、±5pp rate delta 注释说明 |
+| 关键词精度 | typography_judgment 移除过宽关键词"字"→"字重/字号/行距/字距" |
+| 关键词冲突 | commercial_fit 移除"用户/受众/目标/场景"，改用"转化率/点击率/留存/场景适配" |
+| 死代码清理 | 移除未使用的 `_safe_int`、`_safe_json_list`、`Counter` 导入 |
+| 前端 StatCard | 修复零值显示问题；增强 NaN/Infinity 保护 |
+| before_score | 确认不在评估代码中使用，V2.0.1 不依赖此字段 |
 
-### Frontend
+### 测试增强（192→199）
 
-| File | Change |
-|------|--------|
-| `frontend/src/app/assessment/page.tsx` | **New** — Full assessment dashboard |
-| `frontend/src/app/layout.tsx` | +训练评估 nav link |
-
-### Assessment Design
-
-- **Overview**: total/completed/7d/30d session counts, avg user/AI scores, gap trend (improving/stable/worsening/insufficient_data), Chinese summary
-- **Mistake Patterns**: 10 keyword-based rules checking training_focus_tags, judgment_gap_summary, user_weaknesses, ai_main_problems
-- **Dimension Scores**: 7 dimensions (typography, color, composition, texture, price-band, commercial, iteration) scored 0-100 via keyword frequency analysis
-- **Report**: Period review (7/30 day toggle) with progress summary, weakest/strongest dimensions, top mistakes, training plan, recommended themes
-
-### Key Decisions
-- No LLM calls — all rule-based, deterministic, works offline
-- No DB migration — all computed dynamically from existing TrainingRecord data
-- `INSUFFICIENT_DATA_THRESHOLD = 5` — less than 5 scored records returns friendly prompt
-- Handles old data with missing fields gracefully
+| 新增测试 | 覆盖 |
+|----------|------|
+| test_gap_trend_worsening | 差距增大→worsening |
+| test_gap_trend_stable_with_similar_gaps | 差距±3内→stable |
+| test_mistakes_insufficient_data_below_threshold | <5条→空列表 |
+| test_v1_session_with_partial_fields | V1.0/1.1/1.7.2 混合数据不崩溃 |
+| test_sessions_without_scores_skipped | 缺分记录排除且不影响总数 |
+| test_dimension_score_in_range | 极端关键词密度下维度分0-100范围 |
+| test_3000_records_performance | 50条×多方面→<2s/endpoint |
 
 ---
 
 ## Test Results
-- **192 passed** (181 existing + 11 new V2.0 tests)
-- Frontend build: ✅ 7 routes (+ /assessment)
+- **199 passed**, 1 warning
+- Frontend build: ✅ 7 routes
 - Docker compose config: ✅
 
 ---
 
-## Git Status
-- Working tree: clean (not yet committed)
-
----
-
-## Known Limitations
-1. Mistake patterns are keyword-based — may miss nuanced issues; future versions can use LLM
-2. Dimension scores use indirect keyword frequency, not direct semantic assessment
-3. No chart/graph (text-only progress bars); chart library could be added later
-4. Before_score field on TrainingRecord is never populated by any endpoint
-
----
-
-## Next Session
-1. Commit and push V2.0.0
-2. V2.0.1: Stability fixes and regression testing
-3. Future: V2.1 local release edition
+## Next: V2.1 — 本地正式发布版
+- 安装体验优化（一键启动脚本，环境检测）
+- 打包分发（pyinstaller 或 Docker 一键部署）
+- 文档完善（用户手册、视频教程链接）

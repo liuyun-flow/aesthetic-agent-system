@@ -1,7 +1,7 @@
-# Project Status — V2.0.0
+# Project Status — V2.0.1
 
 ## Current Version
-**V2.0.0** — 训练效果评估系统 / 规则化分析引擎
+**V2.0.1** — 训练评估稳定性校准 / 旧数据兼容 / 规则阈值文档化
 
 ---
 

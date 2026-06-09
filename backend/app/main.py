@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="2.0.0",
+    version="2.0.1",
     lifespan=lifespan,
 )
 
@@ -1374,7 +1374,7 @@ async def import_data(
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "backend", "version": "v2.0.0"}
+    return {"status": "ok", "service": "backend", "version": "v2.0.1"}
 
 
 @app.get("/model/status")
@@ -1437,7 +1437,7 @@ def system_status(db: Session = Depends(get_db)) -> dict:
 
     return {
         "backend": "ok",
-        "version": "v2.0.0",
+        "version": "v2.0.1",
         "deepseek": {"configured": deepseek_configured},
         "vision": {
             "configured": vision_configured,

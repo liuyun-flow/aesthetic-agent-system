@@ -119,9 +119,19 @@ function StatCard({
 }: {
   label: string; value: number | string; suffix?: string; color: string;
 }) {
-  const display = typeof value === "number"
-    ? (Number.isNaN(value) || !isFinite(value) ? "--" : value)
-    : (value || "--");
+  // Safely render numeric or string values; never show NaN/Infinity/null/undefined
+  const display: string = (() => {
+    if (value == null) return "--";
+    if (typeof value === "number") {
+      if (Number.isNaN(value) || !isFinite(value)) return "--";
+      return Number.isInteger(value) ? String(value) : value.toFixed(1);
+    }
+    if (typeof value === "string") {
+      if (value.trim() === "") return "--";
+      return value;
+    }
+    return "--";
+  })();
   return (
     <div className="rounded border bg-white p-4 shadow-sm">
       <p className="text-xs text-gray-500">{label}</p>

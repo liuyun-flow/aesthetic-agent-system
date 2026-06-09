@@ -1,10 +1,18 @@
-"""V2.0: Training effectiveness assessment — rule-based analytics over TrainingRecords.
+"""V2.0.1: Training effectiveness assessment — rule-based analytics over TrainingRecords.
 
 No LLM calls. All computations are deterministic and work on any historical data.
+
+Key design notes:
+- Score gap trend: diff = avg_gap_last_7 - avg_gap_prev_7.  diff < -3 => improving,
+  diff > +3 => worsening, otherwise stable.  Threshold of ±3 chosen because a
+  typical score gap is 5-30 points; a ±3 shift represents a meaningful change.
+- Dimension trend: delta = recent_problem_rate - overall_problem_rate.
+  delta > +0.05 => worsening (more problems recently), delta < -0.05 => improving.
+  The ±5 pp threshold avoids flagging noise as trend changes.
+- Insufficient data: fewer than 5 sessions with both user_score AND ai_score.
 """
 
 import json
-from collections import Counter
 from datetime import date, timedelta
 from typing import Any
 
@@ -22,7 +30,7 @@ DIMENSIONS = [
     {
         "key": "typography_judgment",
         "name": "字体判断",
-        "keywords": ["字体", "排版", "typography", "字", "文本"],
+        "keywords": ["字体", "排版", "typography", "字重", "字号", "行距", "字距"],
         "score_label": "对字体选择、字重层次、排版节奏的判断准确度",
     },
     {
@@ -52,8 +60,8 @@ DIMENSIONS = [
     {
         "key": "commercial_fit_judgment",
         "name": "商业适配判断",
-        "keywords": ["商业", "转化", "用户", "受众", "commercial", "目标", "场景"],
-        "score_label": "对作品商业场景适配、目标用户匹配的判断准确度",
+        "keywords": ["商业", "转化", "commercial", "转化率", "点击率", "留存", "场景适配"],
+        "score_label": "对作品商业场景适配、转化效果的判断准确度",
     },
     {
         "key": "iteration_judgment",
@@ -139,34 +147,6 @@ MISTAKE_RULES = [
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────
-
-def _safe_int(v: Any) -> int | None:
-    if v is None:
-        return None
-    try:
-        return int(v)
-    except (ValueError, TypeError):
-        return None
-
-
-def _safe_json_list(v: Any) -> list[str]:
-    """Parse a JSON-serialized list or semi-colon joined string into a list."""
-    if not v:
-        return []
-    if isinstance(v, list):
-        return [str(x) for x in v if x]
-    if isinstance(v, str):
-        try:
-            parsed = json.loads(v)
-            if isinstance(parsed, list):
-                return [str(x) for x in parsed if x]
-        except (json.JSONDecodeError, TypeError):
-            pass
-        # Fallback: semicolon-separated
-        parts = [p.strip() for p in v.replace("；", ";").split(";") if p.strip()]
-        return parts
-    return []
-
 
 def _text_matches(text: str | None, keywords: list[str]) -> bool:
     """Return True if *text* contains any of *keywords* (case-insensitive)."""

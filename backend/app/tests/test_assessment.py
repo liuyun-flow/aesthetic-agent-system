@@ -285,3 +285,170 @@ class TestAssessment:
 
         resp3 = client.get("/training/stats")
         assert resp3.status_code == 200
+
+    # ── Trend thresholds ────────────────────────────────────────────
+
+    def test_gap_trend_worsening(self, client):
+        """Recent gaps larger than old gaps should produce worsening trend."""
+        from datetime import datetime as dt, timedelta
+        db = TestSessionLocal()
+        try:
+            # Old records: small gaps
+            for i in range(5):
+                self._seed_record(db, user_score=70, ai_score=72,
+                    created_at=dt.utcnow() - timedelta(days=10 + i))
+            # Recent records: large gaps
+            for i in range(5):
+                self._seed_record(db, user_score=50, ai_score=80,
+                    created_at=dt.utcnow() - timedelta(days=i))
+        finally:
+            db.close()
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["score_gap_trend"] in ("worsening", "stable")
+
+    def test_gap_trend_stable_with_similar_gaps(self, client):
+        """Gaps within ±3 of each other should produce stable trend."""
+        from datetime import datetime as dt, timedelta
+        db = TestSessionLocal()
+        try:
+            for i in range(5):
+                self._seed_record(db, user_score=65, ai_score=75,
+                    created_at=dt.utcnow() - timedelta(days=10 + i))
+            for i in range(5):
+                self._seed_record(db, user_score=64, ai_score=74,
+                    created_at=dt.utcnow() - timedelta(days=i))
+        finally:
+            db.close()
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["score_gap_trend"] in ("stable", "improving")
+
+    def test_mistakes_insufficient_data_below_threshold(self, client):
+        """1-4 records should return empty mistakes."""
+        db = TestSessionLocal()
+        try:
+            for i in range(3):
+                self._seed_record(db,
+                    training_focus_tags='["字体"]',
+                    judgment_gap_summary="字体判断有差异")
+        finally:
+            db.close()
+        resp = client.get("/assessment/mistakes")
+        assert resp.status_code == 200
+        assert resp.json() == []
+
+    # ── Old data compatibility ──────────────────────────────────────
+
+    def test_v1_session_with_partial_fields(self, client):
+        """V1.x sessions with only analyze data and no scores must not crash."""
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            # Simulate V1.0: basic analyze, no scores, no judgment fields
+            db.add(TrainingRecord(record_type="analyze",
+                work_description="A simple button design.", created_at=dt.utcnow()))
+            # Simulate V1.1: has user_score but no ai_score
+            db.add(TrainingRecord(record_type="critique",
+                work_description="A poster critique.", user_score=60,
+                created_at=dt.utcnow()))
+            # Simulate V1.7.2: has selected_direction and prompt_result
+            db.add(TrainingRecord(record_type="iterate",
+                work_description="Iterate me.", user_score=70, ai_score=75,
+                selected_direction='{"id":"d1","title":"X"}',
+                prompt_result='{"chinese_prompt":"test"}',
+                created_at=dt.utcnow()))
+            # Simulate enough valid records to meet threshold
+            for i in range(5):
+                self._seed_record(db, user_score=60+i, ai_score=70+i,
+                    created_at=dt.utcnow())
+            db.commit()
+        finally:
+            db.close()
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        resp2 = client.get("/assessment/dimensions")
+        assert resp2.status_code == 200
+        resp3 = client.get("/assessment/mistakes")
+        assert resp3.status_code == 200
+
+    def test_sessions_without_scores_skipped(self, client):
+        """Records without both scores must be excluded from gap calculation."""
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            # Record with only user_score (no ai_score) — should be skipped
+            db.add(TrainingRecord(record_type="critique",
+                work_description="No AI score", user_score=70,
+                created_at=dt.utcnow()))
+            # Record with only ai_score (no user_score) — should be skipped
+            db.add(TrainingRecord(record_type="critique",
+                work_description="No user score", ai_score=80,
+                created_at=dt.utcnow()))
+            # 5 valid records with both
+            for i in range(5):
+                self._seed_record(db, user_score=70, ai_score=80,
+                    created_at=dt.utcnow())
+            db.commit()
+        finally:
+            db.close()
+        resp = client.get("/assessment/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        # Only the 5 complete records should count
+        assert data["total_sessions"] == 7
+        # Average gap based on 5 records: abs(70-80)=10 each = 10.0
+        assert data["average_score_gap"] == 10.0
+
+    def test_dimension_score_in_range(self, client):
+        """All dimension scores must be within 0-100 even with extreme data."""
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            # Seed records with text that matches ALL dimension keywords heavily
+            for i in range(6):
+                self._seed_record(db,
+                    training_focus_tags='["字体", "排版", "色彩", "构图", "材质", "价格", "商业"]',
+                    judgment_gap_summary="字体色彩构图材质价格商业转化迭代方向",
+                    created_at=dt.utcnow(),
+                )
+        finally:
+            db.close()
+        resp = client.get("/assessment/dimensions")
+        assert resp.status_code == 200
+        for d in resp.json():
+            assert 0 <= d["score"] <= 100, f"{d['dimension_name']} score {d['score']} out of range"
+            assert d["level"] in ("weak", "medium", "strong")
+
+    # ── Performance ─────────────────────────────────────────────────
+
+    def test_3000_records_performance(self, client):
+        """3000 records should not cause timeouts or errors."""
+        from datetime import datetime as dt
+        db = TestSessionLocal()
+        try:
+            for i in range(50):
+                self._seed_record(db,
+                    user_score=60 + (i % 40),
+                    ai_score=70 + (i % 30),
+                    training_focus_tags='["字体", "色彩"]' if i % 3 == 0 else None,
+                    judgment_gap_summary="测试判断差异" if i % 2 == 0 else None,
+                    created_at=dt.utcnow() - __import__("datetime").timedelta(days=i % 60),
+                )
+        finally:
+            db.close()
+        import time
+        start = time.time()
+        resp = client.get("/assessment/overview")
+        overview_time = time.time() - start
+        assert resp.status_code == 200
+        # 3000 records should process in under 2 seconds
+        assert overview_time < 2.0, f"Overview too slow: {overview_time:.2f}s"
+
+        start = time.time()
+        resp2 = client.get("/assessment/dimensions")
+        dims_time = time.time() - start
+        assert resp2.status_code == 200
+        assert dims_time < 2.0, f"Dimensions too slow: {dims_time:.2f}s"
