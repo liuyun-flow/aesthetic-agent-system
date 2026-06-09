@@ -36,7 +36,18 @@
 - 导出包结构验证
 - 文档同步
 
-## ✅ V1.9 — 案例库质量管理（当前版本）
+## ✅ V1.9.1 — 案例库质量管理稳定版（当前版本）
+- aesthetic_level 验证统一（_is_present 替换内联检查）
+- _is_present 增强（支持 list/dict 非空判断）
+- _tokenize_title None 防护
+- audit issue 字段补全（is_training_ready + reason）
+- 嵌入重复检测全量匹配（移除 break）
+- missing_learning_notes 逻辑修复（AND → OR）
+- 前端 null 安全加固（全面 ?? 守卫）
+- 前端空状态页面
+- 181 测试 passed
+
+## ✅ V1.9.0 — 案例库质量管理
 - 案例完整度评分（0-100，13 字段加权动态计算）
 - 训练可用状态判定（is_training_ready）
 - 案例库体检接口（GET /reference-cases/audit）

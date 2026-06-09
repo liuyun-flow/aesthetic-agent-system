@@ -1,7 +1,7 @@
-# Project Status — V1.9.0
+# Project Status — V1.9.1
 
 ## Current Version
-**V1.9.0** — 案例库质量管理 / 训练可用判定 / 体检报告
+**V1.9.1** — 案例库质量管理稳定版 / 安全加固 / 回归测试
 
 ---
 
@@ -23,7 +23,8 @@
 | V1.7.2 | 迭代方向 | 结构化迭代字段 / 选择方向生成提示词 / 历史展示 |
 | V1.8 | 数据+搜索 | 导入导出 zip / 语义搜索 / embedding / 数据管理 UI |
 | V1.8.1 | 稳定 | 版本统一 / .gitignore / 回归测试 / 文档同步 |
-| **V1.9.0** | **质量** | 完整度评分 / 训练可用判定 / 案例库体检 / 重复检测 |
+| V1.9.0 | 质量 | 完整度评分 / 训练可用判定 / 案例库体检 / 重复检测 |
+| **V1.9.1** | **稳定** | aesthetic_level 验证统一 / null 安全加固 / audit issue 字段补全 / 前端防御 guard |
 
 ---
 
@@ -82,9 +83,26 @@
 
 ---
 
+## V1.9.1 变更（本次）
+
+V1.9.1 是 V1.9 的稳定性修复版，不新增业务功能。
+
+| 类别 | 变更 |
+|------|------|
+| aesthetic_level 验证 | 统一使用 `_is_present()` 替换四处内联检查，同时拒绝 "unknown"/"n/a"/"none"/"暂无" 等占位值 |
+| _is_present 增强 | 新增 list/dict/tuple/set 非空判断 |
+| _tokenize_title | 新增 None 防护，避免空 title 导致审计端点崩溃 |
+| audit issue 字段补全 | `_case_summary` 新增 `is_training_ready`、`reason`；AuditIssue schema 同步新增 |
+| 重复检测 | 移除 embedding 匹配的 `break`，报告所有高相似度匹配 |
+| missing_learning_notes | AND 改为 OR，缺任一字段即标记 |
+| 前端 null 安全 | 所有数组访问添加 `??` 守卫；StatCard 防 NaN/负数 |
+| 前端空状态 | 案例库为空时显示专用空状态提示 |
+| 前端完整度颜色 | completenessColor/Bg 新增 null/NaN 灰度处理 |
+| 版本号 | main.py / data_io.py / tests → v1.9.1 |
+
 ## 测试结果
 
-- **178 passed**（analyze / critique / iterate / profile / sessions / upload / vision / reference / compare / prompt / training / health / settings / export / import / embeddings / semantic search / completeness / audit / duplicates）
+- **181 passed**（analyze / critique / iterate / profile / sessions / upload / vision / reference / compare / prompt / training / health / settings / export / import / embeddings / semantic search / completeness / audit / duplicates / stability）
 - 全部使用 mocked agents + adapters，无需 API key
 - Frontend build: ✅ 6 routes (/, /settings, /help, /setup, /audit, /_not-found)
 - Docker compose config: ✅ 无警告

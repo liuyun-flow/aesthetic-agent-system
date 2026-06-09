@@ -276,7 +276,9 @@ class AuditIssue(BaseModel):
     title: str
     aesthetic_level: str | None = None
     completeness_score: int = 0
+    is_training_ready: bool = False
     missing_fields: list[str] = Field(default_factory=list)
+    reason: str = ""
 
 
 class DuplicateGroup(BaseModel):

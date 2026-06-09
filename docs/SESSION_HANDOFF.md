@@ -1,86 +1,62 @@
 # Session Handoff — 2026-06-09
 
 ## Last Completed
-- **V1.9.0: Case quality management — completeness scoring, training readiness, audit report, duplicate detection**
+- **V1.9.1: Case quality management stability release**
 
 ---
 
-## V1.9.0 变更详情
+## V1.9.1 变更详情
 
-### New Features
+V1.9.1 是 V1.9 的稳定性修复版，不新增业务功能。通过对抗性代码审查发现 22 个问题，全部修复。
 
-#### 案例完整度评分
-- Dynamic `completeness_score` (0-100) from 13 weighted fields
-- `backend/app/services/case_quality.py` — `compute_completeness_score()`, `get_missing_fields()`
-- No DB migration — pure computation on existing ReferenceCase model
-- Chinese field labels in missing-fields lists (no undefined/null)
+### 后端修复
 
-#### 训练可用状态
-- `is_training_ready` — 5 conditions: score≥75, has image, has level, has description, has learn_from_this or premium_sources
-- Displayed in case list, detail modal, and semantic search results
+| 修复 | 说明 |
+|------|------|
+| aesthetic_level 验证统一 | 4 处内联检查统一为 `_is_present()`，同时拒绝 "unknown"/"n/a"/"none"/"暂无" 等占位值 |
+| `_is_present()` 增强 | 新增 list/dict/tuple/set 非空判断 |
+| `_tokenize_title` None 防护 | title=None 时审计端点不崩溃 |
+| `_case_summary` 字段补全 | 新增 `is_training_ready` 和 `reason` 字段 |
+| AuditIssue schema | 同步新增 `is_training_ready: bool` 和 `reason: str` |
+| 重复检测全量匹配 | 移除 embedding 匹配中只记录第一条结果的 `break` |
+| `missing_learning_notes` 修复 | AND → OR，缺 learn_from_this 或 avoid_copying 即标记 |
+| `_TRAINING_REQUIRED_FIELDS` | 移除死代码 |
 
-#### 案例库体检 (GET /reference-cases/audit)
-- Full quality audit: stats, missing-field categories, possible duplicates, recommendations
-- Duplicate detection: title token overlap (≥70%) + embedding cosine similarity (≥90%, if available)
-- Graceful fallback when embeddings are unavailable
+### 前端修复
 
-#### 案例库体检页面 (/audit)
-- Dashboard: total cases, training-ready count, incomplete count, average completeness
-- Missing-field breakdowns with case details
-- Duplicate groups with detection method labels
-- Actionable recommendations in Chinese
+| 修复 | 说明 |
+|------|------|
+| null 安全加固 | 所有数组访问 (`recommendations`, `possible_duplicates`, `group.cases`, `missing_fields`) 添加 `?? []` 守卫 |
+| StatCard 防 NaN | 新增 `Number.isNaN()` 和 `isFinite()` 检查，负值 clamp 到 0 |
+| completenessColor/Bg | 新增 null/NaN → 灰色处理 |
+| 空状态页面 | total_cases === 0 时显示专用空状态提示 |
+| readyPct clamp | 限制在 [0, 100] 区间 |
+| IssueList 接收 null | `items` 参数类型改为 `AuditIssue[] \| null \| undefined` |
+| React keys 改进 | 数组索引替换为稳定 key |
 
-#### 前端 ReferencePanel 增强
-- Completeness score badges (green≥75, amber 50-74, red<50)
-- Training-ready ✓ indicator
-- Detail modal quality analysis section
-- Semantic search results sorted: training-ready first
+### 测试增强
+
+- 181 passed (178 → 181, 3 new tests)
+- `test_audit_issues_include_is_training_ready` — 审计 issue 必须含 is_training_ready + reason
+- `test_unknown_level_treated_as_missing` — 'unknown' level 应在 missing_fields
+- `test_aesthetic_level_missing_handled` — 无 level 的案例正常处理
 
 ---
 
 ## Test Results
-- **178 passed** (161 existing + 17 new V1.9 tests)
-- Frontend build: ✅ 6 routes (+, /settings, /help, /setup, /audit, /_not-found)
+- **181 passed**, 1 warning
+- Frontend build: ✅ 6 routes
 - Docker compose config: ✅
-
----
-
-## Modified Files
-
-| File | Change |
-|------|--------|
-| `backend/app/services/case_quality.py` | **New** |
-| `backend/app/schemas/responses.py` | +CaseAuditResponse, AuditIssue, DuplicateGroup; ReferenceCaseResponse +quality |
-| `backend/app/main.py` | +/reference-cases/audit; _ref_response +quality; search_semantic +quality sort; version→v1.9.0 |
-| `backend/app/services/data_io.py` | EXPORT_VERSION→v1.9.0 |
-| `backend/app/tests/test_api.py` | +17 tests; version assertions updated |
-| `frontend/src/app/audit/page.tsx` | **New** |
-| `frontend/src/components/ReferencePanel.tsx` | +quality badges, training-ready, detail quality section |
-| `frontend/src/app/layout.tsx` | +audit nav link |
-| `README.md` | Version + V1.9 docs |
-| `PROJECT_STATUS.md` | Rewrite for V1.9 |
-| `ROADMAP.md` | V1.9 marked ✅ |
-| `CLAUDE.md` | Version line updated |
 
 ---
 
 ## Git Status
 - Working tree: **clean** (not yet committed)
 - Branch: main
-- Remote: needs push
-
----
-
-## Known Issues
-1. Completeness is computed dynamically — may need optimization for 1000+ cases
-2. Duplicate detection only uses title similarity when embeddings unavailable
-3. No PUT/PATCH endpoint for reference cases (service function exists but not exposed)
-4. Audit recommendations assume Chinese locale (hardcoded)
 
 ---
 
 ## Next Session First Steps
-1. Quick smoke test: backend → /health → v1.9.0; frontend → /audit → dashboard
-2. Commit and push V1.9.0 changes
-3. V2.0: Training effectiveness evaluation system (pre/post comparison, growth curves, milestones)
-4. Optional: add PUT /reference-cases/{case_id} endpoint for editing
+1. Commit and push V1.9.1 changes
+2. Quick smoke test: backend → /health → v1.9.1; frontend → /audit → empty state
+3. V2.0: Training effectiveness evaluation system

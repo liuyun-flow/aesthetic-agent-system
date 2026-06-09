@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V1.9.0** | 测试：178 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
+**当前版本：V1.9.1** | 测试：181 passed | [项目状态](PROJECT_STATUS.md) | [路线图](ROADMAP.md) | [开发规范](AI_CONTEXT.md)
 
 ---
 
@@ -97,6 +97,7 @@ npm run dev                      # http://127.0.0.1:3000
 | V1.8 | Data export/import (zip backup), semantic search over reference cases (embeddings), data management UI |
 | V1.8.1 | Stability fixes, regression tests, pre-release cleanup |
 | V1.9 | Case quality management (completeness scoring, training readiness, audit report, duplicate detection) |
+| V1.9.1 | Stability fixes: aesthetic_level validation, null safety, audit issue is_training_ready+reason fields, frontend defensive guards |
 
 ### API Endpoints
 

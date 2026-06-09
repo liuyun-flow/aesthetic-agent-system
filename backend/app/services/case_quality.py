@@ -46,16 +46,6 @@ _FIELD_LABELS: dict[str, str] = {
     "score": "评分",
 }
 
-# Fields that are "required" for training readiness (beyond the 75-point threshold)
-_TRAINING_REQUIRED_FIELDS = [
-    "image_id",
-    "description",
-    "aesthetic_level",
-    "premium_sources",
-    "learn_from_this",
-]
-
-
 # ── Helpers ─────────────────────────────────────────────────────────────
 
 def _is_present(value: Any) -> bool:
@@ -74,6 +64,8 @@ def _is_present(value: Any) -> bool:
         if stripped.lower() in {"unknown", "none", "n/a", "-", "—", "暂无", "无"}:
             return False
         return True
+    if isinstance(value, (list, tuple, dict, set)):
+        return len(value) > 0
     return False
 
 
@@ -102,8 +94,7 @@ def compute_completeness_score(case: ReferenceCase) -> int:
             if case.score is not None:
                 score += weight
         elif field_name == "aesthetic_level":
-            val = (case.aesthetic_level or "").strip().lower()
-            if val and val != "unknown":
+            if _is_present(case.aesthetic_level):
                 score += weight
         else:
             val = getattr(case, field_name, None)
@@ -128,8 +119,7 @@ def is_training_ready(case: ReferenceCase) -> bool:
         return False
     if case.image_id is None:
         return False
-    level = (case.aesthetic_level or "").strip().lower()
-    if not level or level == "unknown":
+    if not _is_present(case.aesthetic_level):
         return False
     if not _has_description(case):
         return False
@@ -154,8 +144,7 @@ def get_missing_fields(case: ReferenceCase) -> list[str]:
             if case.score is None:
                 missing.append(_FIELD_LABELS["score"])
         elif field_name == "aesthetic_level":
-            val = (case.aesthetic_level or "").strip().lower()
-            if not val or val == "unknown":
+            if not _is_present(case.aesthetic_level):
                 missing.append(_FIELD_LABELS["aesthetic_level"])
         else:
             val = getattr(case, field_name, None)
@@ -168,6 +157,8 @@ def get_missing_fields(case: ReferenceCase) -> list[str]:
 
 def _tokenize_title(title: str) -> set[str]:
     """Tokenize a title for similarity comparison."""
+    if not title:
+        return set()
     # Split on whitespace and common punctuation, lowercase
     tokens = re.split(r"[，,。\s\-—/|、：:（）()「」\[\]{}]+", title.lower())
     # Filter out very short tokens and stopwords
@@ -303,9 +294,7 @@ def find_possible_duplicates(db: Session) -> list[dict[str, Any]]:
                                         },
                                     ],
                                 })
-                                already_in_title_groups.add(case.id)
                                 already_in_title_groups.add(matched.id)
-                                break
                 except Exception:
                     # Silently skip — embedding errors shouldn't block audit
                     pass
@@ -318,12 +307,36 @@ def find_possible_duplicates(db: Session) -> list[dict[str, Any]]:
 # ── Audit Report ────────────────────────────────────────────────────────
 
 def _case_summary(case: ReferenceCase) -> dict[str, Any]:
+    """Build a compact audit-entry dict for one case."""
+    missing = get_missing_fields(case)
+    ready = is_training_ready(case)
+    reasons: list[str] = []
+    if case.image_id is None:
+        reasons.append("缺少案例图片")
+    if not _has_description(case):
+        reasons.append("缺少图片描述（image_description 或 ai_description）")
+    level = (case.aesthetic_level or "").strip().lower()
+    if not level or level == "unknown":
+        reasons.append("审美等级未设置或为 unknown")
+    if not _is_present(case.premium_sources):
+        reasons.append("缺少高级感来源")
+    if not _is_present(case.cheapness_sources):
+        reasons.append("缺少廉价感来源")
+    if not _is_present(case.learn_from_this):
+        reasons.append("缺少值得学习")
+    if not _is_present(case.avoid_copying):
+        reasons.append("缺少不能误学")
+    if not ready and not reasons:
+        reasons.append("未达到训练可用标准")
+
     return {
         "id": case.id,
         "title": case.title,
         "aesthetic_level": case.aesthetic_level,
         "completeness_score": compute_completeness_score(case),
-        "missing_fields": get_missing_fields(case),
+        "is_training_ready": ready,
+        "missing_fields": missing,
+        "reason": "；".join(reasons) if reasons else "",
     }
 
 
@@ -361,8 +374,7 @@ def audit_cases(db: Session) -> dict[str, Any]:
             missing_image.append(s)
         if not _has_description(case):
             missing_description.append(s)
-        level = (case.aesthetic_level or "").strip().lower()
-        if not level or level == "unknown":
+        if not _is_present(case.aesthetic_level):
             missing_aesthetic_level.append(s)
         if not _is_present(case.price_band):
             missing_price_band.append(s)
@@ -370,7 +382,7 @@ def audit_cases(db: Session) -> dict[str, Any]:
             missing_premium_sources.append(s)
         if not _is_present(case.cheapness_sources):
             missing_cheapness_sources.append(s)
-        if not _is_present(case.learn_from_this) and not _is_present(case.avoid_copying):
+        if not _is_present(case.learn_from_this) or not _is_present(case.avoid_copying):
             missing_learning_notes.append(s)
 
     # ── Recommendations ──────────────────────────────────────────────

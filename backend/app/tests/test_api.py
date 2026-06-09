@@ -1598,9 +1598,9 @@ class TestSystemStatus:
         resp = client.get("/system/status")
         assert resp.json()["backend"] == "ok"
 
-    def test_version_is_v1_9_0(self, client):
+    def test_version_is_v1_9_1(self, client):
         resp = client.get("/system/status")
-        assert resp.json()["version"] == "v1.9.0"
+        assert resp.json()["version"] == "v1.9.1"
 
     def test_deepseek_has_configured_flag(self, client):
         resp = client.get("/system/status")
@@ -2119,7 +2119,7 @@ class TestEmbeddings:
         data = resp.json()
         assert "embedding" in data
         assert "configured" in data["embedding"]
-        assert data["version"] == "v1.9.0"
+        assert data["version"] == "v1.9.1"
 
 
 class TestCompareWithSemanticFallback:
@@ -2374,7 +2374,7 @@ class TestCaseQuality:
     # ── Audit detail fields ──────────────────────────────────────────
 
     def test_audit_issue_has_required_fields(self, client):
-        """Each AuditIssue must have id, title, completeness_score, missing_fields."""
+        """Each AuditIssue must have id, title, completeness_score, is_training_ready, reason, missing_fields."""
         self._create_case(client, title="Audit Issue Test")
         resp = client.get("/reference-cases/audit")
         data = resp.json()
@@ -2388,4 +2388,42 @@ class TestCaseQuality:
             assert "title" in item
             assert "completeness_score" in item
             assert "missing_fields" in item
+            assert "is_training_ready" in item, f"Missing is_training_ready in audit issue"
+            assert "reason" in item, f"Missing reason in audit issue"
             assert isinstance(item["completeness_score"], int)
+            assert isinstance(item["is_training_ready"], bool)
+
+    def test_audit_issues_include_is_training_ready(self, client):
+        """Audit issues must include is_training_ready and reason for each case."""
+        self._create_case(client, title="Training Ready Audit Test", aesthetic_level="high")
+        resp = client.get("/reference-cases/audit")
+        data = resp.json()
+        # At minimum, missing_image and missing_description lists should have the case
+        found = False
+        for category_key in ("missing_image", "missing_description", "missing_aesthetic_level",
+                              "missing_price_band", "missing_premium_sources",
+                              "missing_cheapness_sources", "missing_learning_notes"):
+            for item in data[category_key]:
+                if item["title"] == "Training Ready Audit Test":
+                    assert "is_training_ready" in item
+                    assert "reason" in item
+                    found = True
+        assert found, "Case should appear in at least one missing category"
+
+    def test_unknown_level_treated_as_missing(self, client):
+        """Aesthetic level 'unknown' should be treated as missing by quality checks."""
+        c = self._create_case(client, title="Unknown Level Case", aesthetic_level="unknown")
+        assert "审美等级" in c["missing_fields"]
+        # Should not get the 10 aesthetic points since 'unknown' is rejected
+        assert c["completeness_score"] < 25
+
+    def test_aesthetic_level_missing_handled(self, client):
+        """When aesthetic_level is not provided (defaults to null), it should be in missing_fields."""
+        # Create without aesthetic_level override
+        resp = client.post("/reference-cases", json={
+            "title": "No Level Case",
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        # Should have '审美等级' in missing_fields since no level was specified
+        assert "审美等级" in data["missing_fields"]

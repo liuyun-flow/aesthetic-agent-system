@@ -7,7 +7,9 @@ interface AuditIssue {
   title: string;
   aesthetic_level: string | null;
   completeness_score: number;
+  is_training_ready: boolean;
   missing_fields: string[];
+  reason: string;
 }
 
 interface DuplicateGroup {
@@ -31,13 +33,15 @@ interface AuditData {
   recommendations: string[];
 }
 
-function completenessColor(score: number): string {
+function completenessColor(score: number | null | undefined): string {
+  if (score == null || Number.isNaN(score)) return "text-gray-400";
   if (score >= 75) return "text-green-600";
   if (score >= 50) return "text-amber-600";
   return "text-red-600";
 }
 
-function completenessBg(score: number): string {
+function completenessBg(score: number | null | undefined): string {
+  if (score == null || Number.isNaN(score)) return "bg-gray-100";
   if (score >= 75) return "bg-green-100";
   if (score >= 50) return "bg-amber-100";
   return "bg-red-100";
@@ -49,10 +53,11 @@ function IssueList({
   emptyMessage,
 }: {
   title: string;
-  items: AuditIssue[];
+  items: AuditIssue[] | null | undefined;
   emptyMessage: string;
 }) {
-  if (items.length === 0) {
+  const safeItems = items ?? [];
+  if (safeItems.length === 0) {
     return (
       <div className="rounded border bg-gray-50 p-4">
         <h4 className="text-sm font-medium text-gray-700 mb-1">{title}</h4>
@@ -65,26 +70,35 @@ function IssueList({
       <h4 className="text-sm font-medium text-gray-700 mb-2">
         {title}
         <span className="ml-1 text-xs text-red-500 font-normal">
-          ({items.length} 个)
+          ({safeItems.length} 个)
         </span>
       </h4>
       <div className="space-y-1.5 max-h-60 overflow-y-auto">
-        {items.map((item) => (
+        {safeItems.map((item) => (
           <div
             key={item.id}
             className="flex items-center gap-2 text-xs bg-white rounded border px-2 py-1"
+            title={item.reason || undefined}
           >
             <span
               className={`rounded-full px-1.5 py-0.5 font-medium text-xs ${completenessBg(
                 item.completeness_score
               )} ${completenessColor(item.completeness_score)}`}
             >
-              {item.completeness_score}
+              {item.completeness_score ?? "?"}
             </span>
+            {item.is_training_ready && (
+              <span className="text-green-500 font-bold shrink-0" title="训练可用">✓</span>
+            )}
             <span className="flex-1 truncate font-medium">{item.title}</span>
-            <span className="text-gray-400 text-xs">
-              缺：{item.missing_fields.slice(0, 3).join("、")}
-              {item.missing_fields.length > 3
+            {item.reason && (
+              <span className="text-gray-400 text-xs truncate max-w-[200px]" title={item.reason}>
+                {item.reason}
+              </span>
+            )}
+            <span className="text-gray-400 text-xs shrink-0">
+              缺：{(item.missing_fields ?? []).slice(0, 3).join("、") || "无"}
+              {(item.missing_fields ?? []).length > 3
                 ? `等${item.missing_fields.length}项`
                 : ""}
             </span>
@@ -121,7 +135,8 @@ export default function AuditPage() {
 
   useEffect(() => {
     fetchAudit();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -150,8 +165,25 @@ export default function AuditPage() {
 
   const readyPct =
     data.total_cases > 0
-      ? Math.round((data.training_ready_count / data.total_cases) * 100)
+      ? Math.min(100, Math.max(0, Math.round((data.training_ready_count / data.total_cases) * 100)))
       : 0;
+
+  if (data.total_cases === 0) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-800">案例库体检报告</h2>
+          <p className="text-xs text-gray-500 mt-0.5">评估参考案例库的数据质量和训练可用性</p>
+        </div>
+        <div className="rounded border bg-gray-50 p-12 text-center">
+          <p className="text-gray-400 text-sm mb-2">案例库为空</p>
+          <p className="text-gray-400 text-xs">
+            请先在训练工作台的参考案例库中添加案例，然后再查看体检报告。
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
@@ -206,12 +238,12 @@ export default function AuditPage() {
       </div>
 
       {/* Recommendations */}
-      {data.recommendations.length > 0 && (
+      {(data.recommendations ?? []).length > 0 && (
         <div className="rounded border border-blue-200 bg-blue-50 p-4">
           <h3 className="text-sm font-medium text-blue-700 mb-2">建议操作</h3>
           <ul className="space-y-1">
-            {data.recommendations.map((rec, i) => (
-              <li key={i} className="text-xs text-blue-600 flex items-start gap-1.5">
+            {(data.recommendations ?? []).map((rec, i) => (
+              <li key={`rec-${i}`} className="text-xs text-blue-600 flex items-start gap-1.5">
                 <span className="mt-0.5 shrink-0">•</span>
                 <span>{rec}</span>
               </li>
@@ -260,18 +292,18 @@ export default function AuditPage() {
       </div>
 
       {/* Duplicates */}
-      {data.possible_duplicates.length > 0 && (
+      {(data.possible_duplicates ?? []).length > 0 && (
         <div className="rounded border border-amber-200 bg-amber-50 p-4">
           <h3 className="text-sm font-medium text-amber-700 mb-2">
             疑似重复案例
             <span className="ml-1 text-xs font-normal">
-              （{data.possible_duplicates.length} 组）
+              （{(data.possible_duplicates ?? []).length} 组）
             </span>
           </h3>
           <div className="space-y-3">
-            {data.possible_duplicates.map((group, gi) => (
+            {(data.possible_duplicates ?? []).map((group, gi) => (
               <div
-                key={gi}
+                key={`dup-${gi}`}
                 className="rounded border border-amber-300 bg-white p-3"
               >
                 <p className="text-xs text-gray-500 mb-1.5">
@@ -281,7 +313,7 @@ export default function AuditPage() {
                     : "标题相似度"}
                 </p>
                 <div className="space-y-1">
-                  {group.cases.map((c) => (
+                  {(group.cases ?? []).map((c) => (
                     <div
                       key={c.id}
                       className="flex items-center gap-2 text-xs bg-amber-50 rounded px-2 py-1"
@@ -291,7 +323,7 @@ export default function AuditPage() {
                           c.completeness_score
                         )} ${completenessColor(c.completeness_score)}`}
                       >
-                        {c.completeness_score}
+                        {c.completeness_score ?? "?"}
                       </span>
                       <span className="flex-1 truncate">{c.title}</span>
                       <span className="text-gray-400">
@@ -306,7 +338,7 @@ export default function AuditPage() {
         </div>
       )}
 
-      {data.possible_duplicates.length === 0 && data.total_cases >= 2 && (
+      {(data.possible_duplicates ?? []).length === 0 && data.total_cases >= 2 && (
         <div className="rounded border bg-gray-50 p-4 text-center">
           <p className="text-xs text-green-600">未发现疑似重复案例</p>
         </div>
@@ -326,13 +358,17 @@ function StatCard({
   suffix?: string;
   color: string;
 }) {
+  const safe = (typeof value === "number" && !Number.isNaN(value) && isFinite(value))
+    ? value
+    : 0;
+  const display = typeof safe === "number" && !Number.isInteger(safe)
+    ? safe.toFixed(1)
+    : String(Math.max(0, safe));
   return (
     <div className="rounded border bg-white p-4 shadow-sm">
       <p className="text-xs text-gray-500">{label}</p>
       <p className={`text-2xl font-bold ${color}`}>
-        {typeof value === "number" && !Number.isInteger(value)
-          ? value.toFixed(1)
-          : value}
+        {display}
         {suffix && (
           <span className="text-sm font-normal text-gray-400 ml-1">
             {suffix}
