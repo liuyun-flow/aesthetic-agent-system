@@ -1,23 +1,16 @@
 # Session Handoff — 2026-06-09
 
 ## Last Completed
-- **V2.1.0: Local release edition — one-click startup, system diagnostics, installation UX**
+- **V2.1.1: Stability fixes — version sync, doc accuracy, release candidate**
 
 ---
 
-## V2.1.0 变更
+## V2.1.1 变更
 
 | 类别 | 变更 |
 |------|------|
-| 启动脚本 | `scripts/start.sh`（Docker 一键启动）、`scripts/stop.sh`（停止）、`scripts/start.bat`（Windows） |
-| 系统预检 | `GET /system/preflight` — 数据库/配置/上传/DeepSeek/Vision/Embedding 综合诊断 |
-| 设置页 | 新增「系统诊断」面板，调用 preflight，显示状态 + 中文建议 |
-| 文档 | 新增 CHANGELOG.md、UPGRADE.md、RELEASE_NOTES.md |
-| 版本 | v2.1.0 |
+| 版本同步 | `/system/preflight` 改用 `app.version` 避免硬编码 |
+| 文档 | 版本号/测试数/升级指南修正 |
+| 测试 | 210 passed |
 
-## Test Results
-- **210 passed**, 1 warning
-- Frontend build: ✅ 7 routes
-- Docker compose config: ✅
-
-## Next: V2.1.1 stability review
+## Next: Release

@@ -1,7 +1,7 @@
-# Project Status — V2.1.0
+# Project Status — V2.1.1
 
 ## Current Version
-**V2.1.0** — 本地正式发布版 / 一键启动 / 系统诊断 / 安装体验优化
+**V2.1.1** — 本地正式发布版稳定性修复 / 版本同步 / 发布候选
 
 ---
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## V2.1.1 (2026-06-09)
+- 版本号同步：`/system/preflight` 改用 `app.version` 避免硬编码
+- 文档准确性修正（测试数、版本号）
+- 升级指南补充 V2.1.0→V2.1.1 步骤
+- 210 tests passed
+
 ## V2.1.0 (2026-06-09)
 - 新增 `/system/preflight` 本地环境诊断端点
 - 新增设置页「系统诊断」面板（含 DeepSeek/Vision/Embedding/数据库/目录状态）
