@@ -1,3 +1,4 @@
+chcp 65001 >nul
 @echo off
 setlocal enabledelayedexpansion
 REM start.bat — Windows one-click start (Docker)

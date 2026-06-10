@@ -1,3 +1,4 @@
+chcp 65001 >nul
 @echo off
 REM stop.bat — Stop the services
 REM Double-click to run
