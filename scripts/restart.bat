@@ -1,6 +1,5 @@
-chcp 65001 >nul
 @echo off
-REM restart.bat — Stop and restart the services
+REM restart.bat - Stop and restart the services
 
 cd /d "%~dp0.."
 
