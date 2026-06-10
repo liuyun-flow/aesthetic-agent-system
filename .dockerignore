@@ -1,0 +1,53 @@
+# ── V2.1.3: Docker build exclusions ──
+
+# Environment files (real keys)
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/.next/
+
+# User data (never in image)
+backend/data/uploads/
+backend/data/database/
+backend/data/config/
+*.db
+*.sqlite3
+
+# Export / backup zips
+*.zip
+
+# Git
+.git/
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (not needed in image)
+docs/
+*.md
+!README.md
+
+# Scripts (not needed in image)
+scripts/
+
+# Skills
+skills/

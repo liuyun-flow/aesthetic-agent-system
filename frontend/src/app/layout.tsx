@@ -7,7 +7,7 @@ import { I18nProvider, useT } from "@/i18n";
 import type { Lang } from "@/i18n";
 import "./globals.css";
 
-// ── V2.1.2: Global chunk-load error recovery ───────────────────────────
+// ── V2.1.2+: Global chunk-load error recovery ───────────────────────────
 
 const CHUNK_RELOAD_KEY = "_aesthetic_chunk_reloaded";
 

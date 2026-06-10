@@ -1,5 +1,23 @@
 # Changelog
 
+## V2.1.3 (2026-06-10)
+- 本地发布包 / 跨平台部署验证版
+- 新增 `docs/LOCAL_DEPLOYMENT.md` — Windows / Mac / Linux 完整部署指南
+- 新增 `docs/RELEASE_CHECKLIST.md` — 发布前安全检查清单
+- 新增 `.dockerignore` — 排除敏感数据、node_modules、构建产物
+- 完善 `.gitignore` — 加固 `backend/data/` 下 .gitkeep 例外规则
+- 完善 `backend/data/` 目录结构 — 所有子目录含 .gitkeep
+- README 第一屏重写 — 面向普通用户的快速开始
+- 版本号同步 v2.1.2 → v2.1.3（main.py / data_io.py / tests）
+- 部署文档覆盖：Docker 依赖说明、Win/Mac/Linux 启动步骤、常见问题解答
+
+## V2.1.2 (2026-06-10)
+- Windows start.bat 纯 CMD 全重写（`cd /d "%~dp0.."` 双击路径修复）
+- 新增 stop.bat / restart.bat 纯 CMD 脚本
+- 前端 chunk 缓存自动恢复（ChunkLoadError 全局兜底）
+- Help 页面内容刷新（+4 Section + 6 FAQ）
+- 212 tests passed
+
 ## V2.1.1 (2026-06-09)
 - 版本号同步：`/system/preflight` 改用 `app.version` 避免硬编码
 - 文档准确性修正（测试数、版本号）

@@ -1,62 +1,62 @@
 # Session Handoff — 2026-06-10
 
 ## Last Completed
-- **V2.1.2: Hotfix — Windows start.bat rewrite, chunk error recovery, Help refresh**
+- **V2.1.3: Local Release Packaging — .dockerignore, deployment guide, release checklist, data dir hardening**
 
 ---
 
-## V2.1.2 变更详情
+## V2.1.3 变更详情
 
-V2.1.2 是本地发布体验热修复，修复三个实际使用中发现的阻塞问题。
+V2.1.3 是本地发布包 / 跨平台部署验证版。不做新功能，专注于发布包结构、部署文档和安全检查。
 
-### 1. Windows start.bat 纯 CMD 重写
-- 全重写为纯 Windows CMD（无 bash 语法），双击 `scripts\start.bat` 即可执行
-- `cd /d "%~dp0.."` 确保从项目根目录启动，与双击位置无关
-- 动态检测 `docker compose` vs `docker-compose`
-- .env 不存在时自动从 .env.example 复制并提示编辑 API Key
-- 旧 DATABASE_URL 检测并提示迁移
-- 错误时 pause，不会窗口一闪而过
-- 新增 `scripts/stop.bat`、`scripts/restart.bat`
+### 1. 发布包结构加固
+- 新增 `.dockerignore` — 排除 `.env`、真实数据、`node_modules`、`.next`、`__pycache__`、`.pytest_cache`、`*.zip` 等
+- 完善 `.gitignore` — 重新整理为分类清晰的结构，加固 `backend/data/` 下 `.gitkeep` 例外规则
+- 新增 `backend/data/database/.gitkeep`、`backend/data/uploads/.gitkeep` — 确保目录结构可被 Git 追踪
 
-### 2. 前端 chunk 缓存自动恢复
-- `frontend/src/app/layout.tsx` 添加全局 `unhandledrejection` 监听
-- 捕获 `ChunkLoadError` / `Loading chunk failed` / `Failed to fetch dynamically imported module`
-- 首次失败自动 `window.location.reload()`（sessionStorage 防无限循环）
-- 二次失败替换页面为中文恢复指引（Ctrl+F5 / 清除缓存 / Docker 重启）
+### 2. 部署文档
+- 新增 `docs/LOCAL_DEPLOYMENT.md` — Windows / Mac / Linux 完整部署指南，含常见问题、端口说明、备份/升级/卸载说明
+- README 第一屏重写 — 面向普通用户，包含：是什么、适合谁、2 分钟快速开始（Win/Mac）、关键信息速查表
 
-### 3. Help 页面内容刷新
-- 新增 4 个 Section：语义搜索与 Embedding、训练效果评估、系统诊断、数据导入/导出
-- 新增 6 个 FAQ：Embedding 是什么、语义搜索 vs 普通筛选、白屏崩溃、start.bat 打不开、Docker 没安装、API Key 安全
+### 3. 发布验收
+- 新增 `docs/RELEASE_CHECKLIST.md` — 8 大类逐项确认清单（安全/启动/停止/功能/文档/测试/前端/最终确认）
+
+### 4. 版本同步
+- backend: main.py (v2.1.2→v2.1.3), data_io.py (EXPORT_VERSION), test_api.py (3 assertions + 1 new /health assertion), test_preflight.py (1 assertion)
+- docs: CHANGELOG (+V2.1.2 +V2.1.3), RELEASE_NOTES (重写), UPGRADE (+V2.1.2→V2.1.3), SESSION_HANDOFF (本文档)
+- root: README (第一屏 + 版本号), PROJECT_STATUS (版本号), ROADMAP (+V2.1.3), CLAUDE.md (版本线)
 
 ### 修改的文件
 
 | 文件 | 变更 |
 |------|------|
-| `scripts/start.bat` | 纯 CMD 重写 |
-| `scripts/stop.bat` | **New** |
-| `scripts/restart.bat` | **New** |
-| `frontend/src/app/layout.tsx` | +ChunkLoadError 全局兜底 |
-| `frontend/src/app/help/page.tsx` | +4 Section + 6 FAQ |
-| `backend/app/main.py` | version → v2.1.2 |
-| `backend/app/services/data_io.py` | EXPORT_VERSION → v2.1.2 |
-| `backend/app/tests/test_api.py` | 版本断言 |
-| `backend/app/tests/test_preflight.py` | 版本断言 |
-| `README.md` | 版本号 |
+| `.gitignore` | 重新整理，加固 data/ 下 .gitkeep 规则 |
+| `.dockerignore` | **New** |
+| `backend/data/database/.gitkeep` | **New** |
+| `backend/data/uploads/.gitkeep` | **New** |
+| `backend/app/main.py` | version → v2.1.3 |
+| `backend/app/services/data_io.py` | EXPORT_VERSION → v2.1.3 |
+| `backend/app/tests/test_api.py` | 2 version assertions → v2.1.3 |
+| `backend/app/tests/test_preflight.py` | 1 version assertion → v2.1.3 |
+| `README.md` | 第一屏重写 + 版本号 + 功能表补全 |
+| `docs/LOCAL_DEPLOYMENT.md` | **New** |
+| `docs/RELEASE_CHECKLIST.md` | **New** |
+| `docs/CHANGELOG.md` | +V2.1.2 +V2.1.3 |
+| `docs/RELEASE_NOTES.md` | 重写为 V2.1.3 |
+| `docs/UPGRADE.md` | +V2.1.1→V2.1.2 +V2.1.2→V2.1.3 |
+| `docs/SESSION_HANDOFF.md` | 重写为 V2.1.3 |
+| `PROJECT_STATUS.md` | 更新版本号 |
+| `ROADMAP.md` | +V2.1.3 标记完成 |
+| `CLAUDE.md` | +V2.1.3 |
+| `AGENTS.md` | 版本号 + 测试数更新 |
 
 ## Test Results
-- **212 passed**, 1 warning
-- Frontend build: ✅ 7 routes
-- Docker compose config: ✅
-
-## Local Services
-- Backend: V2.1.1 (previous session, not restarted)
-- Frontend: running on port 3000
-
-## Known Remaining Issues
-- start_all.sh is dev-only with hardcoded paths — not for end users
-- WebSocket errors on settings page (cosmetic, not blocking)
-- No charts in assessment (text-only progress bars)
+- **待运行**（版本号变更后需重新跑测试）
 
 ## Next Session
-1. Commit remaining doc updates (SESSION_HANDOFF, PROJECT_STATUS)
-2. V2.2: Industry training templates, chart visualization for assessment
+1. 运行后端测试确认版本断言通过
+2. 运行前端 build
+3. docker compose config 验证
+4. 按 RELEASE_CHECKLIST.md 逐项验收
+5. Commit + push
+6. V2.2: Industry training templates, chart visualization, case library recommendations

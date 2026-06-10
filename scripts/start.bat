@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM start.bat — Windows one-click start (Docker)
 REM Double-click to run from project root, or run from scripts\ directory
 
@@ -77,6 +78,27 @@ if %errorlevel% neq 0 (
     echo [错误] 启动失败，请检查 Docker 是否正在运行。
     pause
     exit /b 1
+)
+
+REM 5. Wait for backend health
+echo.
+echo 等待后端就绪...
+set HEALTHY=0
+for /L %%i in (1,1,30) do (
+    curl -sf http://127.0.0.1:8000/health >nul 2>&1
+    if !errorlevel! equ 0 (
+        echo [ OK ] 后端就绪
+        set HEALTHY=1
+        goto :health_ok
+    )
+    timeout /t 2 /nobreak >nul
+)
+:health_ok
+if %HEALTHY% equ 0 (
+    echo.
+    echo [警告] 后端健康检查超时，可能仍在启动中。
+    echo   请稍后手动检查 http://127.0.0.1:8000/health
+    echo   查看日志: %COMPOSE_CMD% logs backend
 )
 
 echo.

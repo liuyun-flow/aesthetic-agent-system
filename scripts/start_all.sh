@@ -2,34 +2,35 @@
 # start_all.sh — [DEV ONLY] Start both backend and frontend locally (pythonw detached)
 # Usage: bash scripts/start_all.sh [--open-browser]
 #
-# NOTE: This is a developer convenience script with hardcoded paths.
+# NOTE: This is a developer convenience script. Uses PATH lookups by default;
+# set PYTHON_HOME / NODE_HOME env vars for non-standard install locations.
 # For end users, use scripts/start.sh (Docker one-click) instead.
 #
 # NOTE: Uses pythonw.exe to detach processes from the terminal.
-# If your Python is installed elsewhere, set PYTHON_HOME and NODE_HOME
-# environment variables before running, e.g.:
+# Prerequisites: python, pythonw, and node must be on PATH.
+# If your Python / Node are installed in non-standard locations, set
+# PYTHON_HOME and NODE_HOME environment variables before running, e.g.:
 #   PYTHON_HOME=C:/Python311 NODE_HOME=C:/nodejs bash scripts/start_all.sh
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# Configurable paths — override via env vars for portability
-PYTHON_HOME="${PYTHON_HOME:-C:/Users/Dream/AppData/Local/Programs/Python/Python311}"
-NODE_HOME="${NODE_HOME:-C:/Users/Dream/AppData/Local/nodejs/node-v24.12.0-win-x64}"
+# Configurable paths — defaults to PATH lookup; override via env vars for portability
+PYTHON_HOME="${PYTHON_HOME:-}"
+NODE_HOME="${NODE_HOME:-}"
 
-PYTHON="${PYTHON_HOME}/python.exe"
-PYTHONW="${PYTHON_HOME}/pythonw.exe"
-NODE="${NODE_HOME}/node.exe"
-
-# Fallback: try PATH if configured executables don't exist
-if [ ! -f "$PYTHONW" ]; then
+if [ -n "$PYTHON_HOME" ]; then
+	PYTHON="${PYTHON_HOME}/python.exe"
+	PYTHONW="${PYTHON_HOME}/pythonw.exe"
+else
+	PYTHON="python"
 	PYTHONW="pythonw"
 fi
-if [ ! -f "$PYTHON" ]; then
-	PYTHON="python"
-fi
-if [ ! -f "$NODE" ]; then
+
+if [ -n "$NODE_HOME" ]; then
+	NODE="${NODE_HOME}/node.exe"
+else
 	NODE="node"
 fi
 

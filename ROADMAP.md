@@ -36,7 +36,22 @@
 - 导出包结构验证
 - 文档同步
 
-## ✅ V2.1.1 — 本地正式发布版稳定性修复 / 发布候选（当前版本）
+## ✅ V2.1.2 — 本地发布体验热修复
+- Windows start.bat 纯 CMD 重写（`cd /d "%~dp0.."`）
+- stop.bat / restart.bat 新增
+- 前端 chunk 缓存自动恢复（ChunkLoadError 全局兜底）
+- Help 页面内容刷新（+4 Section + 6 FAQ）
+- 212 tests passed
+
+## ✅ V2.1.3 — 本地发布包 / 跨平台部署验证版
+- 新增 `.dockerignore` — 排除敏感数据和构建产物
+- 新增 `docs/LOCAL_DEPLOYMENT.md` — Win/Mac/Linux 完整部署指南
+- 新增 `docs/RELEASE_CHECKLIST.md` — 发布前 8 大类检查清单
+- 完善 `.gitignore` — 加固 data/ 目录 .gitkeep 规则
+- README 第一屏重写 — 面向普通用户
+- 版本号同步 v2.1.2 → v2.1.3
+
+## ✅ V2.1.1 — 本地正式发布版稳定性修复 / 发布候选
 - 版本号同步（preflight 使用 app.version）
 - 文档准确性修正
 - 210 tests passed

@@ -1,78 +1,82 @@
-# V2.1.1 发布说明
+# V2.1.3 发布说明
 
 ## 关于本版本
 
-V2.1.1 是 V2.1.0 的稳定性修复版，修正版本号同步和文档准确性问题。
+V2.1.3 是**本地发布包 / 跨平台部署验证版**。专注把项目整理成别人可以下载、安装、启动、配置和试用的本地发布包。
 
-## V2.1.0 回顾
+这不是新功能版。没有新增训练功能。
 
-V2.1.0 是 Aesthetic Training Agent System 的「本地正式发布版」，专注于降低安装和首次使用门槛。
+## 本版本做了什么
 
-## 新增功能
+### 发布包结构
 
-### 一键启动脚本
+- 新增 `.dockerignore` — 确保 Docker 构建镜像时不包含 `.env`、真实数据、`node_modules`、`__pycache__` 等
+- 完善 `.gitignore` — 加固 `backend/data/` 下 `.gitkeep` 例外规则，确保目录结构可被 Git 追踪
+- 完善 `backend/data/` 目录结构 — `config/`、`database/`、`uploads/` 三个子目录各有 `.gitkeep`
+- 发布包 = 项目根目录去掉了 `.env`、真实数据库、真实上传图片、真实配置、`node_modules`、`.next`、`__pycache__` 的干净副本
 
-现在只需一条命令即可启动整个系统：
+### 部署文档
 
-```bash
-# Mac / Linux
-bash scripts/start.sh
+- 新增 `docs/LOCAL_DEPLOYMENT.md` — 完整部署指南，覆盖：
+  - Windows 部署（Docker Desktop + 双击 start.bat）
+  - Mac 部署（Docker Desktop for Mac + ./start.sh）
+  - Linux 部署
+  - API Key 配置说明（两种方式）
+  - 数据目录说明
+  - 常见问题（Docker、端口、白屏、备份、升级、卸载）
+  - 端口说明
+- README 第一屏重写 — 面向普通用户，一眼看懂这是什么、怎么用
 
-# Windows（双击运行）
-scripts\start.bat
-```
+### 发布验收
 
-脚本会自动：
-- 检测 Docker 是否安装
-- 检查 .env 配置文件（不存在则从模板创建）
-- 创建数据目录
-- 启动前后端服务
-- 输出访问地址
+- 新增 `docs/RELEASE_CHECKLIST.md` — 发布前逐项确认清单，覆盖：
+  - 安全检查（12 项）
+  - 启动检查（9 项）
+  - 停止与重启检查（4 项）
+  - 功能检查（15 项）
+  - 文档检查（13 项）
+  - 后端测试 + 前端构建验证
 
-停止服务：`bash scripts/stop.sh`
+### 版本同步
 
-### 系统诊断
+- `v2.1.2` → `v2.1.3`：main.py / data_io.py / test_api.py / test_preflight.py
+- README / CHANGELOG / UPGRADE / PROJECT_STATUS / ROADMAP / SESSION_HANDOFF / CLAUDE.md / AGENTS.md
 
-新增 `GET /system/preflight` 端点，检查：
+## 发布形态
 
-- 数据库、配置目录、上传目录是否存在且可写
-- DeepSeek、Vision、Embedding 是否已配置
-- 各组件状态描述（中文）
+V2.1.3 是 **Local Release**（本地部署版）。
 
-设置页（`/settings`）新增「系统诊断」面板，一目了然显示所有系统状态，并给出可执行的建议操作。
-
-### 文档完善
-
-新增三份用户文档：
-- `CHANGELOG.md` — 完整版本变更记录
-- `UPGRADE.md` — 版本升级步骤与回滚方法
-- `RELEASE_NOTES.md` — 本文档
-
-README 已重写为面向用户的安装手册。
+- ✅ 用户下载 zip → 解压 → Docker Desktop 启动 → 配置 API Key → 使用
+- ❌ 不是 SaaS
+- ❌ 不做登录
+- ❌ 不做云端存储
 
 ## 系统要求
 
-- Docker Desktop（推荐）
-- 或 Python 3.11+ / Node.js 18+（本地开发）
+- Docker Desktop（必须）
 - DeepSeek API Key（必须）
-- OpenAI API Key（可选，用于 Vision 图片识别和语义搜索）
+- OpenAI API Key（可选，用于 Vision 和语义搜索）
 
-## 快速开始
+## 从 V2.1.2 升级
 
-1. 复制并编辑配置：`cp backend/.env.example backend/.env`
-2. 编辑 `.env`，设置 `DEEPSEEK_API_KEY`
-3. 运行：`bash scripts/start.sh`
-4. 打开：http://127.0.0.1:3000
+```bash
+git pull origin main
+docker compose up --build -d
+```
+
+升级前务必先导出备份（设置页 → 数据管理 → 导出）。
+
+详见 [升级指南](UPGRADE.md)。
 
 ## 已知限制
 
+与 V2.1.2 相同：
 - 误判检测基于关键词规则（非 LLM）
 - 语义搜索需要 OpenAI API Key
 - 导出不含 embeddings（导入后需重建索引）
 - 导入为合并模式，不做去重
+- Apple Silicon Mac 通过 Docker 理论上支持，但未经真实 Mac 完整测试
 
 ## 下一步
 
-- V2.1.1：稳定性审查
-- V2.2：训练效果图表（折线图、雷达图）
-- V3.0：多人模式（远期规划）
+- V2.2：行业训练模板 / 图表可视化 / 案例库推荐

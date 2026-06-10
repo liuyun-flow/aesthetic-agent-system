@@ -1,5 +1,27 @@
 # 升级指南
 
+## 从 V2.1.2 升级到 V2.1.3
+
+V2.1.3 是本地发布包整理版，没有数据库变更。
+
+**升级前务必先导出备份**（设置页 → 数据管理 → 导出）。备份包保存在你的电脑上，不含 API Key。
+
+```bash
+git pull origin main
+docker compose up --build -d
+```
+
+## 从 V2.1.1 升级到 V2.1.2
+
+V2.1.2 是热修复版，修复 Windows start.bat、chunk 缓存崩溃、Help 内容过时。
+
+升级前务必先导出备份。
+
+```bash
+git pull origin main
+docker compose up --build -d
+```
+
 ## 从 V2.1.0 升级到 V2.1.1
 
 V2.1.1 是稳定性修复版。升级步骤与 V2.1.0 相同。

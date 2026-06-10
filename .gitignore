@@ -1,25 +1,57 @@
+# ── V2.1.3: Release package exclusions ──
+
+# Environment (real keys)
 .env
+backend/.env
+frontend/.env
+
+# Python
 .venv/
 __pycache__/
 *.pyc
-.DS_Store
+*.pyo
+.pytest_cache/
+backend/.pytest_cache/
+*.egg-info/
+
+# Node
 node_modules/
-dist/
-build/
-data/uploads/
-backend/data/uploads/
 frontend/node_modules/
 frontend/.next/
-frontend/.env
-*.sqlite3
-*.db
+frontend/out/
+
+# User data — block all files, allow only .gitkeep
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+backend/data/database/*.db
+!backend/data/database/.gitkeep
+backend/data/config/*
+!backend/data/config/.gitkeep
+
+# Legacy root-level data paths (safety)
+data/uploads/
 data/database/*.db
-data/uploads/*
 data/config/*
 !data/.gitkeep
 !data/config/.gitkeep
-backend/data/config/*
-!backend/data/config/.gitkeep
-backend/data/uploads/*
-backend/data/database/*.db
+
+# Database files
+*.db
+*.sqlite3
+
+# Backup / export
 *.zip
+
+# Build artifacts
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
