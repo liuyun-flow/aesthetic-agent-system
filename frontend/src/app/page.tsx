@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import TaskForm, { type UserJudgment, type ImageData } from "@/components/TaskForm";
 import ResultCard, { type DirectionData } from "@/components/ResultCard";
@@ -17,7 +17,17 @@ export default function Home() {
   const [taskType, setTaskType] = useState<TaskType | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [canceled, setCanceled] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const resultRef = useRef<HTMLDivElement | null>(null);
+
+  // Bring the fresh result into view — it renders below the long form.
+  useEffect(() => {
+    if (result && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [result]);
 
   // V1.4 compare
   const [comparing, setComparing] = useState(false);
@@ -48,6 +58,16 @@ export default function Home() {
   const [sysStatus, setSysStatus] = useState<Record<string, unknown> | null>(null);
   const [statusLoading, setStatusLoading] = useState(true);
 
+  // Re-practice a past session: prefill the form from history
+  const [prefill, setPrefill] = useState<{ description: string; taskType: TaskType; key: number } | null>(null);
+
+  const handleRetrain = useCallback((description: string, recordType: string) => {
+    const type: TaskType =
+      recordType === "critique" || recordType === "iterate" ? recordType : "analyze";
+    setPrefill({ description, taskType: type, key: Date.now() });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
   useEffect(() => {
@@ -60,6 +80,7 @@ export default function Home() {
   const handleSubmit = useCallback(
     async (description: string, type: TaskType, judgment: UserJudgment | null, image: ImageData | null) => {
       setLoading(true); setError(null); setResult(null);
+      setCanceled(false);
       setCompareResult(null); setPromptResult(null);
       setSelectedDirection(null);
       setDirectionPromptResult(null);
@@ -67,12 +88,15 @@ export default function Home() {
       setTaskType(type); setLastDescription(description);
       setLastJudgment(judgment); setLastImage(image); setLastType(type);
 
+      const controller = new AbortController();
+      abortRef.current = controller;
+
       try {
         const body: Record<string, unknown> = { work_description: description };
         if (image) { body.image_id = image.image_id; if (image.image_description) body.image_description = image.image_description; }
         if (judgment) { body.user_judgment = { score: judgment.score, strengths: judgment.strengths.length > 0 ? judgment.strengths : null, weaknesses: judgment.weaknesses.length > 0 ? judgment.weaknesses : null, priority_fixes: judgment.priority_fixes.length > 0 ? judgment.priority_fixes : null, target_audience: judgment.target_audience || null, price_band: judgment.price_band || null }; }
 
-        const res = await fetch(`${base}/${type}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const res = await fetch(`${base}/${type}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
         if (!res.ok) { const errBody = await res.json().catch(() => ({})); throw new Error(errBody.detail || `Request failed (${res.status})`); }
         const data = await res.json();
         setResult(data);
@@ -81,7 +105,10 @@ export default function Home() {
         fetch(`${base}/sessions?limit=1`).then(r => r.json()).then(d => {
           if (d.sessions?.length > 0) setLastSessionId(d.sessions[0].id);
         }).catch(() => {});
-      } catch (err: unknown) { setError(err instanceof Error ? err.message : t.common.error); }
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") { setCanceled(true); }
+        else { setError(err instanceof Error ? err.message : t.common.error); }
+      }
       finally { setLoading(false); }
     }, [t.common.error, base], // eslint-disable-line react-hooks/exhaustive-deps
   );
@@ -189,13 +216,20 @@ export default function Home() {
         t={t}
       />
 
-      <TaskForm onSubmit={handleSubmit} loading={loading} />
+      <TaskForm onSubmit={handleSubmit} loading={loading} prefill={prefill} />
 
       {error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {loading && <div className="text-center text-sm text-gray-500">{t.common.loading}</div>}
+      {canceled && !loading && <div className="rounded border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">{t.progress.canceled}</div>}
+      {loading && taskType && (
+        <AgentProgress
+          taskType={taskType}
+          t={t}
+          onCancel={() => abortRef.current?.abort()}
+        />
+      )}
 
       {result && taskType && (
-        <>
+        <div ref={resultRef} className="space-y-4 scroll-mt-4">
           <ResultCard
             data={result}
             taskType={taskType}
@@ -225,19 +259,131 @@ export default function Home() {
             />
           )}
 
-          {/* V1.4.1 Generate Prompt */}
-          <button onClick={handleGeneratePrompt} disabled={generatingPrompt}
-            className={`rounded px-4 py-2 text-sm font-medium text-white transition ml-2 ${generatingPrompt ? "cursor-not-allowed bg-gray-300" : "bg-indigo-600 hover:bg-indigo-700"}`}>
-            {generatingPrompt ? t.result.generatingPrompt : t.result.generatePrompt}
-          </button>
-          {promptError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{promptError}</div>}
-          {promptResult && <PromptResultCard data={promptResult} t={t} copiedKey={copiedKey} onCopy={handleCopy} />}
-        </>
+          {/* V1.4.1 Generate Prompt — for iterate the per-direction flow above is the primary path */}
+          {taskType !== "iterate" && (
+            <>
+              <button onClick={handleGeneratePrompt} disabled={generatingPrompt}
+                className={`rounded px-4 py-2 text-sm font-medium text-white transition ml-2 ${generatingPrompt ? "cursor-not-allowed bg-gray-300" : "bg-indigo-600 hover:bg-indigo-700"}`}>
+                {generatingPrompt ? t.result.generatingPrompt : t.result.generatePrompt}
+              </button>
+              {promptError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{promptError}</div>}
+              {promptResult && <PromptResultCard data={promptResult} t={t} copiedKey={copiedKey} onCopy={handleCopy} />}
+            </>
+          )}
+        </div>
       )}
 
-      <TrainingPanel refreshKey={refreshKey} lastSessionId={lastSessionId} />
-      <ReferencePanel />
-      <SessionList refreshKey={refreshKey} />
+      <CollapsibleSection id="training" title={t.sections.training} defaultOpen t={t}>
+        <TrainingPanel refreshKey={refreshKey} lastSessionId={lastSessionId} />
+      </CollapsibleSection>
+      <CollapsibleSection id="reference" title={t.reference.title} defaultOpen={false} t={t}>
+        <ReferencePanel />
+      </CollapsibleSection>
+      <CollapsibleSection id="sessions" title={t.sessions.recentSessions} defaultOpen t={t}>
+        <SessionList refreshKey={refreshKey} onRetrain={handleRetrain} />
+      </CollapsibleSection>
+    </div>
+  );
+}
+
+/* ── Collapsible workbench section ───────────────────────────────── */
+
+function CollapsibleSection({
+  id,
+  title,
+  defaultOpen,
+  t,
+  children,
+}: {
+  id: string;
+  title: string;
+  defaultOpen?: boolean;
+  t: ReturnType<typeof useT>["t"];
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen ?? true);
+
+  // Restore the user's last choice after mount (avoids SSR hydration mismatch).
+  useEffect(() => {
+    const saved = localStorage.getItem(`workbench-section-${id}`);
+    if (saved !== null) setOpen(saved === "1");
+  }, [id]);
+
+  const toggle = () => {
+    setOpen((o) => {
+      localStorage.setItem(`workbench-section-${id}`, o ? "0" : "1");
+      return !o;
+    });
+  };
+
+  return (
+    <section>
+      <button
+        type="button"
+        onClick={toggle}
+        className="mb-2 flex w-full items-center justify-between rounded border bg-white px-4 py-2.5 shadow-sm hover:bg-gray-50 transition"
+      >
+        <span className="text-base font-semibold text-gray-800">{title}</span>
+        <span className="text-xs text-gray-400">
+          {open ? `${t.sections.collapse} ▾` : `${t.sections.expand} ▸`}
+        </span>
+      </button>
+      {open && children}
+    </section>
+  );
+}
+
+/* ── Staged progress while waiting for AI ────────────────────────── */
+
+function AgentProgress({
+  taskType,
+  t,
+  onCancel,
+}: {
+  taskType: TaskType;
+  t: ReturnType<typeof useT>["t"];
+  onCancel: () => void;
+}) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const stages = t.progress.stages[taskType];
+  // Advance one stage every 6s and hold on the last; this is paced status,
+  // not real model progress (the API gives none).
+  const idx = Math.min(Math.floor(elapsed / 6), stages.length - 1);
+
+  return (
+    <div className="rounded border border-blue-200 bg-blue-50 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-blue-700">
+          <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+          <span>{stages[idx]}</span>
+        </div>
+        <button
+          onClick={onCancel}
+          className="rounded border border-blue-300 px-3 py-1 text-xs text-blue-600 hover:bg-blue-100 transition"
+        >
+          {t.progress.cancel}
+        </button>
+      </div>
+      <div className="mt-1.5 flex items-center justify-between text-xs text-blue-400">
+        <span>{t.progress.hint}</span>
+        <span>{t.progress.elapsed} {elapsed}{t.progress.seconds}</span>
+      </div>
+      <div className="mt-2 flex gap-1">
+        {stages.map((_, i) => (
+          <span
+            key={i}
+            className={`h-1 flex-1 rounded-full transition ${
+              i <= idx ? "bg-blue-400" : "bg-blue-100"
+            }`}
+          />
+        ))}
+      </div>
     </div>
   );
 }

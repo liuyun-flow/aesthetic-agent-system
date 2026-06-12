@@ -1,5 +1,20 @@
 # Changelog
 
+## V2.2.0 (2026-06-12)
+- 工作台体验优化 + 评估图表，不改后端业务逻辑
+- AI 调用等待改为分阶段进度卡片（任务专属文案 + 已等待秒数 + 进度条）+「取消」按钮
+- DeepSeek 客户端新增 120s 超时（`DEEPSEEK_TIMEOUT_SECONDS` 可配）+ 1 次重试
+- 训练面板「标记完成」失败不再静默清空表单，显示错误；成功显示「已保存 ✓」
+- 结果就绪自动滚动到可视区；今日训练/案例库/历史记录改为可折叠面板（记住状态）
+- 历史详情新增「再练一次」—— 载入当时的作品描述重新自评，对比过去的判断
+- Ctrl+Enter 快速提交；描述不足 10 字时在按钮旁说明原因
+- iterate 结果统一走「按方向生成提示词」，通用提示词按钮仅 analyze/critique 显示
+- 图片上传支持 Ctrl+V 粘贴截图、拖拽上传；Vision 已配置时上传后自动生成描述
+- /assessment 新增七维能力雷达图 + 整体/30天/7天判断差距对比图（纯 SVG 无依赖）
+- 帮助中心新增「快捷操作」Section
+- 版本号同步 v2.1.3 → v2.2.0（main.py / data_io.py / tests）
+- 212 tests passed；前端经 `docker compose build frontend` 验证
+
 ## V2.1.3 (2026-06-10)
 - 本地发布包 / 跨平台部署验证版
 - 新增 `docs/LOCAL_DEPLOYMENT.md` — Windows / Mac / Linux 完整部署指南

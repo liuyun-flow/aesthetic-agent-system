@@ -15,6 +15,9 @@ export default function TrainingPanel({ refreshKey, lastSessionId }: Props) {
   const [review, setReview] = useState<Record<string, unknown> | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [completing, setCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
+  const [completeSaved, setCompleteSaved] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [lesson, setLesson] = useState("");
   const [nextFocus, setNextFocus] = useState("");
   const [afterScore, setAfterScore] = useState("");
@@ -29,8 +32,10 @@ export default function TrainingPanel({ refreshKey, lastSessionId }: Props) {
   const handleComplete = async () => {
     if (!lastSessionId) return;
     setCompleting(true);
+    setCompleteError(null);
+    setCompleteSaved(false);
     try {
-      await fetch(`${base}/training/sessions/${lastSessionId}/complete`, {
+      const res = await fetch(`${base}/training/sessions/${lastSessionId}/complete`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -40,18 +45,34 @@ export default function TrainingPanel({ refreshKey, lastSessionId }: Props) {
           after_score: afterScore ? parseInt(afterScore, 10) : null,
         }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "保存失败，请稍后重试");
+      }
+      // Only clear the form after a confirmed save.
       setLesson(""); setNextFocus(""); setAfterScore("");
+      setCompleteSaved(true);
+      setTimeout(() => setCompleteSaved(false), 3000);
       fetch(`${base}/training/stats`).then(r => r.json()).then(setStats).catch(() => {});
-    } catch { /* ignore */ }
+    } catch (err: unknown) {
+      setCompleteError(err instanceof Error ? err.message : "保存失败，请稍后重试");
+    }
     finally { setCompleting(false); }
   };
 
   const handleWeeklyReview = async () => {
     setReviewLoading(true);
+    setReviewError(null);
     try {
       const res = await fetch(`${base}/training/weekly-review`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || "生成复盘失败，请稍后重试");
+      }
       setReview(await res.json());
-    } catch { /* ignore */ }
+    } catch (err: unknown) {
+      setReviewError(err instanceof Error ? err.message : "生成复盘失败，请稍后重试");
+    }
     finally { setReviewLoading(false); }
   };
 
@@ -109,7 +130,11 @@ export default function TrainingPanel({ refreshKey, lastSessionId }: Props) {
               className="rounded bg-green-600 px-4 py-1 text-xs text-white hover:bg-green-700 disabled:bg-gray-300">
               {completing ? "保存中…" : "标记完成"}
             </button>
+            {completeSaved && <span className="text-xs text-green-600">已保存 ✓</span>}
           </div>
+          {completeError && (
+            <p className="text-xs text-red-500">{completeError}</p>
+          )}
         </div>
       )}
 
@@ -118,6 +143,9 @@ export default function TrainingPanel({ refreshKey, lastSessionId }: Props) {
         className="rounded bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 disabled:bg-gray-300">
         {reviewLoading ? "生成中…" : "生成本周复盘"}
       </button>
+      {reviewError && (
+        <p className="text-xs text-red-500">{reviewError}</p>
+      )}
 
       {review && (
         <div className="rounded border bg-indigo-50 p-4">

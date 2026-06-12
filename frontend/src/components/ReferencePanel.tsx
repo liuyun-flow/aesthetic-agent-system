@@ -207,8 +207,7 @@ export default function ReferencePanel() {
 
   return (
     <section className="rounded border bg-white p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-semibold text-gray-800">{t.reference.title}</h2>
+      <div className="flex items-center justify-end mb-3">
         <button onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
           className="text-xs text-blue-600 hover:text-blue-800 underline">
           {showForm ? t.reference.cancel : t.reference.addCase}

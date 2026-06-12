@@ -203,6 +203,45 @@ export default function HelpPage() {
           </ol>
         </Section>
 
+        {/* Shortcuts & conveniences */}
+        <Section
+          title={zh ? "快捷操作" : "Shortcuts & Conveniences"}
+          icon="⚡"
+        >
+          <ul className="list-disc list-inside space-y-2 text-sm text-gray-600">
+            <li>
+              {zh
+                ? "粘贴截图：在工作台任意位置按 Ctrl+V，可直接上传剪贴板中的截图；也可以把图片文件拖拽到图片区域。"
+                : "Paste screenshots: Press Ctrl+V anywhere on the workbench to upload an image from your clipboard, or drag an image file onto the image area."}
+            </li>
+            <li>
+              {zh
+                ? "自动描述：配置好 Vision 后，上传图片会自动生成中文描述，无需再点按钮。"
+                : "Auto description: With Vision configured, uploaded images are described automatically — no extra click."}
+            </li>
+            <li>
+              {zh
+                ? "快速提交：在作品描述框内按 Ctrl+Enter 直接运行当前任务。"
+                : "Quick submit: Press Ctrl+Enter inside the description box to run the current task."}
+            </li>
+            <li>
+              {zh
+                ? "取消请求：AI 分析等待过久时，点击进度条右侧的「取消」按钮即可中断。"
+                : "Cancel: If an AI call takes too long, click 'Cancel' next to the progress indicator."}
+            </li>
+            <li>
+              {zh
+                ? "再练一次：打开历史记录详情，点击「再练一次」把当时的作品描述载入表单，重新自评并对比你过去的判断。"
+                : "Practice again: Open a session's detail and click 'Practice again' to reload its description, judge it again, and compare with your past self."}
+            </li>
+            <li>
+              {zh
+                ? "折叠面板：工作台的「今日训练」「参考案例库」「最近训练记录」都可以点击标题栏收起或展开，状态会被记住。"
+                : "Collapsible panels: Training, Reference Library, and Recent Sessions can be collapsed via their header bars; your choice is remembered."}
+            </li>
+          </ul>
+        </Section>
+
         {/* Configure API Keys */}
         <Section
           title={zh ? "如何配置 API Key" : "How to Configure API Keys"}

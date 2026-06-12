@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent } from "react";
+import { useState, useRef, useEffect, useCallback, type FormEvent } from "react";
 import { useT } from "@/i18n";
 
 type TaskType = "analyze" | "critique" | "iterate";
@@ -27,14 +27,27 @@ interface Props {
     image: ImageData | null,
   ) => void;
   loading: boolean;
+  /** Set from history "再练一次" — key changes on every request so the same session can be reloaded twice. */
+  prefill?: { description: string; taskType: TaskType; key: number } | null;
 }
 
 const TASK_KEYS = ["analyze", "critique", "iterate"] as const;
 
-export default function TaskForm({ onSubmit, loading }: Props) {
+export default function TaskForm({ onSubmit, loading, prefill }: Props) {
   const { t } = useT();
   const [description, setDescription] = useState("");
   const [taskType, setTaskType] = useState<TaskType>("analyze");
+  const [prefillNotice, setPrefillNotice] = useState(false);
+
+  // Load a past session's description for re-practice
+  useEffect(() => {
+    if (!prefill) return;
+    setDescription(prefill.description);
+    setTaskType(prefill.taskType);
+    setPrefillNotice(true);
+    const timer = setTimeout(() => setPrefillNotice(false), 6000);
+    return () => clearTimeout(timer);
+  }, [prefill]);
   const [showJudgment, setShowJudgment] = useState(false);
   const [judgeScore, setJudgeScore] = useState("");
   const [judgeStrengths, setJudgeStrengths] = useState("");
@@ -65,40 +78,13 @@ export default function TaskForm({ onSubmit, loading }: Props) {
       .catch(() => setVisionStatus(null));
   }, []);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-    setImageId(null);
-    setImageUrl(null);
-    try {
-      const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch(base + "/upload", { method: "POST", body: fd });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || t.common.uploadFailed);
-      }
-      const data = await res.json();
-      setImageId(data.image_id);
-      setImageUrl(data.url.startsWith("http") ? data.url : base + data.url);
-    } catch (err: unknown) {
-      setUploadError(err instanceof Error ? err.message : t.common.uploadFailed);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleAutoDescribe = async () => {
-    if (imageId === null) return;
+  const describeImage = useCallback(async (id: number) => {
     setDescribing(true);
     setDescribeError(null);
     setVisionSummary(null);
     try {
       const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-      const res = await fetch(`${base}/images/${imageId}/describe`, { method: "POST" });
+      const res = await fetch(`${base}/images/${id}/describe`, { method: "POST" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || t.common.describeFailed);
@@ -117,10 +103,74 @@ export default function TaskForm({ onSubmit, loading }: Props) {
     } finally {
       setDescribing(false);
     }
+  }, [t.common.describeFailed]);
+
+  const uploadFile = useCallback(async (file: File) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setUploadError(t.form.invalidImageType);
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    setImageId(null);
+    setImageUrl(null);
+    try {
+      const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(base + "/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || t.common.uploadFailed);
+      }
+      const data = await res.json();
+      setImageId(data.image_id);
+      setImageUrl(data.url.startsWith("http") ? data.url : base + data.url);
+      // Real vision is configured — describe right away, no extra click needed.
+      if (visionStatus?.is_configured && !visionStatus?.is_placeholder) {
+        describeImage(data.image_id);
+      }
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : t.common.uploadFailed);
+    } finally {
+      setUploading(false);
+    }
+  }, [t.common.uploadFailed, t.form.invalidImageType, visionStatus, describeImage]);
+
+  const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) uploadFile(file);
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleAutoDescribe = () => {
+    if (imageId !== null) describeImage(imageId);
+  };
+
+  // Paste a screenshot anywhere on the page to upload it
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = e.clipboardData?.files;
+      if (!files || files.length === 0) return;
+      const file = Array.from(files).find((f) => f.type.startsWith("image/"));
+      if (file) {
+        e.preventDefault();
+        uploadFile(file);
+      }
+    };
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [uploadFile]);
+
+  // Drag & drop
+  const [dragActive, setDragActive] = useState(false);
+  const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setDragActive(false);
+    const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("image/"));
+    if (file) uploadFile(file);
+  };
+
+  const submit = () => {
     if (description.trim().length < 10) return;
 
     let judgment: UserJudgment | null = null;
@@ -143,7 +193,13 @@ export default function TaskForm({ onSubmit, loading }: Props) {
     onSubmit(description.trim(), taskType, judgment, image);
   };
 
-  const disabled = loading || description.trim().length < 10;
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    submit();
+  };
+
+  const tooShort = description.trim().length < 10;
+  const disabled = loading || tooShort;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -171,7 +227,14 @@ export default function TaskForm({ onSubmit, loading }: Props) {
       </fieldset>
 
       {/* V1.2 Image upload */}
-      <div className="rounded border bg-gray-50 p-3">
+      <div
+        className={`rounded border p-3 transition ${
+          dragActive ? "border-blue-400 bg-blue-50" : "bg-gray-50"
+        }`}
+        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+        onDragLeave={() => setDragActive(false)}
+        onDrop={handleDrop}
+      >
         <p className="mb-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
           {t.form.imageSection}
           {visionStatus && (
@@ -202,6 +265,9 @@ export default function TaskForm({ onSubmit, loading }: Props) {
           onChange={handleUpload}
           className="text-sm"
         />
+        <p className="mt-1 text-xs text-gray-400">
+          {dragActive ? t.form.dropActive : t.form.dropHint}
+        </p>
         {uploading && (
           <p className="mt-1 text-xs text-blue-500">{t.form.uploading}</p>
         )}
@@ -276,13 +342,24 @@ export default function TaskForm({ onSubmit, loading }: Props) {
         <label htmlFor="description" className="mb-1 block text-sm font-medium text-gray-600">
           {t.form.workDescription}
         </label>
+        {prefillNotice && (
+          <p className="mb-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-600">
+            {t.form.prefillLoaded}
+          </p>
+        )}
         <textarea id="description" rows={4} value={description}
           onChange={(e) => setDescription(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+              e.preventDefault();
+              if (!disabled) submit();
+            }
+          }}
           placeholder={t.form.descriptionPlaceholder}
           className="w-full rounded border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
         />
         <p className="mt-1 text-xs text-gray-400">
-          {description.length} {t.form.chars} ({t.form.minChars})
+          {description.length} {t.form.chars} ({t.form.minChars}) · {t.form.ctrlEnterHint}
         </p>
       </div>
 
@@ -343,14 +420,19 @@ export default function TaskForm({ onSubmit, loading }: Props) {
         </div>
       )}
 
-      <button type="submit" disabled={disabled}
-        className={`rounded px-6 py-2 text-sm font-medium text-white transition ${
-          disabled
-            ? "cursor-not-allowed bg-gray-300"
-            : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
-        }`}>
-        {loading ? t.form.running : `${t.form.run} ${t.tasks[taskType].label}`}
-      </button>
+      <div className="flex items-center gap-3">
+        <button type="submit" disabled={disabled}
+          className={`rounded px-6 py-2 text-sm font-medium text-white transition ${
+            disabled
+              ? "cursor-not-allowed bg-gray-300"
+              : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+          }`}>
+          {loading ? t.form.running : `${t.form.run} ${t.tasks[taskType].label}`}
+        </button>
+        {tooShort && !loading && (
+          <span className="text-xs text-amber-600">{t.form.tooShortHint}</span>
+        )}
+      </div>
     </form>
   );
 }

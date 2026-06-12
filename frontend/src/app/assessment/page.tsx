@@ -144,6 +144,92 @@ function StatCard({
   );
 }
 
+/** 7-dimension radar chart, 0-100 per axis. Pure SVG, no dependencies. */
+function RadarChart({ dims }: { dims: DimensionAssessment[] }) {
+  if (dims.length < 3) return null;
+
+  const cx = 160, cy = 145, R = 95;
+  const n = dims.length;
+  const angle = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
+  const pt = (i: number, r: number): [number, number] => [
+    cx + r * Math.cos(angle(i)),
+    cy + r * Math.sin(angle(i)),
+  ];
+  const ring = (frac: number) =>
+    dims.map((_, i) => pt(i, R * frac).map((v) => v.toFixed(1)).join(",")).join(" ");
+  const dataPoints = dims
+    .map((d, i) => pt(i, (Math.max(0, Math.min(100, d.score)) / 100) * R).map((v) => v.toFixed(1)).join(","))
+    .join(" ");
+
+  return (
+    <div className="rounded border bg-white p-4 shadow-sm">
+      <h4 className="text-sm font-semibold text-gray-700 mb-1">能力雷达图</h4>
+      <svg viewBox="0 0 320 300" className="mx-auto w-full max-w-sm" role="img" aria-label="能力维度雷达图">
+        {/* Grid rings at 25/50/75/100 */}
+        {[0.25, 0.5, 0.75, 1].map((f) => (
+          <polygon key={f} points={ring(f)} fill="none" stroke="#e5e7eb" strokeWidth="1" />
+        ))}
+        {/* Axes */}
+        {dims.map((_, i) => {
+          const [x, y] = pt(i, R);
+          return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="#e5e7eb" strokeWidth="1" />;
+        })}
+        {/* Data */}
+        <polygon points={dataPoints} fill="rgba(59,130,246,0.25)" stroke="#3b82f6" strokeWidth="1.5" />
+        {dims.map((d, i) => {
+          const [x, y] = pt(i, (Math.max(0, Math.min(100, d.score)) / 100) * R);
+          return <circle key={i} cx={x} cy={y} r="2.5" fill="#3b82f6" />;
+        })}
+        {/* Labels */}
+        {dims.map((d, i) => {
+          const [x, y] = pt(i, R + 16);
+          const cos = Math.cos(angle(i));
+          const anchor = cos > 0.3 ? "start" : cos < -0.3 ? "end" : "middle";
+          return (
+            <text key={i} x={x} y={y} textAnchor={anchor} dominantBaseline="middle" fontSize="10" fill="#6b7280">
+              {d.dimension_name} {d.score}
+            </text>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+/** Compare overall / 30-day / 7-day judgment gap — smaller is better. */
+function GapBars({ overview }: { overview: AssessmentOverview }) {
+  const items = [
+    { label: "整体平均差距", value: overview.average_score_gap },
+    { label: "近 30 天", value: overview.average_score_gap_last_30 },
+    { label: "近 7 天", value: overview.average_score_gap_last_7 },
+  ].filter((it): it is { label: string; value: number } =>
+    typeof it.value === "number" && isFinite(it.value));
+
+  if (items.length < 2) return null;
+  const max = Math.max(...items.map((it) => it.value), 1);
+
+  return (
+    <div className="rounded border bg-white p-4 shadow-sm">
+      <h4 className="text-sm font-semibold text-gray-700 mb-1">判断差距变化</h4>
+      <p className="text-xs text-gray-400 mb-3">自评与 AI 评分的平均差距，越小代表判断越准</p>
+      <div className="space-y-2">
+        {items.map((it) => (
+          <div key={it.label} className="flex items-center gap-2 text-xs">
+            <span className="w-24 shrink-0 text-gray-500">{it.label}</span>
+            <div className="h-3 flex-1 rounded bg-gray-100">
+              <div
+                className={`h-3 rounded ${it.value <= max * 0.5 ? "bg-green-400" : it.value <= max * 0.8 ? "bg-amber-400" : "bg-red-400"}`}
+                style={{ width: `${Math.max(4, (it.value / max) * 100)}%` }}
+              />
+            </div>
+            <span className="w-10 text-right font-medium text-gray-700">{it.value.toFixed(1)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ──────────────────────────────────────────────────────────
 
 export default function AssessmentPage() {
@@ -285,6 +371,12 @@ export default function AssessmentPage() {
         <StatCard label="平均判断差距" value={overview.average_score_gap ?? "--"} suffix="分" color="text-orange-600" />
         <StatCard label="近 7 天差距" value={overview.average_score_gap_last_7 ?? "--"} suffix="分" color="text-amber-600" />
         <StatCard label="差距趋势" value={trendLabel(overview.score_gap_trend)} color={trendColor(overview.score_gap_trend)} />
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <RadarChart dims={dimensions} />
+        <GapBars overview={overview} />
       </div>
 
       {/* Tabs */}

@@ -17,6 +17,9 @@ const zh = {
     imageSection: "图片（可选）",
     imagePlaceholder: "请用文字描述图片里有什么，包括颜色、构图、字体、材质、主体、背景、风格、目标用户等。AI 不会直接看图，会根据你的描述分析。",
     uploading: "上传中…",
+    dropHint: "也可以直接拖拽图片到这里，或按 Ctrl+V 粘贴截图",
+    dropActive: "松开鼠标上传图片",
+    invalidImageType: "仅支持 JPG / PNG / WebP 图片",
     // Auto-describe (V1.3)
     autoDescribe: "自动生成图片描述",
     describing: "正在分析图片…",
@@ -36,6 +39,9 @@ const zh = {
     priceBand: "价格带",
     run: "运行",
     running: "运行中…",
+    ctrlEnterHint: "Ctrl+Enter 快速提交",
+    tooShortHint: "描述不足 10 字，补充后即可提交",
+    prefillLoaded: "已载入历史记录的作品描述，重新自评后提交，与你当时的判断对比",
   },
   result: {
     analysis: "分析结果",
@@ -84,6 +90,8 @@ const zh = {
   },
   sessions: {
     recentSessions: "最近训练记录",
+    retrain: "再练一次",
+    retrainHint: "已载入这条记录的作品描述，重新自评后提交，对比你当时的判断",
     loading: "加载中…",
     noSessions: "暂无记录。在上方提交你的第一次分析。",
     error: "无法加载记录。后端是否已启动？",
@@ -181,6 +189,41 @@ const zh = {
     openWizard: "🪄 打开首次使用向导",
     goSettings: "⚙️ 去设置页面",
     goWorkbench: "🏋️ 去训练工作台",
+  },
+  sections: {
+    training: "今日训练与统计",
+    expand: "展开",
+    collapse: "收起",
+  },
+  progress: {
+    stages: {
+      analyze: [
+        "正在阅读作品描述…",
+        "正在分解美学维度…",
+        "正在评估高级感与廉价感来源…",
+        "正在对比你的判断…",
+        "正在整理分析报告…",
+      ],
+      critique: [
+        "正在阅读作品描述…",
+        "正在逐项打分…",
+        "正在定位主要问题…",
+        "正在排列优先修复项…",
+        "正在整理评分报告…",
+      ],
+      iterate: [
+        "正在阅读作品描述…",
+        "正在构思改版方向…",
+        "正在评估各方向的取舍…",
+        "正在撰写视觉改动细节…",
+        "正在整理迭代方案…",
+      ],
+    },
+    elapsed: "已等待",
+    seconds: "秒",
+    hint: "AI 推理通常需要 15-60 秒，请稍候",
+    cancel: "取消",
+    canceled: "已取消本次请求",
   },
   common: {
     loading: "等待智能体返回结果…",

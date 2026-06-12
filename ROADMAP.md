@@ -1,5 +1,18 @@
 # Roadmap
 
+## ✅ V2.2.0 — 工作台体验优化 + 评估图表
+- AI 调用分阶段进度反馈 + 已等待秒数 + 取消按钮
+- DeepSeek 客户端超时（120s 可配）+ 重试
+- TrainingPanel 错误可见（保存失败不清空表单）
+- 结果自动滚动 + 工作台折叠面板（状态持久化）
+- 历史记录「再练一次」（载入描述重新自评）
+- Ctrl+Enter 提交 + 描述不足提示
+- 提示词流程合并（iterate 走按方向生成）
+- Ctrl+V 粘贴 / 拖拽上传 / Vision 配置后自动描述
+- /assessment 七维雷达图 + 判断差距对比图（纯 SVG）
+- 帮助中心「快捷操作」Section
+- 212 tests passed / Docker build 验证
+
 ## ✅ V1.5.2–V1.7 (已完成)
 - 案例库数据导入/导出（JSON）
 - Dockerfile / docker-compose

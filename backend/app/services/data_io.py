@@ -15,7 +15,7 @@ from app.db.models import ReferenceCase, TrainingRecord, UploadedImage
 from app.settings.config_store import get_config
 
 
-EXPORT_VERSION = "v2.1.3"
+EXPORT_VERSION = "v2.2.0"
 
 
 def _safe_stored_filename(value: Any) -> str | None:

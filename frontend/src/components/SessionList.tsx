@@ -39,6 +39,7 @@ interface SessionDetail {
 
 interface Props {
   refreshKey: number;
+  onRetrain?: (description: string, recordType: string) => void;
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -109,7 +110,7 @@ function copyText(text: string): void {
   navigator.clipboard.writeText(text).catch(() => {});
 }
 
-export default function SessionList({ refreshKey }: Props) {
+export default function SessionList({ refreshKey, onRetrain }: Props) {
   const { t } = useT();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -211,7 +212,6 @@ export default function SessionList({ refreshKey }: Props) {
   return (
     <>
       <section>
-        <h2 className="mb-3 text-base font-semibold text-gray-800">{t.sessions.recentSessions}</h2>
         <div className="space-y-2">
           {sessions.map((s) => (
             <div
@@ -460,15 +460,27 @@ export default function SessionList({ refreshKey }: Props) {
                   </Section>
                 )}
 
-                {/* Copy result_json */}
-                {detail.result_json && (
-                  <div className="flex gap-2 pt-2 border-t">
+                {/* Actions */}
+                <div className="flex gap-2 pt-2 border-t">
+                  {onRetrain && (
+                    <button
+                      onClick={() => {
+                        onRetrain(detail.work_description, detail.record_type);
+                        closeDetail();
+                      }}
+                      className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                      title={t.sessions.retrainHint}
+                    >
+                      {t.sessions.retrain}
+                    </button>
+                  )}
+                  {detail.result_json && (
                     <button onClick={() => handleCopy(JSON.stringify(detail.result_json, null, 2), "result_json")}
                       className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-600 hover:bg-gray-100">
                       {copiedKey === "result_json" ? "已复制" : "复制完整结果"}
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>
