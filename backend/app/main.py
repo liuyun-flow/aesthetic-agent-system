@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="2.2.0",
+    version="2.2.1",
     lifespan=lifespan,
 )
 
@@ -146,7 +146,9 @@ def get_analyzer(
 
 def get_critic(
     client=Depends(_get_client),
-    model=Depends(_get_model),
+    # Scoring is the most judgment-heavy task — use the reasoning model so the
+    # rubric calibration holds (latency covered by progress UI + client timeout).
+    model=Depends(_get_reasoning_model),
 ) -> CriticAgent:
     return CriticAgent(client=client, model=model)
 

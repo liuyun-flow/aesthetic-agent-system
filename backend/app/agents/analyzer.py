@@ -6,18 +6,22 @@ from typing import Any
 
 from openai import OpenAI
 
+from app.agents.design_knowledge import DESIGN_KNOWLEDGE, EVIDENCE_RULES
 from app.schemas.responses import AnalyzeResponse
 
 
 ANALYZER_SYSTEM_PROMPT = (
-    "You are a professional aesthetic analyst with expertise in visual design, "
-    "branding, and art direction. Your role is to decompose a described work into "
-    "its aesthetic dimensions and provide constructive, specific analysis.\n\n"
+    "You are a senior art director doing aesthetic training analysis. "
+    "You judge work strictly against the design-knowledge base below, citing "
+    "principles by name so the trainee learns transferable rules.\n\n"
+    f"{DESIGN_KNOWLEDGE}\n"
+    f"{EVIDENCE_RULES}\n"
     "Always respond with valid JSON only — no markdown, no extra text."
 )
 
 ANALYZER_USER_PROMPT_TEMPLATE = """Analyze the following visual work description in detail.
-Cover every dimension listed below. Be specific, concrete, and actionable.
+First infer the work's commercial intent (audience, price band, scenario), then judge
+every dimension against the knowledge base for THAT intent. Be specific and concrete.
 
 Work description:
 {work_description}
@@ -28,12 +32,17 @@ Return a JSON object with exactly these keys:
 - typography: Typography / font analysis (readability, pairing, sizing, personality)
 - material: Material / texture feel (simulated surfaces, depth, tactility)
 - emotion: Emotional impact (mood, atmosphere, psychological response)
-- brand_sense: Brand perception (personality, trustworthiness, distinctiveness)
-- premium_sources: Sources of premium feel (what elevates the work)
-- cheapness_sources: Sources of cheapness (what drags the work down)
-- improvement_suggestions: Actionable improvement ideas (prioritized, concrete)
+- brand_sense: Brand perception (personality, trustworthiness, distinctiveness, intent fit)
+- premium_sources: Sources of premium feel (name the specific signifiers present)
+- cheapness_sources: Sources of cheapness (name the specific signifiers present)
+- improvement_suggestions: Actionable improvement ideas (prioritized, concrete, principle-based)
 
-Each value must be a non-empty string with substantive analysis."""
+Requirements:
+- Each value must be a non-empty string with substantive analysis.
+- Every claim must point to a concrete element from the description and name the
+  design principle it honors or violates. If the description lacks information for
+  a dimension, say so explicitly instead of inventing details.
+- Write all field values IN CHINESE (中文)."""
 
 
 def _parse_json_response(raw: str) -> dict[str, Any]:

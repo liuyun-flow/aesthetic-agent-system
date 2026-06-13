@@ -1,7 +1,22 @@
 # Session Handoff — 2026-06-12
 
 ## Last Completed
-- **V2.2.0: 工作台体验优化 + 评估图表 — 212 tests passed，前端经 Docker build 验证**
+- **V2.2.1: Agent 审美内核强化 — 212 tests passed**
+- V2.2.0: 工作台体验优化 + 评估图表（已发布 GitHub Release v2.2.0）
+
+---
+
+## V2.2.1 交付（Agent 审美内核）
+
+**诊断**：四个审美 Agent 的 prompt 只有角色设定（"你是专业评论家"），没有真实设计知识、评分锚点、证据纪律 → 输出空泛、评分挤在 6.5-8。
+
+**交付**：
+1. `app/agents/design_knowledge.py` — 共享知识库（意图优先评判 / 字体 / 色彩 / 版式 / 材质 / 高级感与廉价感信号清单）+ 评分五档锚点 + 反通胀五规则 + 证据规则
+2. analyzer / critic / iterator / reference_comparator 系统提示词全部注入知识库；analyzer/critic 强制中文输出
+3. `main.py get_critic`（和 orchestrator）改用推理模型
+4. 版本 v2.2.1，212 tests passed
+
+**下一步（已与用户讨论的 Phase 2）**：把案例库接入 analyze/critique（取 top N training-ready 案例的 premium/cheapness/learn_from_this 注入 prompt），需同步更新 test mock 签名。
 
 ---
 

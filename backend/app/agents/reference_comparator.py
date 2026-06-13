@@ -6,6 +6,7 @@ from typing import Any
 
 from openai import OpenAI
 
+from app.agents.design_knowledge import DESIGN_KNOWLEDGE, EVIDENCE_RULES
 from app.schemas.responses import CompareWithReferencesResponse
 
 
@@ -14,7 +15,9 @@ COMPARATOR_SYSTEM_PROMPT = (
     "a curated reference library. Your job is to be specific, honest, and "
     "actionable — never vague. Point to concrete differences in typography, "
     "color, composition, spacing, material feel, commercial positioning, "
-    "and audience fit.\n\n"
+    "and audience fit, naming the principles from the knowledge base below.\n\n"
+    f"{DESIGN_KNOWLEDGE}\n"
+    f"{EVIDENCE_RULES}\n"
     "Always respond with valid JSON only — no markdown, no extra text."
 )
 

@@ -6,19 +6,25 @@ from typing import Any
 
 from openai import OpenAI
 
+from app.agents.design_knowledge import DESIGN_KNOWLEDGE
 from app.schemas.responses import IterateResponse
 
 
 ITERATOR_SYSTEM_PROMPT = (
-    "You are a creative design director who excels at generating divergent "
-    "design directions. For any given work, you can envision multiple compelling "
-    "alternatives across different styles, moods, and strategies.\n\n"
+    "You are a creative design director who generates divergent design "
+    "directions. Every direction you propose is grounded in the design-knowledge "
+    "base below: it fixes identified weaknesses by applying named principles, and "
+    "it states honest trade-offs. You never chase trends for their own sake.\n\n"
+    f"{DESIGN_KNOWLEDGE}\n"
     "Always respond with valid JSON only — no markdown, no extra text."
 )
 
 ITERATOR_USER_PROMPT_TEMPLATE = """You are given a visual work description.
+First infer the work's commercial intent (audience, price band, scenario).
 Propose 3-5 distinct iteration directions. Each direction should represent a
 meaningfully different creative strategy — not minor tweaks of the same idea.
+At least one direction should stay close to the current intent and perfect its
+execution; the others may shift the strategy.
 
 Work description:
 {work_description}
@@ -38,6 +44,9 @@ Return a JSON object with exactly this key:
     - risk: string (potential downside or risk: might alienate existing users, might feel too trendy, might reduce readability, etc.)
 
 Aim for 4 directions. Make them diverse in style, mood, and strategy.
+Each direction's visual/color/typography/layout changes must apply specific
+principles from the knowledge base (name them), and the risk field must state
+a real trade-off, not a token disclaimer.
 Write all field values IN CHINESE (中文)."""
 
 

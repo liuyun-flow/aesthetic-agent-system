@@ -656,7 +656,7 @@ class TestHealthEndpoint:
         data = resp.json()
         assert data["status"] == "ok"
         assert data["service"] == "backend"
-        assert data["version"] == "v2.2.0"
+        assert data["version"] == "v2.2.1"
 
 
 class TestDeepSeekClient:
@@ -1601,7 +1601,7 @@ class TestSystemStatus:
 
     def test_version_is_v2_1_1(self, client):
         resp = client.get("/system/status")
-        assert resp.json()["version"] == "v2.2.0"
+        assert resp.json()["version"] == "v2.2.1"
 
     def test_deepseek_has_configured_flag(self, client):
         resp = client.get("/system/status")
@@ -2120,7 +2120,7 @@ class TestEmbeddings:
         data = resp.json()
         assert "embedding" in data
         assert "configured" in data["embedding"]
-        assert data["version"] == "v2.2.0"
+        assert data["version"] == "v2.2.1"
 
 
 class TestCompareWithSemanticFallback:

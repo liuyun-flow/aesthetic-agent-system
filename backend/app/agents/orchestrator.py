@@ -20,7 +20,10 @@ class OrchestratorAgent:
 
     def __init__(self, client: OpenAI, model: str, reasoning_model: str) -> None:
         self.analyzer = AnalyzerAgent(client=client, model=model)
-        self.critic = CriticAgent(client=client, model=model)
+        # Scoring is the most judgment-heavy task — give it the reasoning model
+        # so rubric calibration actually holds (latency is covered by the V2.2
+        # progress UI + client timeout).
+        self.critic = CriticAgent(client=client, model=reasoning_model)
         self.iterator = IteratorAgent(client=client, model=model)
         self.profile = ProfileAgent(client=client, model=reasoning_model)
         self.comparator = ComparatorAgent(client=client, model=reasoning_model)

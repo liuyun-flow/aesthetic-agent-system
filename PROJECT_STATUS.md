@@ -1,7 +1,7 @@
-# Project Status — V2.2.0
+# Project Status — V2.2.1
 
 ## Current Version
-**V2.2.0** — 工作台体验优化 + 评估图表：分阶段进度反馈 / 可取消请求 / 再练一次 / 粘贴上传 / 自动描述 / 折叠面板 / 雷达图
+**V2.2.1** — Agent 审美内核强化：共享设计知识库 / 评分锚点+反通胀 / 证据规则 / critique 推理模型
 
 ---
 
@@ -31,7 +31,8 @@
 | V2.1.1 | 候选 | 版本同步 / 启动脚本健壮性 / 旧 DB 迁移提示 |
 | **V2.1.2** | **热修复** | Windows start.bat 纯 CMD 重写 / chunk 缓存自动恢复 / Help 内容刷新 |
 | V2.1.3 | 发布包 | .dockerignore / 部署指南 / 发布清单 / .gitignore 加固 / README 第一屏重写 |
-| **V2.2.0** | **体验优化+图表** | 分阶段进度+取消 / 再练一次 / 粘贴拖拽上传+自动描述 / 折叠面板 / Ctrl+Enter / 雷达图+差距图 / DeepSeek 超时 |
+| V2.2.0 | 体验优化+图表 | 分阶段进度+取消 / 再练一次 / 粘贴拖拽上传+自动描述 / 折叠面板 / Ctrl+Enter / 雷达图+差距图 / DeepSeek 超时 |
+| **V2.2.1** | **Agent审美内核** | design_knowledge.py 知识库 / 评分五档锚点+反通胀 / 证据规则 / 四 Agent 注入 / critique→推理模型 / 强制中文 |
 
 ---
 
@@ -130,7 +131,33 @@
 
 ---
 
-## V2.2.0 变更（本次）
+## V2.2.1 变更（本次）
+
+V2.2.1 是 Agent 审美内核强化版。诊断：智能体的 prompt 只有"你是专业评论家"的角色设定，没有任何真实设计知识、评分锚点和证据纪律，导致输出空泛、评分集中在 6.5-8 的舒适区。
+
+| 类别 | 变更 |
+|------|------|
+| 设计知识库 | **New** `app/agents/design_knowledge.py` — 意图优先评判 / 字体 / 色彩 / 版式 / 材质 / 高级感与廉价感信号，全部为可证伪准则 |
+| 评分校准 | 五档锚点（9-10 一线作品集 / 7-8 专业 / 5-6 合格平庸 / 3-4 结构性返工 / 1-2 传达失败）+ 反通胀五规则 |
+| 证据规则 | 判断必须引用描述中的具体元素 + 点名原则；禁止空话和编造 |
+| Agent 注入 | analyzer / critic / iterator / reference_comparator 系统提示词全部携带知识库 |
+| 模型分配 | get_critic 改用推理模型（评分最重判断；延迟由进度 UI + 超时兜底） |
+| 输出语言 | analyzer / critic 强制中文输出（此前仅 iterator 有此要求） |
+| 版本号 | main.py / data_io.py / tests → v2.2.1 |
+
+### 修改的文件（V2.2.1）
+| File | Change |
+|------|--------|
+| `backend/app/agents/design_knowledge.py` | **New** — DESIGN_KNOWLEDGE / SCORING_RUBRIC / EVIDENCE_RULES |
+| `backend/app/agents/analyzer.py` | 知识库注入 + 意图优先 + 证据规则 + 中文输出 |
+| `backend/app/agents/critic.py` | 知识库 + 评分锚点 + 反通胀 + 中文输出 |
+| `backend/app/agents/iterator.py` | 知识库注入 + 原则化方向 + 真实取舍 risk |
+| `backend/app/agents/reference_comparator.py` | 知识库 + 证据规则注入 |
+| `backend/app/agents/orchestrator.py` `main.py get_critic` | critic → 推理模型 |
+
+---
+
+## V2.2.0 变更（前一个版本）
 
 V2.2.0 是工作台体验优化版：聚焦用户友好度、便捷性和训练有效性，不改后端业务逻辑（仅加 LLM 客户端超时）。
 
