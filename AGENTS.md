@@ -29,7 +29,7 @@ aesthetic-agent-system/
 - Python 3.11+, TypeScript strict
 - Backend: 127.0.0.1 (not localhost) for all internal calls
 - Frontend: Chinese UI only; i18n keys sync en.ts ⇔ zh.ts
-- Tests: 212 pytest (mock agents, no API key needed for tests)
+- Tests: 216 pytest (mock agents, no API key needed for tests)
 - DB: SQLite, auto-migration on startup, delete aesthetic.db to reset
 
 ## DO NOT

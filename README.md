@@ -4,7 +4,7 @@ AI-assisted aesthetic judgment training.
 Train your eye, not just generate pretty output.  
 AI 辅助审美判断力训练。训练你的眼力，而不只是生成好看的输出。
 
-**当前版本：V2.1.3** | 测试：212 passed | [部署指南](docs/LOCAL_DEPLOYMENT.md) | [升级指南](docs/UPGRADE.md) | [变更日志](docs/CHANGELOG.md) | [发布说明](docs/RELEASE_NOTES.md) | [路线图](ROADMAP.md)
+最新版本见 [Releases](https://github.com/liuyun-flow/aesthetic-agent-system/releases) 与 [变更日志](docs/CHANGELOG.md)。 | [部署指南](docs/LOCAL_DEPLOYMENT.md) | [升级指南](docs/UPGRADE.md) | [发布说明](docs/RELEASE_NOTES.md) | [路线图](ROADMAP.md)
 
 ---
 
@@ -129,6 +129,9 @@ npm run dev                      # http://127.0.0.1:3000
 | V2.1.1 | Stability fixes: version sync (preflight uses app.version), doc accuracy, backup reminders |
 | V2.1.2 | Hotfix: Windows start.bat pure CMD rewrite, chunk cache auto-recovery, Help content refresh |
 | V2.1.3 | Local release packaging: deployment guide, release checklist, .dockerignore, data dir hardening |
+| V2.2 | UX pass: staged AI progress + cancel, collapsible workbench, practice-again, paste/drag upload, assessment charts |
+| V2.2.1 | Agent aesthetic core: shared design-knowledge base, calibrated scoring rubric, evidence rules |
+| V2.3 | One-click add-to-library (prefill + confirm), description completeness meter + guided fill, vision commercial inference |
 
 ### API Endpoints
 
@@ -454,6 +457,9 @@ chmod +x scripts/start.sh
 | V2.1.1 | 稳定性修复：版本同步、文档准确性、备份提醒 |
 | V2.1.2 | 热修复：Windows start.bat 纯 CMD 重写、chunk 缓存恢复、Help 刷新 |
 | V2.1.3 | 本地发布包：部署指南、发布清单、.dockerignore、数据目录加固 |
+| V2.2 | 体验优化：分阶段进度+取消、折叠工作台、再练一次、粘贴/拖拽上传、评估图表 |
+| V2.2.1 | Agent 审美内核：共享设计知识库、评分锚点+反通胀、证据规则 |
+| V2.3 | 一键收入案例库（预填+确认）、描述完整度进度条+引导式补全、Vision 商业推测 |
 
 ### API 端点
 
