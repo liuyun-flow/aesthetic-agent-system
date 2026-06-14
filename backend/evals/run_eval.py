@@ -140,15 +140,28 @@ def _build_critic():
     return CriticAgent(client=client, model=get_reasoning_model()), get_reasoning_model()
 
 
-def _score(critic, description: str) -> float:
-    """Return the critic's total_score (1-10) for a description."""
-    result = critic.run(description)
-    return float(result.total_score)
+def _score(critic, description: str, repeat: int = 1) -> float:
+    """Return the critic's total_score (1-10), averaged over `repeat` runs.
+
+    Scores at temperature 0 for reproducibility; averaging further damps any
+    residual non-determinism so calibration deltas reflect prompt changes, not noise.
+    """
+    vals = [float(critic.run(description, temperature=0.0).total_score) for _ in range(max(1, repeat))]
+    return sum(vals) / len(vals)
+
+
+def _predict_better(score_a: float, score_b: float) -> str:
+    """Which of two works the critic rates higher: 'a', 'b', or 'tie'."""
+    if score_a > score_b:
+        return "a"
+    if score_b > score_a:
+        return "b"
+    return "tie"
 
 
 # ── Eval run ───────────────────────────────────────────────────────────────
 
-def run(dry_run: bool = False, limit: int | None = None) -> int:
+def run(dry_run: bool = False, limit: int | None = None, repeat: int = 1) -> int:
     items = _load_jsonl(_GOLD_DIR / "items.jsonl")
     pairs = _load_jsonl(_GOLD_DIR / "pairs.jsonl")
 
@@ -191,7 +204,7 @@ def run(dry_run: bool = False, limit: int | None = None) -> int:
     def cached_score(desc: str) -> float | None:
         if desc not in score_cache:
             try:
-                score_cache[desc] = _score(critic, desc)
+                score_cache[desc] = _score(critic, desc, repeat=repeat)
             except Exception as exc:  # one bad call must not kill the run
                 print(f"  ! scoring error: {exc}")
                 return None
@@ -231,7 +244,7 @@ def run(dry_run: bool = False, limit: int | None = None) -> int:
         if sa is None or sb is None:
             continue
         counted += 1
-        predicted = "a" if sa > sb else "b" if sb > sa else "tie"
+        predicted = _predict_better(sa, sb)
         ok = predicted == r["better"]
         correct += 1 if ok else 0
         pair_detail.append({
@@ -290,8 +303,10 @@ def main() -> int:
                     help="Validate gold files only; do not call any model")
     ap.add_argument("--limit", type=int, default=None,
                     help="Score only the first N items and pairs (cheap smoke run)")
+    ap.add_argument("--repeat", type=int, default=1,
+                    help="Average each score over N runs to damp residual noise")
     args = ap.parse_args()
-    return run(dry_run=args.dry_run, limit=args.limit)
+    return run(dry_run=args.dry_run, limit=args.limit, repeat=args.repeat)
 
 
 if __name__ == "__main__":

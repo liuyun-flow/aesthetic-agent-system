@@ -18,6 +18,7 @@ interface AssessmentOverview {
   score_gap_trend: string;
   summary: string;
   next_focus: string[];
+  recent_quality_series: number[];
 }
 
 interface MistakePattern {
@@ -163,8 +164,9 @@ function RadarChart({ dims }: { dims: DimensionAssessment[] }) {
 
   return (
     <div className="rounded border bg-white p-4 shadow-sm">
-      <h4 className="text-sm font-semibold text-gray-700 mb-1">能力雷达图</h4>
-      <svg viewBox="0 0 320 300" className="mx-auto w-full max-w-sm" role="img" aria-label="能力维度雷达图">
+      <h4 className="text-sm font-semibold text-gray-700 mb-1">作品维度评分（雷达图）</h4>
+      <p className="text-xs text-gray-400 mb-1">你训练作品在各维度的平均质量（AI 评分），非你的判断力分数</p>
+      <svg viewBox="0 0 320 300" className="mx-auto w-full max-w-sm" role="img" aria-label="作品维度评分雷达图">
         {/* Grid rings at 25/50/75/100 */}
         {[0.25, 0.5, 0.75, 1].map((f) => (
           <polygon key={f} points={ring(f)} fill="none" stroke="#e5e7eb" strokeWidth="1" />
@@ -226,6 +228,42 @@ function GapBars({ overview }: { overview: AssessmentOverview }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** Work-quality over time — line of recent ai_overall_score values (0-100). */
+function QualityTrend({ series }: { series: number[] }) {
+  if (!series || series.length < 2) return null;
+
+  const W = 300, H = 120, padX = 10, padY = 14;
+  const n = series.length;
+  const maxV = 100, minV = 0;
+  const x = (i: number) => padX + (i * (W - 2 * padX)) / (n - 1);
+  const y = (v: number) => padY + (1 - (v - minV) / (maxV - minV)) * (H - 2 * padY);
+  const points = series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const last = series[n - 1];
+  const first = series[0];
+  const delta = last - first;
+
+  return (
+    <div className="rounded border bg-white p-4 shadow-sm">
+      <h4 className="text-sm font-semibold text-gray-700 mb-1">作品质量趋势</h4>
+      <p className="text-xs text-gray-400 mb-2">
+        最近 {n} 次评分作品的 AI 总分（0-100）·
+        <span className={delta >= 0 ? "text-green-600" : "text-red-600"}>
+          {" "}{delta >= 0 ? "↑" : "↓"} {Math.abs(delta)}
+        </span>
+      </p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="作品质量趋势折线图">
+        {[25, 50, 75].map((g) => (
+          <line key={g} x1={padX} y1={y(g)} x2={W - padX} y2={y(g)} stroke="#f3f4f6" strokeWidth="1" />
+        ))}
+        <polyline points={points} fill="none" stroke="#6366f1" strokeWidth="2" />
+        {series.map((v, i) => (
+          <circle key={i} cx={x(i)} cy={y(v)} r="2.5" fill="#6366f1" />
+        ))}
+      </svg>
     </div>
   );
 }
@@ -378,6 +416,9 @@ export default function AssessmentPage() {
         <RadarChart dims={dimensions} />
         <GapBars overview={overview} />
       </div>
+      {(overview.recent_quality_series ?? []).length >= 2 && (
+        <QualityTrend series={overview.recent_quality_series} />
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 border-b">
@@ -391,7 +432,7 @@ export default function AssessmentPage() {
                 : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
             }`}
           >
-            {t === "mistakes" ? "常见误判" : t === "dimensions" ? "能力维度" : "周期复盘"}
+            {t === "mistakes" ? "常见误判" : t === "dimensions" ? "作品维度" : "周期复盘"}
           </button>
         ))}
       </div>
@@ -399,6 +440,9 @@ export default function AssessmentPage() {
       {/* Tab: Mistakes */}
       {tab === "mistakes" && (
         <div className="space-y-3">
+          <p className="text-xs text-gray-400">
+            ⚙️ 误判检测基于关键词启发式规则（非语义分析），仅供参考方向，不是精确诊断。
+          </p>
           {mistakes.length === 0 ? (
             <p className="text-xs text-green-600 bg-green-50 border border-green-200 rounded p-4">
               未发现明显的误判模式，你的判断比较均衡。
@@ -426,6 +470,10 @@ export default function AssessmentPage() {
       {/* Tab: Dimensions */}
       {tab === "dimensions" && (
         <div className="space-y-3">
+          <p className="text-xs text-gray-400">
+            这些分数是 AI 对你训练作品在各维度的<b>平均质量评分</b>（0-100），反映你练习作品的水平与趋势，
+            而非直接衡量你的判断力。判断力差距见上方「平均判断差距」与差距趋势。
+          </p>
           {dimensions.map((d) => (
             <div key={d.dimension_key} className="rounded border bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between mb-2">

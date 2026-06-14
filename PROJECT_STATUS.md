@@ -1,7 +1,7 @@
-# Project Status — V2.4.0
+# Project Status — V2.4.1
 
 ## Current Version
-**V2.4.0** — 信任度量：评测/校准台 + 存储真实维度分 + 维度评估聚合（8 维）+ 可选 Vision 直评
+**V2.4.1** — 信任度量复审收尾：诚实表述（作品质量≠判断力）+ 评测台单测（19）+ 作品质量趋势 + 评测可复现 + 误判启发式标注
 
 ---
 
@@ -34,11 +34,45 @@
 | V2.2.0 | 体验优化+图表 | 分阶段进度+取消 / 再练一次 / 粘贴拖拽上传+自动描述 / 折叠面板 / Ctrl+Enter / 雷达图+差距图 / DeepSeek 超时 |
 | V2.2.1 | Agent审美内核 | design_knowledge.py 知识库 / 评分五档锚点+反通胀 / 证据规则 / 四 Agent 注入 / critique→推理模型 / 强制中文 |
 | V2.3.0 | 一键收藏+描述补全 | 一键收入案例库（session→draft+等级推导）/ image_id 链接 / Vision 商业推测字段 / 描述完整度进度条 / 引导式补全 |
-| **V2.4.0** | **信任度量** | 评测/校准台（backend/evals）/ 存储真实维度分+迁移 / 维度评估聚合 8 维 / critic 扩 8 维 / 可选 Vision 直评 / PROMPT_VERSION |
+| V2.4.0 | 信任度量 | 评测/校准台（backend/evals）/ 存储真实维度分+迁移 / 维度评估聚合 8 维 / critic 扩 8 维 / 可选 Vision 直评 / PROMPT_VERSION |
+| **V2.4.1** | **复审收尾** | 诚实表述（作品质量≠判断力）/ 评测台 19 单测 / 作品质量趋势（读 ai_overall_score）/ 评测可复现（temp0+repeat）/ 误判启发式标注 / 代理文档 |
 
 ---
 
-## V2.4.0 变更（本次）
+## V2.4.1 变更（本次）
+
+V2.4.1 来自 V2.4.0 后的全面复审，落实其中可在本环境验证的必做项与建议项。
+
+| 类别 | 变更 |
+|------|------|
+| 诚实表述（M-2，必做） | `/assessment` 维度评分标注为"作品质量"而非"判断力"：标签改「作品维度」、雷达图标题+说明、维度/误判 Tab 加澄清注释 |
+| 评测台自测（M-3，必做） | **New** `app/tests/test_evals.py`（19）：Spearman/分级排名/Pearson/成对预测/金标准校验 |
+| 作品质量趋势（R-2） | overview +`recent_quality_series`（读取此前只写不读的 ai_overall_score）；`/assessment` 纯 SVG 折线 |
+| 评测可复现（R-3） | CriticAgent.run +temperature；run_eval temperature=0 + `--repeat N` 求均值 |
+| 误判启发式标注（R-5） | 误判 Tab 注明关键词启发式、非精确诊断 |
+| 代理文档（R-8） | AGENTS.md 记录浮动端口 + gh env 覆盖 |
+| 版本号 | main.py / data_io.py / tests → v2.4.1 |
+
+### 复审中暂未做（需 key/Node/运行时验证）
+- M-1 真实校准基线（需真实 key + 真实金标准样本；harness/determinism/单测已就绪）
+- R-1 前端测试套件 + Playwright E2E（本机无 Node，前端走 Docker 构建，无法本地验证）
+- R-4 Vision 直评校准（需 key） · R-6 运行时 API base URL（需全栈运行时验证，散落多组件，盲改风险高） · R-7 成本/延迟遥测（需真实调用验证）
+
+### 修改的文件（V2.4.1）
+| File | Change |
+|------|--------|
+| `backend/app/agents/critic.py` | CriticAgent.run +temperature 参数 |
+| `backend/app/services/assessment.py` | compute_overview +recent_quality_series（读 ai_overall_score） |
+| `backend/app/schemas/responses.py` | AssessmentOverview +recent_quality_series |
+| `backend/evals/run_eval.py` | temp0 评分 + `--repeat` + 抽出 _predict_better |
+| `backend/app/tests/test_evals.py` | **New** — 19 评测台单测 |
+| `frontend/src/app/assessment/page.tsx` | 诚实标签/注释 + QualityTrend 折线 + 误判启发式注 |
+| `AGENTS.md` | 测试数 239 + 代理说明 |
+| `backend/app/main.py` `data_io.py` `tests` | version → v2.4.1 |
+
+---
+
+## V2.4.0 变更（前一个版本）
 
 V2.4.0 是「信任度量」版：让"测量你的审美进步"真正可信。详见 [docs/V2.4_PLAN.md](docs/V2.4_PLAN.md)。
 

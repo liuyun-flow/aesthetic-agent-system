@@ -29,8 +29,12 @@ aesthetic-agent-system/
 - Python 3.11+, TypeScript strict
 - Backend: 127.0.0.1 (not localhost) for all internal calls
 - Frontend: Chinese UI only; i18n keys sync en.ts ⇔ zh.ts
-- Tests: 220 pytest (mock agents, no API key needed for tests)
+- Tests: 239 pytest (mock agents, no API key needed for tests)
 - DB: SQLite, auto-migration on startup, delete aesthetic.db to reset
+- Dev proxy (push/release only; never in repo, end users need none): git uses the
+  global proxy config. The port floats with the proxy client — pin it to a fixed
+  port to avoid breakage. `gh` obeys `HTTP_PROXY`/`HTTPS_PROXY`; if the env port is
+  stale, override per command, e.g. `HTTPS_PROXY=http://127.0.0.1:<live-port> gh ...`
 
 ## DO NOT
 - Expose API keys to frontend or logs

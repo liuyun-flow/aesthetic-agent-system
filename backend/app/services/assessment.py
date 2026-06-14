@@ -13,7 +13,7 @@ Key design notes:
 """
 
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -259,9 +259,16 @@ def compute_overview(db: Session) -> dict[str, Any]:
         summary = "你的判断差距保持稳定。进入高原期是正常的，建议通过针对性训练突破。"
         next_focus = ["针对性训练弱点维度", "增加案例库中高/低对比案例"]
 
+    # V2.4 follow-up: chronological work-quality series from stored ai_overall_score
+    # (oldest → newest, last 20). Gives the previously write-only column a read path.
+    quality_scored = [r for r in all_records if getattr(r, "ai_overall_score", None) is not None]
+    quality_scored.sort(key=lambda r: r.created_at or datetime.min)
+    recent_quality_series = [int(r.ai_overall_score) for r in quality_scored[-20:]]
+
     return {
         "total_sessions": total,
         "valid_scored_sessions": len(scored),
+        "recent_quality_series": recent_quality_series,
         "completed_sessions": completed,
         "sessions_last_7_days": len(records_7),
         "sessions_last_30_days": len(records_30),

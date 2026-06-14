@@ -1,7 +1,8 @@
 # Session Handoff — 2026-06-14
 
 ## Last Completed
-- **V2.4.0: 信任度量 — 220 tests passed**（评测台 + 存储真实维度分 + 维度聚合 8 维 + 可选 Vision 直评）。仅后端改动，无前端改动。
+- **V2.4.1: 信任度量复审收尾 — 239 tests passed**（诚实表述 + 评测台 19 单测 + 作品质量趋势 + 评测可复现 + 误判启发式标注）。前端经 Docker build 验证。
+- V2.4.0: 信任度量（评测台 + 存储真实维度分 + 维度聚合 8 维 + 可选 Vision 直评）
 - V2.3.0: 一键收入案例库 + 描述质量优化（已发布 Release v2.3.0）
 - V2.2.1 / V2.2.0：Agent 审美内核 / 工作台体验（已发布）
 
@@ -115,8 +116,9 @@ V2.3.0 发布后，本会话主要是**文档同步 + 演进路线规划**，无
 - 修复本机 git 代理（见已知问题 #1）
 - **确认演进路线 V2.4 → V2.7**（详见 [ROADMAP.md](../ROADMAP.md) 顶部「计划中」）
 
-## Next Session — V2.4 已完成，下一站 V2.5（已批准，待启动）
-- **先做的事**：用真实 key 跑一次评测台基线 `cd backend && python -m evals.run_eval`，记录 baseline 报告；用真实样本替换 `backend/evals/gold/*.jsonl` 的合成脚手架。
+## Next Session — V2.4.x 已完成，下一站 V2.5（已批准，待启动）
+- **先做的事**：用真实 key 跑一次评测台基线 `cd backend && python -m evals.run_eval`（现已 temp0 可复现，可加 `--repeat 3`），记录 baseline 报告；用真实样本替换 `backend/evals/gold/*.jsonl` 的合成脚手架。这就是复审 **M-1**。
+- **复审遗留（需相应环境）**：R-1 前端测试套件+E2E（需 Node 环境）· R-4 Vision 直评校准（需 key）· R-6 运行时 API base URL（需全栈运行时验证；散落 ~6 组件，盲改风险高）· R-7 成本/延迟遥测（需真实调用验证）。
 - **V2.5 闭环**：①首次运行预置案例库（版权/来源注意，考虑纯文本种子，须过 V1.9 完整度门槛）；②top-N 案例注入 analyze/critique grounding（**会改变评分，改前后必跑评测台对比**）；③结构化课程替代静态主题 + assessment 推荐连向下一练习。
 - 之后：V2.6 质量（前端测试/评测进 CI/缓存/遥测） · V2.7 触达（运行时 API URL / 桌面打包；**API key 才是触达真门槛**）。
 - 关键坑（已走查）：grounding 会使校准失效需重跑评测台；种子案例版权；Python 桌面打包工程量大。

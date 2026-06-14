@@ -14,6 +14,15 @@
 
 备选方向（未选，见会话记录）：集成优先（Figma/浏览器扩展）、社区网络、垂直深耕、移动端、引擎 API 化。
 
+## ✅ V2.4.1 — 信任度量复审收尾
+- 诚实表述：`/assessment` 维度评分标注为「作品质量」而非「判断力」
+- 评测台单测（19）：Spearman/分级排名/Pearson/成对预测/金标准校验
+- 作品质量趋势折线（读取 ai_overall_score）
+- 评测可复现（temperature=0 + --repeat 求均值）
+- 误判 Tab 标注启发式 + AGENTS 代理文档
+- 239 tests passed
+- 复审遗留（需 key/Node/运行时）：M-1 真实校准基线 · R-1 前端测试 · R-4 Vision 直评校准 · R-6 运行时 API URL · R-7 遥测
+
 ## ✅ V2.4.0 — 信任度量（evaluation integrity）
 - 评测/校准台 `backend/evals/`（dev-only）：金标准（成对 + 分档，合成脚手架待替换）+ 成对判对率 / Spearman / 分档单调性 + PROMPT_VERSION 钉死 + `--dry-run`
 - 存储真实维度分：training_records +ai_dimension_scores/ai_overall_score/eval_prompt_version（_migrate_v2_4）；critique 保存 critic 8 维分，无额外 LLM

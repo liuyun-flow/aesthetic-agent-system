@@ -70,6 +70,7 @@ class CriticAgent:
         self,
         work_description: str,
         image_description: str | None = None,
+        temperature: float | None = None,
     ) -> CritiqueResponse:
         image_block = ""
         if image_description:
@@ -89,7 +90,8 @@ class CriticAgent:
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
-            temperature=0.3,
+            # Default 0.3 for product use; eval harness passes 0.0 for reproducibility.
+            temperature=0.3 if temperature is None else temperature,
         )
 
         raw = completion.choices[0].message.content or ""

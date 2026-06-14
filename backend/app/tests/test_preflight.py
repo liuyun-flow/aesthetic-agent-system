@@ -54,7 +54,7 @@ class TestPreflight:
 
     def test_preflight_version_is_v2_1_1(self, client):
         resp = client.get("/system/preflight")
-        assert resp.json()["version"] == "v2.4.0"
+        assert resp.json()["version"] == "v2.4.1"
 
     def test_preflight_no_api_key_exposed(self, client):
         resp = client.get("/system/preflight")

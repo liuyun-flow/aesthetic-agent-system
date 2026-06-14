@@ -356,6 +356,9 @@ class AssessmentOverview(BaseModel):
     score_gap_trend: str = "insufficient_data"  # improving/stable/worsening/insufficient_data
     summary: str = ""
     next_focus: list[str] = Field(default_factory=list)
+    # V2.4 follow-up: chronological AI work-quality scores (0-100) from stored
+    # ai_overall_score on critique records — powers a trend line on /assessment.
+    recent_quality_series: list[int] = Field(default_factory=list)
 
 
 class MistakePattern(BaseModel):

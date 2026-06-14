@@ -1,5 +1,17 @@
 # Changelog
 
+## V2.4.1 (2026-06-14)
+- 信任度量收尾 —— 来自 V2.4.0 后的全面复审（必做 + 建议项）
+- **诚实表述（必做）**：`/assessment` 维度评分明确标注为"作品质量评分"而非"判断力分数"——重命名标签（作品维度）、雷达图标题+说明、维度/误判两个 Tab 加澄清注释
+- **评测台自测（必做）**：新增 `app/tests/test_evals.py`，19 个确定性测试覆盖 Spearman/分级排名/Pearson/成对预测/金标准校验——"尺子"本身现在有测试保障
+- **作品质量趋势（建议）**：overview 新增 `recent_quality_series`（读取此前只写不读的 `ai_overall_score`），`/assessment` 渲染纯 SVG 折线
+- **评测可复现（建议）**：critic 评分支持 temperature 参数，评测台以 temperature=0 评分 + `--repeat N` 求均值降噪
+- **误判启发式标注（建议）**：误判 Tab 标明基于关键词启发式规则，非精确诊断
+- **开发者代理说明（建议）**：AGENTS.md 记录浮动端口 + `gh` env 覆盖法
+- 版本号同步 v2.4.0 → v2.4.1
+- 239 tests passed（+19 评测台单测）
+- 未做（需 key/Node/运行时，已记录）：真实校准基线（M-1）、前端测试套件+E2E（R-1）、Vision 直评校准（R-4）、运行时 API base URL（R-6）、成本/延迟遥测（R-7）
+
 ## V2.4.0 (2026-06-14)
 - 信任度量（evaluation integrity）—— 让"测量你的审美进步"真正可信
 - **评测/校准台**（`backend/evals/`，dev-only，不进镜像）：金标准集（成对 + 分档，当前为合成脚手架待替换）、`run_eval.py` 计算成对判对率 + Spearman 排序相关性 + 分档均值/单调性，`PROMPT_VERSION` 钉死便于发现回归；`--dry-run` 无 key 校验
