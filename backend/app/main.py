@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="2.2.1",
+    version="2.3.0",
     lifespan=lifespan,
 )
 
@@ -427,7 +427,7 @@ def analyze(
 
     # ── Optional judgment gap (V1.1) ──────────────────────────────
     gap, j_kwargs = _process_user_judgment(request, result, comparator)
-    _save_record(db, "analyze", request.work_description, result, **j_kwargs)
+    _save_record(db, "analyze", request.work_description, result, image_id=request.image_id, **j_kwargs)
 
     if gap is not None:
         return result.model_copy(update={"judgment_gap": gap})
@@ -483,7 +483,7 @@ def critique(
         lambda: agent.run(request.work_description, image_description=image_description),
     )
     gap, j_kwargs = _process_user_judgment(request, result, comparator)
-    _save_record(db, "critique", request.work_description, result, **j_kwargs)
+    _save_record(db, "critique", request.work_description, result, image_id=request.image_id, **j_kwargs)
 
     if gap is not None:
         return result.model_copy(update={"judgment_gap": gap})
@@ -509,7 +509,7 @@ def iterate(
         lambda: agent.run(request.work_description, image_description=image_description),
     )
     gap, j_kwargs = _process_user_judgment(request, result, comparator)
-    _save_record(db, "iterate", request.work_description, result, **j_kwargs)
+    _save_record(db, "iterate", request.work_description, result, image_id=request.image_id, **j_kwargs)
 
     if gap is not None:
         return result.model_copy(update={"judgment_gap": gap})
@@ -566,6 +566,11 @@ def get_session_detail(
     record = session_service.get_session_by_id(db, session_id)
     if record is None:
         raise HTTPException(status_code=404, detail="Session not found.")
+    image_url = None
+    if record.image_id is not None:
+        img = session_service.get_image_by_id(db, record.image_id)
+        if img is not None:
+            image_url = f"/uploads/{img.stored_filename}"
     return SessionDetailResponse(
         id=record.id,
         record_type=record.record_type,  # type: ignore[arg-type]
@@ -585,7 +590,33 @@ def get_session_detail(
         training_focus_tags=record.training_focus_tags,
         selected_direction=record.selected_direction,
         prompt_result=record.prompt_result,
+        image_id=record.image_id,
+        image_url=image_url,
     )
+
+
+@app.get("/sessions/{session_id}/case-draft", response_model=ReferenceCaseCreate)
+def session_case_draft(
+    session_id: int,
+    db: Session = Depends(get_db),
+) -> ReferenceCaseCreate:
+    """Build a reference-case draft from a session (V2.3 one-click 收入案例库).
+
+    Does NOT save — the frontend opens the case form pre-filled with this draft
+    so the user can verify the level/audience/price before saving.
+    """
+    record = session_service.get_session_by_id(db, session_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    image_description = None
+    if record.image_id is not None:
+        img = session_service.get_image_by_id(db, record.image_id)
+        if img is not None and img.ai_description:
+            image_description = img.ai_description
+
+    draft = reference_service.build_case_draft(record, image_description=image_description)
+    return ReferenceCaseCreate.model_validate(draft)
 
 
 @app.post("/upload", response_model=UploadResponse, status_code=201)

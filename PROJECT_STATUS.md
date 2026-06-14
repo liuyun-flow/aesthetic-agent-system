@@ -1,7 +1,7 @@
-# Project Status — V2.2.1
+# Project Status — V2.3.0
 
 ## Current Version
-**V2.2.1** — Agent 审美内核强化：共享设计知识库 / 评分锚点+反通胀 / 证据规则 / critique 推理模型
+**V2.3.0** — 一键收入案例库（prefill+confirm）+ 描述质量优化（Vision 商业推测 / 完整度进度条 / 引导式补全）
 
 ---
 
@@ -32,7 +32,8 @@
 | **V2.1.2** | **热修复** | Windows start.bat 纯 CMD 重写 / chunk 缓存自动恢复 / Help 内容刷新 |
 | V2.1.3 | 发布包 | .dockerignore / 部署指南 / 发布清单 / .gitignore 加固 / README 第一屏重写 |
 | V2.2.0 | 体验优化+图表 | 分阶段进度+取消 / 再练一次 / 粘贴拖拽上传+自动描述 / 折叠面板 / Ctrl+Enter / 雷达图+差距图 / DeepSeek 超时 |
-| **V2.2.1** | **Agent审美内核** | design_knowledge.py 知识库 / 评分五档锚点+反通胀 / 证据规则 / 四 Agent 注入 / critique→推理模型 / 强制中文 |
+| V2.2.1 | Agent审美内核 | design_knowledge.py 知识库 / 评分五档锚点+反通胀 / 证据规则 / 四 Agent 注入 / critique→推理模型 / 强制中文 |
+| **V2.3.0** | **一键收藏+描述补全** | 一键收入案例库（session→draft+等级推导）/ image_id 链接 / Vision 商业推测字段 / 描述完整度进度条 / 引导式补全 |
 
 ---
 
@@ -131,7 +132,47 @@
 
 ---
 
-## V2.2.1 变更（本次）
+## V2.3.0 变更（本次）
+
+V2.3.0 来自用户实测反馈：(1) 训练中遇到值得收藏的案例缺乏快捷入口；(2) 用户初始描述常不准确，自动描述也漏掉目标用户/价格带等商业信息。
+
+### 功能 1：一键收入案例库（prefill + confirm）
+| 类别 | 变更 |
+|------|------|
+| 数据模型 | training_records 新增 `image_id`（自动迁移 `_migrate_v2_3`，nullable，旧数据安全） |
+| 记录链接 | analyze/critique/iterate 保存时记录所用 image_id |
+| 草稿接口 | **New** `GET /sessions/{id}/case-draft` —— 映射会话→案例草稿（不保存）；`build_case_draft()` + `_level_from_score()`（≥75 高/45-74 中/<45 低） |
+| 会话详情 | SessionDetailResponse 新增 image_id / image_url |
+| 前端 | 训练结果区 + 历史详情弹窗「收入案例库」按钮 → 拉取草稿 → 自动展开案例库并预填表单 → 用户核对后保存；ReferencePanel 接受 prefill；CollapsibleSection 支持 forceOpen |
+
+### 功能 2：描述质量优化（Vision 推测 + 引导式补全 + 完整度）
+| 类别 | 变更 |
+|------|------|
+| Vision 字段 | VisionDescription 新增 design_category / target_audience_guess / price_band_guess / use_case（nullable） |
+| Vision 提示词 | OpenAI adapter 推测上述商业字段，信息不足返回 null 不编造；placeholder 同步示例值 |
+| 完整度进度条 | TaskForm 显示「描述完整度 X%」+ 缺失项提示（描述详实度 + 4 个商业字段） |
+| 引导式补全 | 品类/目标用户/价格带/使用场景输入框；可一键「采用」Vision 推测（标注 AI 推测）；提交时并入作品描述（【补充信息】后缀）供智能体判断 |
+
+### 修改的文件（V2.3.0）
+| File | Change |
+|------|--------|
+| `backend/app/db/models.py` | TrainingRecord +image_id |
+| `backend/app/db/database.py` | +_migrate_v2_3 |
+| `backend/app/services/session_service.py` | save_record +image_id |
+| `backend/app/services/reference_service.py` | +build_case_draft +_level_from_score |
+| `backend/app/main.py` | analyze/critique/iterate 传 image_id；session detail +image_url；+/sessions/{id}/case-draft；version 2.3.0 |
+| `backend/app/schemas/responses.py` | SessionDetailResponse +image_id/image_url；VisionDescription +4 商业字段 |
+| `backend/app/vision/openai_adapter.py` `placeholder_adapter.py` | 商业推测字段 |
+| `backend/app/tests/test_api.py` | +TestSessionCaseDraft（4 tests）；version 断言 |
+| `frontend/src/components/TaskForm.tsx` | 完整度进度条 + 引导式补全 + Vision 推测采用 |
+| `frontend/src/components/ReferencePanel.tsx` | prefill 草稿映射 + CaseDraft 导出 |
+| `frontend/src/components/SessionList.tsx` | +onAddToLibrary 按钮 + image 字段 |
+| `frontend/src/app/page.tsx` | handleAddToLibrary + casePrefill 接线 + CollapsibleSection forceOpen |
+| `frontend/src/i18n/zh.ts` `en.ts` | +addToLibrary +form 补全/完整度 +reference.prefillNotice |
+
+---
+
+## V2.2.1 变更（前一个版本）
 
 V2.2.1 是 Agent 审美内核强化版。诊断：智能体的 prompt 只有"你是专业评论家"的角色设定，没有任何真实设计知识、评分锚点和证据纪律，导致输出空泛、评分集中在 6.5-8 的舒适区。
 

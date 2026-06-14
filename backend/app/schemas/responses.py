@@ -126,6 +126,9 @@ class SessionDetailResponse(BaseModel):
     # V1.7.2: Iteration direction selection + generated prompt
     selected_direction: str | None = None
     prompt_result: dict | None = None
+    # V2.3: linked image (for one-click 收入案例库)
+    image_id: int | None = None
+    image_url: str | None = None
 
 
 # ── /upload ───────────────────────────────────────────────────────────
@@ -168,6 +171,11 @@ class VisionDescription(BaseModel):
     style_keywords: list[str] = Field(default_factory=list)
     potential_issues: list[str] = Field(default_factory=list)
     suggested_prompt_text: str = Field(default="")
+    # V2.3: commercial-context inference (AI guesses, surfaced as 推测 — never as fact)
+    design_category: str | None = None
+    target_audience_guess: str | None = None
+    price_band_guess: str | None = None
+    use_case: str | None = None
 
 
 class ImageDescribeResponse(BaseModel):

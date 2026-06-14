@@ -656,7 +656,7 @@ class TestHealthEndpoint:
         data = resp.json()
         assert data["status"] == "ok"
         assert data["service"] == "backend"
-        assert data["version"] == "v2.2.1"
+        assert data["version"] == "v2.3.0"
 
 
 class TestDeepSeekClient:
@@ -1195,6 +1195,49 @@ class TestV13BackwardCompat:
 
 # ── V1.4: Reference cases ───────────────────────────────────────────
 
+class TestSessionCaseDraft:
+    """V2.3: one-click 收入案例库 — session → reference-case draft."""
+
+    def test_level_derivation(self):
+        from app.services.reference_service import _level_from_score
+        assert _level_from_score(None) == "unknown"
+        assert _level_from_score(80) == "high"
+        assert _level_from_score(75) == "high"
+        assert _level_from_score(60) == "medium"
+        assert _level_from_score(45) == "medium"
+        assert _level_from_score(30) == "low"
+
+    def test_draft_from_critique_session(self, client):
+        client.post("/critique", json={"work_description": "A promo banner with bold red text and clip-art."})
+        sid = client.get("/sessions?limit=1").json()["sessions"][0]["id"]
+
+        resp = client.get(f"/sessions/{sid}/case-draft")
+        assert resp.status_code == 200
+        draft = resp.json()
+        # total_score 7.2 → 72 → medium
+        assert draft["score"] == 72
+        assert draft["aesthetic_level"] == "medium"
+        assert draft["title"]  # non-empty, derived from work_description
+        # critique cheapness_sources (list) joined into text
+        assert draft["cheapness_sources"]
+        assert "stock photography" in draft["cheapness_sources"].lower()
+
+    def test_draft_from_analyze_session_unknown_level(self, client):
+        client.post("/analyze", json={"work_description": "A minimalist landing page, lots of whitespace."})
+        sid = client.get("/sessions?limit=1").json()["sessions"][0]["id"]
+
+        draft = client.get(f"/sessions/{sid}/case-draft").json()
+        # analyze has no total_score and no user judgment → score None → unknown
+        assert draft["score"] is None
+        assert draft["aesthetic_level"] == "unknown"
+        # analyze premium_sources (string) carried through
+        assert draft["premium_sources"]
+
+    def test_draft_404_for_missing_session(self, client):
+        resp = client.get("/sessions/999999/case-draft")
+        assert resp.status_code == 404
+
+
 class TestReferenceCases:
     def test_create_reference_case(self, client):
         resp = client.post(
@@ -1601,7 +1644,7 @@ class TestSystemStatus:
 
     def test_version_is_v2_1_1(self, client):
         resp = client.get("/system/status")
-        assert resp.json()["version"] == "v2.2.1"
+        assert resp.json()["version"] == "v2.3.0"
 
     def test_deepseek_has_configured_flag(self, client):
         resp = client.get("/system/status")
@@ -2120,7 +2163,7 @@ class TestEmbeddings:
         data = resp.json()
         assert "embedding" in data
         assert "configured" in data["embedding"]
-        assert data["version"] == "v2.2.1"
+        assert data["version"] == "v2.3.0"
 
 
 class TestCompareWithSemanticFallback:

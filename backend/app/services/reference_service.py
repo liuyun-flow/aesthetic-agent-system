@@ -5,7 +5,77 @@ from typing import Any, Optional
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.db.models import ReferenceCase
+from app.db.models import ReferenceCase, TrainingRecord
+
+
+def _level_from_score(score: int | None) -> str:
+    """Map a 0-100 aesthetic score to a reference level."""
+    if score is None:
+        return "unknown"
+    if score >= 75:
+        return "high"
+    if score >= 45:
+        return "medium"
+    return "low"
+
+
+def _join(value: Any) -> str | None:
+    """Render a string / list-of-strings field as newline text, or None."""
+    if value is None:
+        return None
+    if isinstance(value, list):
+        items = [str(v).strip() for v in value if str(v).strip()]
+        return "\n".join(items) if items else None
+    text = str(value).strip()
+    return text or None
+
+
+def build_case_draft(
+    record: TrainingRecord,
+    image_description: str | None = None,
+) -> dict[str, Any]:
+    """Map a training session into a reference-case draft (NOT saved).
+
+    Pulls title/score/level/sources/audience/price from the session so the
+    user can bank a case in one click and just confirm. Defensive across
+    analyze / critique / iterate result shapes.
+    """
+    result = record.result_json if isinstance(record.result_json, dict) else {}
+
+    # Score: prefer the persisted ai_score (0-100); fall back to total_score (1-10).
+    score = record.ai_score
+    if score is None and result.get("total_score") is not None:
+        try:
+            score = int(round(float(result["total_score"]) * 10))
+        except (TypeError, ValueError):
+            score = None
+
+    # premium only exists on analyze; cheapness on both; learn_from on both.
+    premium = _join(result.get("premium_sources"))
+    cheapness = _join(result.get("cheapness_sources"))
+    learn = _join(result.get("improvement_suggestions")) or _join(result.get("priority_fixes"))
+
+    title = (record.work_description or "").strip().replace("\n", " ")
+    if len(title) > 40:
+        title = title[:40] + "…"
+
+    return {
+        "title": title or "未命名案例",
+        "category": None,
+        "aesthetic_level": _level_from_score(score),
+        "style_tags": None,
+        "target_audience": record.user_target_audience,
+        "price_band": record.user_price_band,
+        "image_id": record.image_id,
+        "image_description": image_description or record.work_description,
+        "ai_description": None,
+        "notes": None,
+        "score": score,
+        "premium_sources": premium,
+        "cheapness_sources": cheapness,
+        "learn_from_this": learn,
+        "avoid_copying": None,
+    }
 
 
 def create_case(db: Session, **kwargs: Any) -> ReferenceCase:

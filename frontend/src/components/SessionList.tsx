@@ -35,11 +35,14 @@ interface SessionDetail {
   training_focus_tags: string | null;
   selected_direction: string | null;
   prompt_result: Record<string, unknown> | null;
+  image_id: number | null;
+  image_url: string | null;
 }
 
 interface Props {
   refreshKey: number;
   onRetrain?: (description: string, recordType: string) => void;
+  onAddToLibrary?: (sessionId: number, imageUrl: string | null) => void;
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -110,7 +113,7 @@ function copyText(text: string): void {
   navigator.clipboard.writeText(text).catch(() => {});
 }
 
-export default function SessionList({ refreshKey, onRetrain }: Props) {
+export default function SessionList({ refreshKey, onRetrain, onAddToLibrary }: Props) {
   const { t } = useT();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
@@ -472,6 +475,21 @@ export default function SessionList({ refreshKey, onRetrain }: Props) {
                       title={t.sessions.retrainHint}
                     >
                       {t.sessions.retrain}
+                    </button>
+                  )}
+                  {onAddToLibrary && (
+                    <button
+                      onClick={() => {
+                        const url = detail.image_url
+                          ? (detail.image_url.startsWith("http") ? detail.image_url : `${base}${detail.image_url}`)
+                          : null;
+                        onAddToLibrary(detail.id, url);
+                        closeDetail();
+                      }}
+                      className="rounded bg-rose-600 px-3 py-1 text-xs font-medium text-white hover:bg-rose-700"
+                      title={t.addToLibrary.hint}
+                    >
+                      {t.addToLibrary.button}
                     </button>
                   )}
                   {detail.result_json && (

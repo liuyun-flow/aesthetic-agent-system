@@ -1,8 +1,23 @@
-# Session Handoff — 2026-06-12
+# Session Handoff — 2026-06-14
 
 ## Last Completed
-- **V2.2.1: Agent 审美内核强化 — 212 tests passed**
-- V2.2.0: 工作台体验优化 + 评估图表（已发布 GitHub Release v2.2.0）
+- **V2.3.0: 一键收入案例库 + 描述质量优化 — 216 tests passed，前端 Docker build 通过**
+- V2.2.1: Agent 审美内核强化（已发布 Release v2.2.1）
+- V2.2.0: 工作台体验优化 + 评估图表（已发布 Release v2.2.0）
+
+---
+
+## V2.3.0 交付（来自用户实测反馈）
+
+**功能 1 — 一键收入案例库（prefill + confirm）**：训练结果区/历史详情「收入案例库」→ `GET /sessions/{id}/case-draft` 生成草稿（含按 ai_score 推导审美等级）→ 前端自动展开案例库并预填表单 → 用户核对等级/目标用户/价格带后保存。新增 `image_id` 到 training_records（`_migrate_v2_3`），analyze/critique/iterate 记录所用图片。
+
+**功能 2 — 描述质量优化**：VisionDescription +4 商业推测字段（品类/目标用户/价格带/使用场景，标注「AI 推测」，信息不足返回 null）；TaskForm 描述完整度进度条 + 引导式补全字段（可一键采用 Vision 推测，提交时并入作品描述）。
+
+**未做（用户当时选择不做）**：描述增强 Agent（2b-agent）—— DeepSeek 改写粗描述为完整描述。如需可作为下一阶段。
+
+**相关下一步**：把案例库 top-N 注入 analyze/critique grounding（V2.2.1 起就规划的 Phase 2）；现在案例库收集更顺畅，这一步收益更高。
+
+---
 
 ---
 

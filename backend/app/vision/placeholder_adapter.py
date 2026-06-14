@@ -28,6 +28,10 @@ _MOCK_DESCRIPTION = VisionDescription(
         "粗重中文标题字体带有倾斜和立体阴影，视觉冲击力强。整体风格紧张、有冲刺感，"
         "适合教育培训类直播推广场景。"
     ),
+    design_category="直播封面",
+    target_audience_guess="考前冲刺的学生（占位示例，非真实识别）",
+    price_band_guess="平价/免费推广（占位示例，非真实识别）",
+    use_case="教育培训类直播推广",
 )
 
 

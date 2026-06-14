@@ -5,7 +5,7 @@ import Link from "next/link";
 import TaskForm, { type UserJudgment, type ImageData } from "@/components/TaskForm";
 import ResultCard, { type DirectionData } from "@/components/ResultCard";
 import SessionList from "@/components/SessionList";
-import ReferencePanel from "@/components/ReferencePanel";
+import ReferencePanel, { type CaseDraft } from "@/components/ReferencePanel";
 import TrainingPanel from "@/components/TrainingPanel";
 import { useT } from "@/i18n";
 
@@ -68,7 +68,31 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  // V2.3: one-click 收入案例库 — fetch a draft from a session and prefill the case form
+  const [casePrefill, setCasePrefill] = useState<{ draft: CaseDraft; imageUrl: string | null; key: number } | null>(null);
+  const [refOpenSignal, setRefOpenSignal] = useState(0);
+  const [addingToLibrary, setAddingToLibrary] = useState(false);
+  const [addLibraryError, setAddLibraryError] = useState<string | null>(null);
+  const refSectionRef = useRef<HTMLDivElement | null>(null);
+
   const base = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+
+  const handleAddToLibrary = useCallback(async (sessionId: number, imageUrl: string | null) => {
+    setAddingToLibrary(true);
+    setAddLibraryError(null);
+    try {
+      const res = await fetch(`${base}/sessions/${sessionId}/case-draft`);
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || t.addToLibrary.failed); }
+      const draft: CaseDraft = await res.json();
+      setCasePrefill({ draft, imageUrl, key: Date.now() });
+      setRefOpenSignal((k) => k + 1);
+      setTimeout(() => refSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+    } catch (err: unknown) {
+      setAddLibraryError(err instanceof Error ? err.message : t.addToLibrary.failed);
+    } finally {
+      setAddingToLibrary(false);
+    }
+  }, [base, t.addToLibrary.failed]);
 
   useEffect(() => {
     fetch(`${base}/system/status`)
@@ -244,6 +268,16 @@ export default function Home() {
             className={`rounded px-4 py-2 text-sm font-medium text-white transition ${comparing ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"}`}>
             {comparing ? t.result.comparing : t.result.compareWithRefs}
           </button>
+
+          {/* V2.3 One-click add to case library */}
+          {lastSessionId && (
+            <button onClick={() => handleAddToLibrary(lastSessionId, null)} disabled={addingToLibrary}
+              title={t.addToLibrary.hint}
+              className={`ml-2 rounded px-4 py-2 text-sm font-medium text-white transition ${addingToLibrary ? "cursor-not-allowed bg-gray-300" : "bg-rose-600 hover:bg-rose-700"}`}>
+              {addingToLibrary ? t.addToLibrary.loading : t.addToLibrary.button}
+            </button>
+          )}
+          {addLibraryError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{addLibraryError}</div>}
           {compareError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{compareError}</div>}
           {compareResult && <CompareResultCard data={compareResult} t={t} />}
 
@@ -276,11 +310,13 @@ export default function Home() {
       <CollapsibleSection id="training" title={t.sections.training} defaultOpen t={t}>
         <TrainingPanel refreshKey={refreshKey} lastSessionId={lastSessionId} />
       </CollapsibleSection>
-      <CollapsibleSection id="reference" title={t.reference.title} defaultOpen={false} t={t}>
-        <ReferencePanel />
-      </CollapsibleSection>
+      <div ref={refSectionRef} className="scroll-mt-4">
+        <CollapsibleSection id="reference" title={t.reference.title} defaultOpen={false} t={t} forceOpen={refOpenSignal}>
+          <ReferencePanel prefill={casePrefill} />
+        </CollapsibleSection>
+      </div>
       <CollapsibleSection id="sessions" title={t.sessions.recentSessions} defaultOpen t={t}>
-        <SessionList refreshKey={refreshKey} onRetrain={handleRetrain} />
+        <SessionList refreshKey={refreshKey} onRetrain={handleRetrain} onAddToLibrary={handleAddToLibrary} />
       </CollapsibleSection>
     </div>
   );
@@ -294,12 +330,15 @@ function CollapsibleSection({
   defaultOpen,
   t,
   children,
+  forceOpen,
 }: {
   id: string;
   title: string;
   defaultOpen?: boolean;
   t: ReturnType<typeof useT>["t"];
   children: React.ReactNode;
+  /** When this number changes (and is >0), force the section open. */
+  forceOpen?: number;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? true);
 
@@ -308,6 +347,11 @@ function CollapsibleSection({
     const saved = localStorage.getItem(`workbench-section-${id}`);
     if (saved !== null) setOpen(saved === "1");
   }, [id]);
+
+  // Force open on external signal (e.g. one-click 收入案例库 targeting this section).
+  useEffect(() => {
+    if (forceOpen && forceOpen > 0) setOpen(true);
+  }, [forceOpen]);
 
   const toggle = () => {
     setOpen((o) => {

@@ -48,6 +48,12 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
     const timer = setTimeout(() => setPrefillNotice(false), 6000);
     return () => clearTimeout(timer);
   }, [prefill]);
+  // V2.3: guided context fields (merged into the description on submit)
+  const [gCategory, setGCategory] = useState("");
+  const [gAudience, setGAudience] = useState("");
+  const [gPriceBand, setGPriceBand] = useState("");
+  const [gUseCase, setGUseCase] = useState("");
+
   const [showJudgment, setShowJudgment] = useState(false);
   const [judgeScore, setJudgeScore] = useState("");
   const [judgeStrengths, setJudgeStrengths] = useState("");
@@ -170,6 +176,18 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
     if (file) uploadFile(file);
   };
 
+  // Merge guided context fields into the description so agents receive them.
+  const buildFullDescription = () => {
+    const base = description.trim();
+    const parts: string[] = [];
+    if (gCategory.trim()) parts.push(`${t.form.fieldCategory}：${gCategory.trim()}`);
+    if (gAudience.trim()) parts.push(`${t.form.fieldAudience}：${gAudience.trim()}`);
+    if (gPriceBand.trim()) parts.push(`${t.form.fieldPriceBand}：${gPriceBand.trim()}`);
+    if (gUseCase.trim()) parts.push(`${t.form.fieldUseCase}：${gUseCase.trim()}`);
+    if (parts.length === 0) return base;
+    return `${base}\n\n【补充信息】${parts.join("；")}`;
+  };
+
   const submit = () => {
     if (description.trim().length < 10) return;
 
@@ -190,7 +208,7 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
         ? { image_id: imageId, image_description: imageDesc.trim() }
         : null;
 
-    onSubmit(description.trim(), taskType, judgment, image);
+    onSubmit(buildFullDescription(), taskType, judgment, image);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -200,6 +218,31 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
 
   const tooShort = description.trim().length < 10;
   const disabled = loading || tooShort;
+
+  // V2.3: description completeness — substantive text + 4 commercial-context fields
+  const completenessDims: { ok: boolean; label: string }[] = [
+    { ok: description.trim().length >= 40, label: t.form.dims.colorOrComposition },
+    { ok: !!gCategory.trim(), label: t.form.dims.category },
+    { ok: !!gAudience.trim(), label: t.form.dims.audience },
+    { ok: !!gPriceBand.trim(), label: t.form.dims.priceBand },
+    { ok: !!gUseCase.trim(), label: t.form.dims.useCase },
+  ];
+  const filledCount = completenessDims.filter((d) => d.ok).length;
+  const completenessPct = Math.round((filledCount / completenessDims.length) * 100);
+  const missingLabels = completenessDims.filter((d) => !d.ok).map((d) => d.label);
+  const completenessColor =
+    completenessPct >= 80 ? "bg-green-500" : completenessPct >= 50 ? "bg-amber-500" : "bg-red-500";
+
+  // Vision commercial guesses (labeled as AI 推测; never auto-applied as fact)
+  const vs = visionSummary as Record<string, unknown> | null;
+  const guesses: { value: string; apply: () => void }[] = [];
+  if (vs) {
+    const g = (k: string) => (typeof vs[k] === "string" && (vs[k] as string).trim() ? (vs[k] as string).trim() : null);
+    const cat = g("design_category"); if (cat) guesses.push({ value: `${t.form.dims.category}：${cat}`, apply: () => setGCategory(cat) });
+    const aud = g("target_audience_guess"); if (aud) guesses.push({ value: `${t.form.dims.audience}：${aud}`, apply: () => setGAudience(aud) });
+    const pb = g("price_band_guess"); if (pb) guesses.push({ value: `${t.form.dims.priceBand}：${pb}`, apply: () => setGPriceBand(pb) });
+    const uc = g("use_case"); if (uc) guesses.push({ value: `${t.form.dims.useCase}：${uc}`, apply: () => setGUseCase(uc) });
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -361,6 +404,47 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
         <p className="mt-1 text-xs text-gray-400">
           {description.length} {t.form.chars} ({t.form.minChars}) · {t.form.ctrlEnterHint}
         </p>
+
+        {/* V2.3: completeness meter */}
+        <div className="mt-2">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span>{t.form.completeness} {completenessPct}%</span>
+            {missingLabels.length > 0 && (
+              <span className="text-amber-600">{t.form.missingLabel}：{missingLabels.join("、")}</span>
+            )}
+          </div>
+          <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100">
+            <div className={`h-1.5 rounded-full transition-all ${completenessColor}`} style={{ width: `${Math.max(4, completenessPct)}%` }} />
+          </div>
+        </div>
+
+        {/* V2.3: guided context fields */}
+        <div className="mt-3 rounded border border-gray-200 bg-gray-50 p-3">
+          <p className="text-xs font-medium text-gray-600">{t.form.guidedTitle}</p>
+          <p className="mt-0.5 text-xs text-gray-400">{t.form.guidedHint}</p>
+          {guesses.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {guesses.map((g, i) => (
+                <button key={i} type="button" onClick={g.apply}
+                  className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-700 hover:bg-purple-100">
+                  <span className="rounded bg-purple-200 px-1 text-[10px]">{t.form.visionGuessTag}</span>
+                  {g.value}
+                  <span className="text-purple-400">· {t.form.applyGuess}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <input value={gCategory} onChange={(e) => setGCategory(e.target.value)} placeholder={t.form.fieldCategory}
+              className="rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none" />
+            <input value={gAudience} onChange={(e) => setGAudience(e.target.value)} placeholder={t.form.fieldAudience}
+              className="rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none" />
+            <input value={gPriceBand} onChange={(e) => setGPriceBand(e.target.value)} placeholder={t.form.fieldPriceBand}
+              className="rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none" />
+            <input value={gUseCase} onChange={(e) => setGUseCase(e.target.value)} placeholder={t.form.fieldUseCase}
+              className="rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none" />
+          </div>
+        </div>
       </div>
 
       <button type="button" onClick={() => setShowJudgment(!showJudgment)}

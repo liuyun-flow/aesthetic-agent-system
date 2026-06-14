@@ -44,6 +44,19 @@ def init_db() -> None:
     _migrate_v1_5_1()
     _migrate_v1_7_2()
     _migrate_v1_8()
+    _migrate_v2_3()
+
+
+def _migrate_v2_3() -> None:
+    """V2.3: Add image_id to training_records (link session → its image)."""
+    with engine.connect() as conn:
+        try:
+            conn.exec_driver_sql(
+                "ALTER TABLE training_records ADD COLUMN image_id INTEGER"
+            )
+        except Exception:
+            pass  # Column already exists — safe to skip
+        conn.commit()
 
 
 def _migrate_v1_8() -> None:

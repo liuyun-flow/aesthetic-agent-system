@@ -20,6 +20,10 @@ class TrainingRecord(Base):
     result_json = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+    # ── V2.3: link to the uploaded image used for this session (if any) ──
+    # Enables one-click "收入案例库" to carry the picture into a reference case.
+    image_id = Column(Integer, nullable=True)
+
     # ── V1.1: User self-assessment ──────────────────────────────────
     user_score = Column(Integer, nullable=True)
     user_strengths = Column(Text, nullable=True)

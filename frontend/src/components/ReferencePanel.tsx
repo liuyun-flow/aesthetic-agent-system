@@ -43,8 +43,31 @@ interface RefCase {
 
 const EMPTY_FORM = { title: "", level: "unknown", category: "", priceBand: "", score: "", notes: "", styleTags: "", audience: "", premiumSources: "", cheapnessSources: "", learnFrom: "", avoidCopying: "", imageDesc: "" };
 
-export default function ReferencePanel() {
+/** Draft shape returned by GET /sessions/{id}/case-draft (matches ReferenceCaseCreate). */
+export interface CaseDraft {
+  title?: string | null;
+  category?: string | null;
+  aesthetic_level?: string | null;
+  style_tags?: string | null;
+  target_audience?: string | null;
+  price_band?: string | null;
+  image_id?: number | null;
+  image_description?: string | null;
+  score?: number | null;
+  premium_sources?: string | null;
+  cheapness_sources?: string | null;
+  learn_from_this?: string | null;
+  avoid_copying?: string | null;
+}
+
+interface Props {
+  /** One-click 收入案例库: prefill the form from a session draft. Key changes per request. */
+  prefill?: { draft: CaseDraft; imageUrl: string | null; key: number } | null;
+}
+
+export default function ReferencePanel({ prefill }: Props) {
   const { t } = useT();
+  const [prefillNotice, setPrefillNotice] = useState(false);
   const [cases, setCases] = useState<RefCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -83,6 +106,33 @@ export default function ReferencePanel() {
   };
 
   useEffect(() => { fetchCases(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // V2.3: one-click 收入案例库 — map a session draft into the form
+  useEffect(() => {
+    if (!prefill) return;
+    const d = prefill.draft;
+    setF({
+      title: d.title ?? "",
+      level: d.aesthetic_level ?? "unknown",
+      category: d.category ?? "",
+      priceBand: d.price_band ?? "",
+      score: d.score != null ? String(d.score) : "",
+      notes: "",
+      styleTags: d.style_tags ?? "",
+      audience: d.target_audience ?? "",
+      premiumSources: d.premium_sources ?? "",
+      cheapnessSources: d.cheapness_sources ?? "",
+      learnFrom: d.learn_from_this ?? "",
+      avoidCopying: d.avoid_copying ?? "",
+      imageDesc: d.image_description ?? "",
+    });
+    setImageId(d.image_id ?? null);
+    setImageUrl(prefill.imageUrl);
+    setShowForm(true);
+    setPrefillNotice(true);
+    const timer = setTimeout(() => setPrefillNotice(false), 8000);
+    return () => clearTimeout(timer);
+  }, [prefill]);
 
   // V1.8: Check embedding status
   useEffect(() => {
@@ -285,6 +335,11 @@ export default function ReferencePanel() {
 
       {showForm && (
         <div className="mb-4 space-y-2 rounded border bg-gray-50 p-3 max-h-[70vh] overflow-y-auto">
+          {prefillNotice && (
+            <p className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-600">
+              {t.reference.prefillNotice}
+            </p>
+          )}
           <input value={f.title} onChange={e => setF(p => ({...p, title: e.target.value}))} placeholder={t.reference.titleField} className="w-full rounded border px-2 py-1 text-sm" />
 
           {/* Image upload */}

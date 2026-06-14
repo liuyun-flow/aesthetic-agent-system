@@ -32,6 +32,7 @@ def save_record(
     training_focus_tags: str | None = None,
     selected_direction: str | None = None,
     prompt_result: dict[str, Any] | None = None,
+    image_id: int | None = None,
 ) -> TrainingRecord:
     """Persist a training record (analyze / critique / iterate).
 
@@ -62,6 +63,7 @@ def save_record(
         training_focus_tags=training_focus_tags,
         selected_direction=selected_direction,
         prompt_result=prompt_result,
+        image_id=image_id,
     )
     db.add(record)
     try:
