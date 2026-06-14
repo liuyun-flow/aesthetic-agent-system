@@ -363,8 +363,121 @@ def compute_mistake_patterns(db: Session) -> list[dict[str, Any]]:
 
 # ── Dimension Assessment ────────────────────────────────────────────────
 
+# V2.4: work-quality dimensions, aggregated from stored critic scores
+# (critic 6 dims + 2 commercial dims). Replaces keyword-frequency guessing
+# when real per-dimension scores exist on records.
+WORK_DIMENSIONS = [
+    {"key": "color", "name": "色彩"},
+    {"key": "composition", "name": "构图与留白"},
+    {"key": "typography", "name": "字体"},
+    {"key": "material", "name": "材质与质感"},
+    {"key": "emotion", "name": "情绪表达"},
+    {"key": "brand_sense", "name": "品牌感"},
+    {"key": "price_perception", "name": "价格感"},
+    {"key": "commercial_fit", "name": "商业适配"},
+]
+
+MIN_DIM_SAMPLES = 3  # per-dimension scores required before we report a dimension
+
+
+def _parse_dim_scores(record: TrainingRecord) -> dict[str, Any]:
+    """Return a record's stored ai_dimension_scores dict, or {} if absent."""
+    raw = getattr(record, "ai_dimension_scores", None)
+    if isinstance(raw, dict):
+        return raw
+    if isinstance(raw, str):  # tolerate JSON-as-text
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, dict) else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+    return {}
+
+
 def compute_dimension_scores(db: Session) -> list[dict[str, Any]]:
-    """Evaluate 7 aesthetic judgment dimensions using keyword-based scoring."""
+    """Per-dimension assessment.
+
+    V2.4: when stored AI dimension scores exist (critique records since V2.4),
+    aggregate those *real* scores. Otherwise fall back to the legacy keyword
+    heuristic so older data and no-key installs keep working unchanged.
+    """
+    from app.services.session_service import get_all_records
+
+    all_records = get_all_records(db, limit=MAX_RECORDS)
+    dim_records = [r for r in all_records if _parse_dim_scores(r)]
+    if dim_records:
+        return _aggregate_dimension_scores(dim_records)
+    return _keyword_dimension_scores(db)
+
+
+def _aggregate_dimension_scores(dim_records: list[TrainingRecord]) -> list[dict[str, Any]]:
+    """Aggregate stored 0-100 AI dimension scores into per-dimension assessments."""
+    today = date.today()
+    last_7 = today - timedelta(days=7)
+
+    results: list[dict[str, Any]] = []
+    for dim in WORK_DIMENSIONS:
+        vals: list[float] = []
+        recent: list[float] = []
+        for r in dim_records:
+            v = _parse_dim_scores(r).get(dim["key"])
+            if v is None:
+                continue
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                continue
+            vals.append(fv)
+            if r.created_at and r.created_at.date() >= last_7:
+                recent.append(fv)
+
+        if len(vals) < MIN_DIM_SAMPLES:
+            results.append({
+                "dimension_key": dim["key"],
+                "dimension_name": dim["name"],
+                "score": 50,
+                "level": "medium",
+                "trend": "insufficient_data",
+                "evidence": f"「{dim['name']}」暂无足够评分数据（需至少 {MIN_DIM_SAMPLES} 次评分训练）。",
+                "suggestion": "多做几次「评分」(critique) 训练以积累该维度数据。",
+            })
+            continue
+
+        score = max(0, min(100, round(sum(vals) / len(vals))))
+        level = "strong" if score >= 70 else "medium" if score >= 45 else "weak"
+
+        if len(recent) >= 2:
+            delta = (sum(recent) / len(recent)) - (sum(vals) / len(vals))
+            trend = "improving" if delta > 5 else "worsening" if delta < -5 else "stable"
+        else:
+            trend = "stable"
+
+        evidence = f"基于 {len(vals)} 次评分，「{dim['name']}」作品平均得分 {score}/100。"
+        if level == "weak":
+            suggestion = f"「{dim['name']}」是当前最弱维度，建议作为近期重点训练方向。"
+        elif level == "medium":
+            suggestion = f"「{dim['name']}」处于中等水平，针对性练习可提升到优秀。"
+        else:
+            suggestion = f"「{dim['name']}」是强项，保持并在训练中验证巩固。"
+
+        results.append({
+            "dimension_key": dim["key"],
+            "dimension_name": dim["name"],
+            "score": score,
+            "level": level,
+            "trend": trend,
+            "evidence": evidence,
+            "suggestion": suggestion,
+        })
+    return results
+
+
+def _keyword_dimension_scores(db: Session) -> list[dict[str, Any]]:
+    """Legacy keyword-frequency dimension scoring (V2.0).
+
+    Fallback used when no stored AI dimension scores exist (older data,
+    no-key installs). Kept intact so existing behavior is unchanged.
+    """
     from app.services.session_service import get_all_records
 
     all_records = get_all_records(db, limit=MAX_RECORDS)

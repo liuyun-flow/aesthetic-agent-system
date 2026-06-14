@@ -33,6 +33,9 @@ def save_record(
     selected_direction: str | None = None,
     prompt_result: dict[str, Any] | None = None,
     image_id: int | None = None,
+    ai_dimension_scores: dict[str, Any] | None = None,
+    ai_overall_score: int | None = None,
+    eval_prompt_version: str | None = None,
 ) -> TrainingRecord:
     """Persist a training record (analyze / critique / iterate).
 
@@ -64,6 +67,9 @@ def save_record(
         selected_direction=selected_direction,
         prompt_result=prompt_result,
         image_id=image_id,
+        ai_dimension_scores=ai_dimension_scores,
+        ai_overall_score=ai_overall_score,
+        eval_prompt_version=eval_prompt_version,
     )
     db.add(record)
     try:

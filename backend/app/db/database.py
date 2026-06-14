@@ -45,6 +45,29 @@ def init_db() -> None:
     _migrate_v1_7_2()
     _migrate_v1_8()
     _migrate_v2_3()
+    _migrate_v2_4()
+
+
+def _migrate_v2_4() -> None:
+    """V2.4: Add stored AI dimension scores to training_records.
+
+    Additive + idempotent (safe on existing DBs). Old rows keep these NULL and
+    the assessment layer falls back to the legacy keyword path for them.
+    """
+    v2_4_columns: list[tuple[str, str]] = [
+        ("ai_dimension_scores", "JSON"),
+        ("ai_overall_score", "INTEGER"),
+        ("eval_prompt_version", "VARCHAR(20)"),
+    ]
+    with engine.connect() as conn:
+        for col_name, col_type in v2_4_columns:
+            try:
+                conn.exec_driver_sql(
+                    f"ALTER TABLE training_records ADD COLUMN {col_name} {col_type}"
+                )
+            except Exception:
+                pass  # Column already exists — safe to skip
+        conn.commit()
 
 
 def _migrate_v2_3() -> None:

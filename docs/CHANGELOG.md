@@ -1,5 +1,15 @@
 # Changelog
 
+## V2.4.0 (2026-06-14)
+- 信任度量（evaluation integrity）—— 让"测量你的审美进步"真正可信
+- **评测/校准台**（`backend/evals/`，dev-only，不进镜像）：金标准集（成对 + 分档，当前为合成脚手架待替换）、`run_eval.py` 计算成对判对率 + Spearman 排序相关性 + 分档均值/单调性，`PROMPT_VERSION` 钉死便于发现回归；`--dry-run` 无 key 校验
+- **存储真实维度分**：`training_records` 新增 `ai_dimension_scores`/`ai_overall_score`/`eval_prompt_version`（`_migrate_v2_4` 自动加列）；critique 每次保存 critic 的 8 维分（归一化 0-100），不额外调用 LLM
+- **维度评估改为聚合真实分**：`/assessment/dimensions` 有存储分时聚合 8 维（critic 6 + 价格感/商业适配），无分时回落到原关键词法（旧数据/无 key 行为不变）
+- critic 输出扩展到 8 维（新增 price_perception / commercial_fit，可选字段，向后兼容）
+- **Vision 直评（可选，实验性）**：`SCORING_VISION_DIRECT=1` + OpenAI vision key 时，critique 直接看图打分，绕过"图→文"瓶颈；默认关闭、任何失败回落文本路径
+- 版本号同步 v2.3.0 → v2.4.0
+- 220 tests passed（+4：2 维度聚合 + 2 vision-direct flag）
+
 ## V2.3.0 (2026-06-14)
 - **一键收入案例库 + 描述质量优化** — 训练中遇到好/坏案例可一键收藏，描述更完整
 - 一键收入案例库（prefill + confirm）：训练结果或历史详情点「收入案例库」，自动用本次作品+AI 评估填好案例表单，核对审美等级/目标用户/价格带后保存

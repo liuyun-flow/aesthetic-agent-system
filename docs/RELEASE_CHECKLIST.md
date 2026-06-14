@@ -1,6 +1,6 @@
 # 发布前检查清单 / Release Checklist
 
-**V2.1.3** — 每次发布前逐项确认。
+通用清单 — 每次发布前逐项确认（不绑定具体版本号）。
 
 ---
 
@@ -79,12 +79,12 @@
 - [ ] **LOCAL_DEPLOYMENT.md 覆盖率** — 包含 Win/Mac/Linux 三种部署方式
 - [ ] **UPGRADE.md 说明升级前备份** — 升级步骤第一项为「导出数据备份」
 - [ ] **UPGRADE.md 默认不删除 data/** — 升级步骤不包含删除数据目录的操作
-- [ ] **CHANGELOG.md 当前版本正确** — V2.1.3 条目完整
+- [ ] **CHANGELOG.md 当前版本正确** — 本次发布版本条目完整
 - [ ] **RELEASE_NOTES.md 当前版本正确** — 版本号和日期准确
 - [ ] **RELEASE_CHECKLIST.md 当前版本正确** — 即本文档
-- [ ] **ROADMAP.md 已更新** — V2.1.3 标记完成
+- [ ] **ROADMAP.md 已更新** — 本次发布版本标记完成
 - [ ] **SESSION_HANDOFF.md 已更新** — 反映当前会话状态
-- [ ] **CLAUDE.md 版本号正确** — 版本线包含 V2.1.3
+- [ ] **CLAUDE.md 版本号正确** — 版本线包含本次发布版本
 - [ ] **AGENTS.md 版本号正确** — 项目版本信息一致
 
 ---
@@ -93,9 +93,10 @@
 
 - [ ] **全部测试通过** — `cd backend && pytest app/tests/ -v`
 - [ ] **测试数与文档一致** — 实际 pass 数与 README/AGENTS 中的数字匹配
-- [ ] **健康检查版本正确** — `/health` 和 `/system/status` 返回 `v2.1.3`
-- [ ] **预检版本正确** — `/system/preflight` 返回 `v2.1.3`
-- [ ] **导出包版本正确** — 导出包中 version 字段为 `v2.1.3`
+- [ ] **健康检查版本正确** — `/health` 和 `/system/status` 返回本次发布版本（形如 `vX.Y.Z`）
+- [ ] **预检版本正确** — `/system/preflight` 返回本次发布版本
+- [ ] **导出包版本正确** — 导出包中 version 字段为本次发布版本
+- [ ] **评测台校准（如配置了 key，建议）** — `cd backend && python -m evals.run_eval`：成对判对率 ≥ 0.75；改过 prompt/知识库后必跑。非 PR gate，手动/发布前执行
 
 ---
 
@@ -111,5 +112,5 @@
 ## 八、发布前最终确认
 
 - [ ] `git status` 干净（无未提交的 `.env`、`.db`、real images）
-- [ ] `git log --oneline -1` 是最新的 V2.1.3 提交
+- [ ] `git log --oneline -1` 是本次发布版本的最新提交
 - [ ] GitHub Release zip 下载后，按 LOCAL_DEPLOYMENT.md 步骤可以成功部署

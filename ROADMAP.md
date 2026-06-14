@@ -1,5 +1,27 @@
 # Roadmap
 
+## 🔜 计划中 — V2.5 → V2.7（方向已与用户确认）
+
+> 选定路线主轴：**先让度量可信，再做大**。Stage 1（V2.4）已完成；Stage 2（V2.5）已批准、待启动。
+> 评测/校准台（V2.4 已建）是骨干：V2.5 grounding 的前置、V2.6 进 CI。
+
+- **V2.5 闭环（curriculum + grounding）**
+  - 首次运行预置案例库（注意版权/来源；考虑纯文本种子）；种子须过 V1.9 完整度门槛
+  - top-N 案例注入 analyze/critique grounding（V2.2.1 起规划的 Phase 2）——**会改变评分，必须在评测台就位后做**
+  - 结构化课程替代静态主题；assessment 推荐结构化并连向下一练习
+- **V2.6 质量**：前端测试 + Playwright E2E + agent 输出评测进 CI（付费/非确定性评测走 nightly，不 gate PR）；真实 vision 集成测试；缓存（视觉描述可缓存、评分不缓存）；成本/延迟遥测
+- **V2.7 触达**：运行时可配 API base URL（Next.js rewrite，解决 known issue #5）；桌面打包（Tauri/Electron，Python 后端打包是最大工程量）或托管 demo；**真正的门槛是 API key 而非打包**
+
+备选方向（未选，见会话记录）：集成优先（Figma/浏览器扩展）、社区网络、垂直深耕、移动端、引擎 API 化。
+
+## ✅ V2.4.0 — 信任度量（evaluation integrity）
+- 评测/校准台 `backend/evals/`（dev-only）：金标准（成对 + 分档，合成脚手架待替换）+ 成对判对率 / Spearman / 分档单调性 + PROMPT_VERSION 钉死 + `--dry-run`
+- 存储真实维度分：training_records +ai_dimension_scores/ai_overall_score/eval_prompt_version（_migrate_v2_4）；critique 保存 critic 8 维分，无额外 LLM
+- 维度评估聚合 8 维（critic 6 + 价格感/商业适配），无分时回落关键词法
+- critic 输出扩展到 8 维（新增 2 个可选商业维度）
+- 可选 Vision 直评（SCORING_VISION_DIRECT，默认关、失败回落）
+- 220 tests passed
+
 ## ✅ V2.3.0 — 一键收入案例库 + 描述质量优化
 - 一键收入案例库（prefill + confirm）：训练结果/历史详情 → 自动填充案例表单 → 核对保存
 - training_records 新增 image_id；`GET /sessions/{id}/case-draft` + 按分数推导审美等级

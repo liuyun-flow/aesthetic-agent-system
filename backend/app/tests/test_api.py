@@ -656,7 +656,7 @@ class TestHealthEndpoint:
         data = resp.json()
         assert data["status"] == "ok"
         assert data["service"] == "backend"
-        assert data["version"] == "v2.3.0"
+        assert data["version"] == "v2.4.0"
 
 
 class TestDeepSeekClient:
@@ -1644,7 +1644,7 @@ class TestSystemStatus:
 
     def test_version_is_v2_1_1(self, client):
         resp = client.get("/system/status")
-        assert resp.json()["version"] == "v2.3.0"
+        assert resp.json()["version"] == "v2.4.0"
 
     def test_deepseek_has_configured_flag(self, client):
         resp = client.get("/system/status")
@@ -2163,7 +2163,7 @@ class TestEmbeddings:
         data = resp.json()
         assert "embedding" in data
         assert "configured" in data["embedding"]
-        assert data["version"] == "v2.3.0"
+        assert data["version"] == "v2.4.0"
 
 
 class TestCompareWithSemanticFallback:
@@ -2471,3 +2471,17 @@ class TestCaseQuality:
         data = resp.json()
         # Should have '审美等级' in missing_fields since no level was specified
         assert "审美等级" in data["missing_fields"]
+
+
+# ── V2.4: vision-direct scoring flag (default off) ──
+
+class TestVisionDirectFlag:
+    def test_disabled_by_default(self, monkeypatch):
+        monkeypatch.delenv("SCORING_VISION_DIRECT", raising=False)
+        from app.main import _vision_direct_enabled
+        assert _vision_direct_enabled() is False
+
+    def test_enabled_when_env_truthy(self, monkeypatch):
+        monkeypatch.setenv("SCORING_VISION_DIRECT", "1")
+        from app.main import _vision_direct_enabled
+        assert _vision_direct_enabled() is True

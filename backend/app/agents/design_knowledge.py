@@ -9,6 +9,11 @@ description. When adding knowledge from books/cases, convert each idea into a
 verifiable criterion, not a vibe.
 """
 
+# Bump whenever DESIGN_KNOWLEDGE / SCORING_RUBRIC / EVIDENCE_RULES or any agent
+# prompt that consumes them changes. The eval harness (backend/evals) records
+# this with every run so scoring regressions are traceable to a prompt version.
+PROMPT_VERSION = "v2.4.0"
+
 DESIGN_KNOWLEDGE = """\
 ## 审美判断知识库（判断时必须引用具体原则）
 

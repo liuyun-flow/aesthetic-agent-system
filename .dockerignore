@@ -49,5 +49,8 @@ docs/
 # Scripts (not needed in image)
 scripts/
 
+# Eval / calibration harness (dev-only, not part of runtime)
+backend/evals/
+
 # Skills
 skills/

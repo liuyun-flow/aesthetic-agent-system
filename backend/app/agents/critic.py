@@ -35,7 +35,7 @@ Work description:
 Return a JSON object with exactly these keys:
 - total_score: number (1-10; NOT a plain average — fatal issues in hierarchy or
   readability drag the total toward the weakest dimension)
-- dimensions: object with number scores for each key: color, composition, typography, material, emotion, brand_sense
+- dimensions: object with number scores (1-10) for each key: color, composition, typography, material, emotion, brand_sense, price_perception (价格感：视觉传达的价格档次与意图是否匹配), commercial_fit (商业适配：是否服务于商业目标/转化/目标受众)
 - main_issues: array of strings (top 3-5 problems; each names the element, the violated
   principle, and the consequence)
 - cheapness_sources: array of strings (specific cheapness signifiers present in this work)
@@ -95,4 +95,52 @@ class CriticAgent:
         raw = completion.choices[0].message.content or ""
         data = _parse_json_response(raw)
 
+        return CritiqueResponse.model_validate(data)
+
+
+class VisionCriticAgent:
+    """V2.4 (optional): critic that scores the image *directly* via a multimodal
+    model, bypassing the image→text bottleneck.
+
+    Used only when SCORING_VISION_DIRECT is enabled and a vision key is set.
+    Reuses the same system prompt + rubric as the text critic so scores stay
+    comparable. The caller is responsible for falling back to the text critic
+    on any failure.
+    """
+
+    def __init__(self, api_key: str | None, model: str | None = None) -> None:
+        key = (api_key or "").strip()
+        if not key:
+            raise ValueError("Vision-direct scoring requires an OpenAI vision key.")
+        self.client = OpenAI(api_key=key)
+        self.model = model or "gpt-4o-mini"
+
+    def run(self, work_description: str, image_path: str) -> CritiqueResponse:
+        from app.vision.openai_adapter import _encode_image
+
+        data_uri = _encode_image(image_path)
+        user_text = CRITIC_USER_PROMPT_TEMPLATE.format(
+            work_description=work_description,
+            image_block="\n（请直接观察所附图片进行评分，不要只依赖文字描述。）\n",
+        )
+        messages = [
+            {"role": "system", "content": CRITIC_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_text},
+                    {"type": "image_url", "image_url": {"url": data_uri}},
+                ],
+            },
+        ]
+
+        completion = self.client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=2000,
+        )
+
+        raw = completion.choices[0].message.content or ""
+        data = _parse_json_response(raw)
         return CritiqueResponse.model_validate(data)

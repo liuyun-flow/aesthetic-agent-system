@@ -94,7 +94,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Aesthetic Training Agent System",
     description="MVP backend for AI-assisted aesthetic judgment training",
-    version="2.3.0",
+    version="2.4.0",
     lifespan=lifespan,
 )
 
@@ -343,6 +343,64 @@ def _extract_ai_summary(result: Any) -> dict[str, Any]:
     return data
 
 
+def _extract_dimension_kwargs(result: Any) -> dict[str, Any]:
+    """V2.4: pull normalized 0-100 dimension scores + overall from a critique result.
+
+    Runs for every critique regardless of whether the user self-assessed, so the
+    assessment layer has real per-dimension data to aggregate (vs keyword guessing).
+    Returns {} for results without scores (e.g. analyze/iterate).
+    """
+    from app.agents.design_knowledge import PROMPT_VERSION
+
+    dims = getattr(result, "dimensions", None)
+    total = getattr(result, "total_score", None)
+    if dims is None and total is None:
+        return {}
+
+    kwargs: dict[str, Any] = {"eval_prompt_version": PROMPT_VERSION}
+    if dims is not None:
+        raw = dims.model_dump() if hasattr(dims, "model_dump") else dict(dims)
+        scores = {
+            key: int(round(float(val) * 10))  # 1-10 → 0-100
+            for key, val in raw.items()
+            if val is not None
+        }
+        if scores:
+            kwargs["ai_dimension_scores"] = scores
+    if total is not None:
+        kwargs["ai_overall_score"] = int(round(float(total) * 10))
+    return kwargs
+
+
+def _vision_direct_enabled() -> bool:
+    """V2.4 (optional): whether to score images directly with a multimodal model."""
+    val = (
+        get_value("scoring", "vision_direct", env_var="SCORING_VISION_DIRECT") or ""
+    ).strip().lower()
+    return val in ("1", "true", "yes", "on")
+
+
+def _maybe_vision_critic(request: WorkDescriptionRequest, db: Session):
+    """Return (VisionCriticAgent, image_path) when vision-direct scoring applies,
+    else (None, None). Requires the flag ON, an image on the request, and an
+    OpenAI vision key. Any miss → (None, None) so the caller uses the text critic.
+    """
+    if not _vision_direct_enabled() or request.image_id is None:
+        return None, None
+    api_key = get_value("vision", "openai_api_key", env_var="OPENAI_API_KEY")
+    if not api_key:
+        return None, None
+    uploaded = session_service.get_image_by_id(db, request.image_id)
+    if uploaded is None:
+        return None, None
+    model = get_value("vision", "openai_vision_model", env_var="OPENAI_VISION_MODEL")
+    try:
+        from app.agents.critic import VisionCriticAgent
+        return VisionCriticAgent(api_key=api_key, model=model), uploaded.file_path
+    except Exception:
+        return None, None
+
+
 def _process_user_judgment(
     request: WorkDescriptionRequest,
     ai_result: Any,
@@ -478,12 +536,25 @@ def critique(
     image context in the critique.
     """
     image_description = _resolve_image_description(request, vision, db)
-    result = _run_agent(
-        "LLM critique",
-        lambda: agent.run(request.work_description, image_description=image_description),
-    )
+
+    # V2.4 (optional): score the image directly with a multimodal model when
+    # enabled; fall back to the text critic on any failure.
+    result = None
+    vcritic, image_path = _maybe_vision_critic(request, db)
+    if vcritic is not None:
+        try:
+            result = vcritic.run(request.work_description, image_path=image_path)
+        except Exception:
+            result = None  # fall back to text path below
+    if result is None:
+        result = _run_agent(
+            "LLM critique",
+            lambda: agent.run(request.work_description, image_description=image_description),
+        )
+
     gap, j_kwargs = _process_user_judgment(request, result, comparator)
-    _save_record(db, "critique", request.work_description, result, image_id=request.image_id, **j_kwargs)
+    dim_kwargs = _extract_dimension_kwargs(result)  # V2.4: store real per-dimension scores
+    _save_record(db, "critique", request.work_description, result, image_id=request.image_id, **j_kwargs, **dim_kwargs)
 
     if gap is not None:
         return result.model_copy(update={"judgment_gap": gap})

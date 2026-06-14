@@ -36,6 +36,10 @@ class DimensionScores(BaseModel):
     material: float = Field(..., ge=1, le=10)
     emotion: float = Field(..., ge=1, le=10)
     brand_sense: float = Field(..., ge=1, le=10)
+    # V2.4: commercial dimensions. Optional so older/mock results that emit
+    # only the original 6 still validate (absent → None, skipped downstream).
+    price_perception: float | None = Field(default=None, ge=1, le=10)
+    commercial_fit: float | None = Field(default=None, ge=1, le=10)
 
 
 class CritiqueResponse(BaseModel):

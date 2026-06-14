@@ -239,6 +239,59 @@ class TestAssessment:
             assert 0 <= d["score"] <= 100
             assert d["level"] in ("weak", "medium", "strong")
 
+    def test_dimensions_aggregate_from_stored_scores(self, client):
+        """V2.4: with stored ai_dimension_scores, aggregate the 8 work dimensions."""
+        db = TestSessionLocal()
+        try:
+            for base in (90, 60, 30):  # mean per dimension = 60
+                self._seed_record(
+                    db,
+                    ai_dimension_scores={
+                        "color": base, "composition": base, "typography": base,
+                        "material": base, "emotion": base, "brand_sense": base,
+                        "price_perception": base, "commercial_fit": base,
+                    },
+                    ai_overall_score=base,
+                    eval_prompt_version="v2.4.0",
+                )
+        finally:
+            db.close()
+
+        resp = client.get("/assessment/dimensions")
+        assert resp.status_code == 200
+        dims = resp.json()
+        assert {d["dimension_key"] for d in dims} == {
+            "color", "composition", "typography", "material",
+            "emotion", "brand_sense", "price_perception", "commercial_fit",
+        }
+        for d in dims:
+            assert d["score"] == 60
+            assert d["level"] == "medium"
+
+    def test_dimensions_insufficient_per_dim_samples(self, client):
+        """V2.4: fewer than MIN_DIM_SAMPLES scores for a dimension → insufficient_data."""
+        db = TestSessionLocal()
+        try:
+            for _ in range(2):  # only 2 < MIN_DIM_SAMPLES (3)
+                self._seed_record(
+                    db,
+                    ai_dimension_scores={
+                        "color": 70, "composition": 70, "typography": 70,
+                        "material": 70, "emotion": 70, "brand_sense": 70,
+                        "price_perception": 70, "commercial_fit": 70,
+                    },
+                )
+        finally:
+            db.close()
+
+        resp = client.get("/assessment/dimensions")
+        assert resp.status_code == 200
+        dims = resp.json()
+        assert len(dims) == 8
+        for d in dims:
+            assert d["trend"] == "insufficient_data"
+            assert d["score"] == 50
+
     # ── Report ────────────────────────────────────────────────────
 
     def test_report_7_days_returns_structure(self, client):

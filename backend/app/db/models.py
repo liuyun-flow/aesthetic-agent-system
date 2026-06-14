@@ -41,6 +41,14 @@ class TrainingRecord(Base):
     judgment_gap_summary = Column(Text, nullable=True)
     training_focus_tags = Column(Text, nullable=True)
 
+    # ── V2.4: stored AI dimension scores (trustworthy measurement) ───
+    # ai_dimension_scores: {dim_key: 0-100}, normalized from critic 1-10 output.
+    # ai_overall_score: 0-100, set for ALL critique runs (vs ai_score which is
+    # only set when the user also submits a self-assessment).
+    ai_dimension_scores = Column(JSON, nullable=True)
+    ai_overall_score = Column(Integer, nullable=True)
+    eval_prompt_version = Column(String(20), nullable=True)
+
     # ── V1.5: Training workbench ────────────────────────────────────
     training_theme = Column(String(100), nullable=True)
     user_lesson = Column(Text, nullable=True)
