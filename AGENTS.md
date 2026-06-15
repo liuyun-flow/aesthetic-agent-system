@@ -47,7 +47,7 @@ aesthetic-agent-system/
 
 ## Test Commands
 ```bash
-cd backend && pytest app/tests/ -q     # 242 mocked, no key (use Python311 interp locally)
+cd backend && pytest app/tests/ -q     # 247 mocked, no key (use Python311 interp locally)
 cd frontend && npm run test            # Vitest component tests
 cd frontend && npm run build           # must pass
 ```
