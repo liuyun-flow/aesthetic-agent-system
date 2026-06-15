@@ -2,6 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+:root {
+  --paper: #f4f0e7;
+  --paper-deep: #ece6d9;
+  --surface: #fcfaf5;
+  --ink: #211e19;
+  --ink-soft: #615a4e;
+  --muted: #938a7b;
+  --line: #e3dbcc;
+  --accent: #a8512e;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Warm the default border color so bare `border` reads as the paper hairline,
+     not Tailwind's cool gray-200. Explicit border-* utilities still win. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--line);
+  }
+
+  body {
+    color: var(--ink);
+    background-color: var(--paper);
+    /* Subtle paper grain for material depth (a "premium signifier"). */
+    background-image:
+      radial-gradient(120% 120% at 100% 0%, #faf7f0 0%, rgba(250, 247, 240, 0) 42%),
+      radial-gradient(110% 90% at 0% 100%, #efe9dc 0%, rgba(239, 233, 220, 0) 50%),
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv01";
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Latin display face carries optical sizing; soften Chinese punctuation. */
+  .font-display {
+    font-feature-settings: "ss01";
+    letter-spacing: -0.012em;
+  }
+
+  ::selection {
+    background: rgba(168, 81, 46, 0.16);
+    color: var(--ink);
+  }
+
+  /* Refined focus ring — warm, not the default browser blue. */
+  *:focus-visible {
+    outline: 2px solid rgba(168, 81, 46, 0.55);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Thin, unobtrusive scrollbar. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cfc6b4 transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #d4ccba;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: #c3b9a3;
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  /* Tabular figures for scores / numbers — a refined detail. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hairline divider with a faint warm gradient. */
+  .rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line) 12%, var(--line) 88%, transparent);
+    border: 0;
+  }
+
+  /* Staggered page-load reveal. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: reveal 0.6s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+}
+
+@keyframes reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .reveal { animation: none; opacity: 1; transform: none; }
 }

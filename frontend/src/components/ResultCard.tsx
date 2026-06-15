@@ -54,12 +54,12 @@ function JudgmentGapCard({ gap }: { gap: Record<string, unknown> }) {
   ];
 
   return (
-    <div className="mt-5 rounded border border-purple-200 bg-purple-50 p-4">
-      <h3 className="mb-3 text-sm font-semibold text-purple-800">
+    <div className="mt-5 rounded border border-accent-soft bg-accent-wash p-4">
+      <h3 className="mb-3 text-sm font-semibold text-accent">
         {t.result.yourJudgmentVsAI}
       </h3>
       {(gap.short_summary as string) && (
-        <p className="mb-3 text-sm text-purple-700">{String(gap.short_summary)}</p>
+        <p className="mb-3 text-sm text-accent">{String(gap.short_summary)}</p>
       )}
       <div className="space-y-3">
         {sections.map(([key, label]) => {
@@ -67,10 +67,10 @@ function JudgmentGapCard({ gap }: { gap: Record<string, unknown> }) {
           if (!Array.isArray(value) || value.length === 0) return null;
           return (
             <div key={key}>
-              <h4 className="mb-1 text-xs font-semibold text-purple-600">{label}</h4>
+              <h4 className="mb-1 text-xs font-semibold text-accent">{label}</h4>
               <ul className="list-inside list-disc space-y-0.5">
                 {value.map((item: unknown, i: number) => (
-                  <li key={i} className="text-sm text-purple-800">{String(item)}</li>
+                  <li key={i} className="text-sm text-accent">{String(item)}</li>
                 ))}
               </ul>
             </div>
@@ -89,8 +89,11 @@ export default function ResultCard({
   const gap = isRecord(data.judgment_gap) ? data.judgment_gap : null;
 
   return (
-    <section className="rounded border bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-base font-semibold text-gray-800">{heading}</h2>
+    <section className="rounded-xl2 border border-line bg-surface p-6 shadow-card">
+      <div className="mb-5 flex items-center gap-3">
+        <span className="h-4 w-[3px] rounded-full bg-accent" />
+        <h2 className="text-[17px] font-semibold tracking-tightish text-ink">{heading}</h2>
+      </div>
 
       {taskType === "analyze" && isRecord(data) && (
         <div className="space-y-4">
@@ -98,10 +101,10 @@ export default function ResultCard({
             if (key === "judgment_gap") return null;
             return (
               <div key={key}>
-                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
                   {t.result[DIM_KEYS[key] as keyof typeof t.result] ?? key}
                 </h3>
-                <p className="text-sm leading-relaxed text-gray-700">
+                <p className="text-sm leading-relaxed text-ink-soft">
                   {typeof value === "string" ? value : JSON.stringify(value)}
                 </p>
               </div>
@@ -113,26 +116,28 @@ export default function ResultCard({
       {taskType === "critique" && isRecord(data) && (
         <div className="space-y-4">
           {"total_score" in data && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-600">{t.result.totalScore}</span>
-              <span className="rounded bg-blue-100 px-2 py-0.5 text-lg font-bold text-blue-700">
+            <div className="flex items-end gap-3 rounded-xl2 border border-line bg-surface-2 px-5 py-4">
+              <span className="font-display text-5xl font-medium leading-none tracking-tightish text-accent tnum">
                 {String(data.total_score)}
               </span>
-              <span className="text-xs text-gray-400">{t.result.scoreOutOf}</span>
+              <div className="flex flex-col pb-1">
+                <span className="font-display text-sm italic text-muted">{t.result.scoreOutOf}</span>
+                <span className="text-xs font-medium uppercase tracking-wide text-ink-soft">{t.result.totalScore}</span>
+              </div>
             </div>
           )}
           {isRecord(data.dimensions) && (
             <div>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
                 {t.result.dimensionScores}
               </h3>
               <div className="grid grid-cols-3 gap-2">
                 {Object.entries(data.dimensions).map(([dim, score]) => (
-                  <div key={dim} className="rounded bg-gray-50 px-3 py-2 text-center">
-                    <div className="text-xs text-gray-500">
+                  <div key={dim} className="rounded bg-surface-2 px-3 py-2 text-center">
+                    <div className="text-xs text-muted">
                       {t.result[DIM_KEYS[dim] as keyof typeof t.result] ?? dim}
                     </div>
-                    <div className="text-sm font-semibold text-gray-800">{String(score)}</div>
+                    <div className="text-sm font-semibold text-ink">{String(score)}</div>
                   </div>
                 ))}
               </div>
@@ -143,12 +148,12 @@ export default function ResultCard({
             if (!Array.isArray(value) || value.length === 0) return null;
             return (
               <div key={field}>
-                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">
                   {t.result[DIM_KEYS[field] as keyof typeof t.result] ?? field}
                 </h3>
                 <ul className="list-inside list-disc space-y-1">
                   {value.map((item: string, i: number) => (
-                    <li key={i} className="text-sm text-gray-700">{item}</li>
+                    <li key={i} className="text-sm text-ink-soft">{item}</li>
                   ))}
                 </ul>
               </div>
@@ -218,20 +223,20 @@ function IterationDirections({
             key={d.id || i}
             className={`rounded border p-3 transition ${
               isSelected
-                ? "border-blue-400 bg-blue-50 ring-1 ring-blue-200"
-                : "border-gray-200 bg-white hover:border-gray-300"
+                ? "border-accent bg-accent-wash ring-1 ring-accent-soft"
+                : "border-line bg-surface hover:border-line"
             }`}
           >
             {/* Header */}
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-gray-800">
-                  <span className="text-xs text-gray-400 mr-1">{d.id || `dir-${i + 1}`}</span>
+                <h3 className="text-sm font-semibold text-ink">
+                  <span className="text-xs text-muted mr-1">{d.id || `dir-${i + 1}`}</span>
                   {d.title}
                 </h3>
-                <p className="mt-1 text-sm text-gray-600 line-clamp-2">{d.description}</p>
+                <p className="mt-1 text-sm text-ink-soft line-clamp-2">{d.description}</p>
                 {d.expected_impact && (
-                  <p className="mt-1 text-xs text-gray-400">
+                  <p className="mt-1 text-xs text-muted">
                     {t.result.impact}: {d.expected_impact}
                   </p>
                 )}
@@ -241,7 +246,7 @@ function IterationDirections({
             {/* Expandable detail */}
             <button
               onClick={() => setExpandedId(isExpanded ? null : d.id)}
-              className="mt-2 text-xs text-blue-600 hover:underline"
+              className="mt-2 text-xs text-accent hover:underline"
             >
               {isExpanded ? "收起详情 ▲" : "展开详情 ▼"}
             </button>
@@ -254,8 +259,8 @@ function IterationDirections({
                   if (!val) return null;
                   return (
                     <div key={key}>
-                      <span className="text-xs font-medium text-gray-500">{label}</span>
-                      <p className="text-sm text-gray-700">{val}</p>
+                      <span className="text-xs font-medium text-muted">{label}</span>
+                      <p className="text-sm text-ink-soft">{val}</p>
                     </div>
                   );
                 })}
@@ -267,13 +272,13 @@ function IterationDirections({
               {!isSelected && onSelect && (
                 <button
                   onClick={() => onSelect(d)}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 transition"
+                  className="rounded bg-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-accent-deep transition"
                 >
                   选择这个方向
                 </button>
               )}
               {isSelected && (
-                <span className="rounded bg-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700">
+                <span className="rounded bg-accent-wash px-3 py-1.5 text-xs font-medium text-accent">
                   ✓ 已选择
                 </span>
               )}
@@ -283,8 +288,8 @@ function IterationDirections({
                   disabled={generatingPrompt}
                   className={`rounded px-3 py-1.5 text-xs font-medium text-white transition ${
                     generatingPrompt
-                      ? "cursor-not-allowed bg-gray-300"
-                      : "bg-indigo-600 hover:bg-indigo-700"
+                      ? "cursor-not-allowed bg-muted"
+                      : "bg-ink hover:bg-ink"
                   }`}
                 >
                   {generatingPrompt ? "正在基于该方向生成提示词…" : "基于该方向生成提示词"}

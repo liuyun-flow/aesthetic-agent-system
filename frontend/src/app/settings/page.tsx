@@ -52,9 +52,9 @@ interface UsageData {
 
 function UsageStat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded border bg-gray-50 px-3 py-2">
-      <p className="text-xs text-gray-500">{label}</p>
-      <p className="text-sm font-semibold text-gray-800">{value}</p>
+    <div className="rounded border bg-surface-2 px-3 py-2">
+      <p className="text-xs text-muted">{label}</p>
+      <p className="text-sm font-semibold text-ink">{value}</p>
     </div>
   );
 }
@@ -72,12 +72,12 @@ function UsagePanel() {
   }, []);
 
   return (
-    <section className="rounded border bg-white p-5 shadow-sm">
-      <h3 className="text-base font-semibold text-gray-700 mb-3">用量统计（LLM）</h3>
+    <section className="rounded border bg-surface p-5 shadow-soft">
+      <h3 className="text-base font-semibold text-ink-soft mb-3">用量统计（LLM）</h3>
       {loading ? (
-        <p className="text-xs text-gray-400">加载中…</p>
+        <p className="text-xs text-muted">加载中…</p>
       ) : !data || data.total_calls === 0 ? (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-muted">
           暂无调用记录。运行分析 / 评分 / 迭代后，这里会显示累计 token 与平均延迟。
         </p>
       ) : (
@@ -97,15 +97,15 @@ function UsagePanel() {
           <div className="space-y-1">
             {data.by_model.map((m) => (
               <div key={m.model} className="flex items-center gap-2 text-xs">
-                <span className="flex-1 truncate font-medium text-gray-700">{m.model || "?"}</span>
-                <span className="text-gray-500">{m.calls} 次</span>
-                <span className="w-28 text-right text-gray-500">
+                <span className="flex-1 truncate font-medium text-ink-soft">{m.model || "?"}</span>
+                <span className="text-muted">{m.calls} 次</span>
+                <span className="w-28 text-right text-muted">
                   {m.total_tokens.toLocaleString()} token
                 </span>
               </div>
             ))}
           </div>
-          <p className="mt-2 text-xs text-gray-400">
+          <p className="mt-2 text-xs text-muted">
             token 来自各次调用返回的 usage；成本请按你所用模型的计价自行估算。
           </p>
         </>
@@ -137,21 +137,21 @@ function DiagnosticsPanel() {
 
   if (loading) {
     return (
-      <section className="rounded border bg-white p-5 shadow-sm">
+      <section className="rounded border bg-surface p-5 shadow-soft">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-semibold text-gray-700">系统诊断</h3>
+          <h3 className="text-base font-semibold text-ink-soft">系统诊断</h3>
         </div>
-        <p className="text-xs text-gray-400">正在检测系统状态…</p>
+        <p className="text-xs text-muted">正在检测系统状态…</p>
       </section>
     );
   }
 
   if (error || !data) {
     return (
-      <section className="rounded border bg-red-50 border-red-200 p-5 shadow-sm">
+      <section className="rounded border bg-red-50 border-red-200 p-5 shadow-soft">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-base font-semibold text-gray-700">系统诊断</h3>
-          <button onClick={fetchDiagnostics} className="text-xs text-blue-600 underline">重新检测</button>
+          <h3 className="text-base font-semibold text-ink-soft">系统诊断</h3>
+          <button onClick={fetchDiagnostics} className="text-xs text-accent underline">重新检测</button>
         </div>
         <p className="text-xs text-red-500">{error || "诊断数据不可用"}</p>
       </section>
@@ -161,19 +161,19 @@ function DiagnosticsPanel() {
   const Row = ({ label, ok, detail }: { label: string; ok: boolean; detail: string }) => (
     <div className="flex items-center gap-2 text-xs py-1">
       <span className="w-5 text-center">{statusIcon(ok)}</span>
-      <span className="w-24 shrink-0 font-medium text-gray-700">{label}</span>
+      <span className="w-24 shrink-0 font-medium text-ink-soft">{label}</span>
       <span className={`flex-1 ${ok ? "text-green-600" : "text-red-500"}`}>{detail}</span>
     </div>
   );
 
   return (
-    <section className="rounded border bg-white p-5 shadow-sm">
+    <section className="rounded border bg-surface p-5 shadow-soft">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-base font-semibold text-gray-700">
+        <h3 className="text-base font-semibold text-ink-soft">
           系统诊断
-          <span className="ml-2 text-xs font-normal text-gray-400">{data.version}</span>
+          <span className="ml-2 text-xs font-normal text-muted">{data.version}</span>
         </h3>
-        <button onClick={fetchDiagnostics} className="text-xs text-blue-600 underline hover:text-blue-800">重新检测</button>
+        <button onClick={fetchDiagnostics} className="text-xs text-accent underline hover:text-accent">重新检测</button>
       </div>
 
       <div className="space-y-0.5 mb-3">
@@ -191,11 +191,11 @@ function DiagnosticsPanel() {
       </div>
 
       {(data.recommendations ?? []).length > 0 && (
-        <div className="rounded border border-blue-200 bg-blue-50 p-3">
-          <p className="text-xs font-medium text-blue-700 mb-1">建议操作</p>
+        <div className="rounded border border-accent-soft bg-accent-wash p-3">
+          <p className="text-xs font-medium text-accent mb-1">建议操作</p>
           <ul className="space-y-0.5">
             {(data.recommendations ?? []).map((r, i) => (
-              <li key={i} className="text-xs text-blue-600">• {r}</li>
+              <li key={i} className="text-xs text-accent">• {r}</li>
             ))}
           </ul>
         </div>
@@ -375,7 +375,7 @@ export default function SettingsPage() {
   const hasOpenaiKey = Boolean(status?.vision.openai_api_key_masked);
 
   if (loading) {
-    return <div className="text-center text-sm text-gray-400 py-12">{t.common.loading}</div>;
+    return <div className="text-center text-sm text-muted py-12">{t.common.loading}</div>;
   }
 
   if (fetchError && !status) {
@@ -384,7 +384,7 @@ export default function SettingsPage() {
         <p className="text-sm text-red-500 mb-2">{t.settings.loadError || "无法加载设置，请确认后端服务已启动。"}</p>
         <button
           onClick={() => { setLoading(true); setFetchError(false); fetchStatus(); }}
-          className="rounded bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700"
+          className="rounded bg-accent px-4 py-2 text-xs font-medium text-white hover:bg-accent-deep"
         >
           {t.settings.retry || "重试"}
         </button>
@@ -394,7 +394,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-gray-800">{t.settings.title}</h2>
+      <h2 className="text-lg font-semibold text-ink">{t.settings.title}</h2>
 
       {/* ── V2.1: System Diagnostics ───────────────────────────────── */}
       <DiagnosticsPanel />
@@ -403,9 +403,9 @@ export default function SettingsPage() {
       <UsagePanel />
 
       {/* ── DeepSeek Section ────────────────────────────────────────── */}
-      <section className="rounded border bg-white p-5 shadow-sm">
+      <section className="rounded border bg-surface p-5 shadow-soft">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-gray-700">{t.settings.deepseekTitle}</h3>
+          <h3 className="text-base font-semibold text-ink-soft">{t.settings.deepseekTitle}</h3>
           <span className={`rounded px-2 py-0.5 text-xs font-medium ${dsBadge.cls}`}>
             {dsBadge.label}
           </span>
@@ -414,7 +414,7 @@ export default function SettingsPage() {
         <div className="space-y-3">
           {/* API Key */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">
+            <label className="mb-1 block text-xs font-medium text-ink-soft">
               {t.settings.apiKey}
               {status?.deepseek.api_key_masked && (
                 <span className="ml-2 text-green-600 font-normal">
@@ -427,32 +427,32 @@ export default function SettingsPage() {
               value={dsKey}
               onChange={(e) => setDsKey(e.target.value)}
               placeholder={status?.deepseek.is_configured ? t.settings.keyMasked : t.settings.apiKeyPlaceholder}
-              className={`w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 ${
-                status?.deepseek.is_configured && !dsKey ? "bg-green-50 placeholder:text-green-500" : "placeholder:text-gray-400"
+              className={`w-full rounded border border-line px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent ${
+                status?.deepseek.is_configured && !dsKey ? "bg-green-50 placeholder:text-green-500" : "placeholder:text-muted"
               }`}
             />
-            <p className="mt-1 text-xs text-gray-400">{t.settings.apiKeyHint}</p>
+            <p className="mt-1 text-xs text-muted">{t.settings.apiKeyHint}</p>
           </div>
 
           {/* Base URL */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.baseUrl}</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">{t.settings.baseUrl}</label>
             <input
               type="text"
               value={dsBaseUrl}
               onChange={(e) => setDsBaseUrl(e.target.value)}
-              className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className="w-full rounded border border-line px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 
           {/* Models row */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.defaultModel}</label>
+              <label className="mb-1 block text-xs font-medium text-ink-soft">{t.settings.defaultModel}</label>
               <select
                 value={dsDefaultModel}
                 onChange={(e) => setDsDefaultModel(e.target.value)}
-                className="w-full rounded border border-gray-200 px-2 py-2 text-sm focus:border-blue-400 focus:outline-none"
+                className="w-full rounded border border-line px-2 py-2 text-sm focus:border-accent focus:outline-none"
               >
                 <option value="deepseek-v4-flash">deepseek-v4-flash</option>
                 <option value="deepseek-v4-pro">deepseek-v4-pro</option>
@@ -461,11 +461,11 @@ export default function SettingsPage() {
               </select>
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.reasoningModel}</label>
+              <label className="mb-1 block text-xs font-medium text-ink-soft">{t.settings.reasoningModel}</label>
               <select
                 value={dsReasoningModel}
                 onChange={(e) => setDsReasoningModel(e.target.value)}
-                className="w-full rounded border border-gray-200 px-2 py-2 text-sm focus:border-blue-400 focus:outline-none"
+                className="w-full rounded border border-line px-2 py-2 text-sm focus:border-accent focus:outline-none"
               >
                 <option value="deepseek-v4-pro">deepseek-v4-pro</option>
                 <option value="deepseek-v4-flash">deepseek-v4-flash</option>
@@ -482,7 +482,7 @@ export default function SettingsPage() {
               onClick={handleTestDs}
               disabled={testingDs}
               className={`rounded px-4 py-2 text-xs font-medium text-white transition ${
-                testingDs ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"
+                testingDs ? "cursor-not-allowed bg-muted" : "bg-ink hover:bg-ink"
               }`}
             >
               {testingDs ? t.settings.testing : t.settings.testConnection}
@@ -510,9 +510,9 @@ export default function SettingsPage() {
       </section>
 
       {/* ── Vision Section ───────────────────────────────────────────── */}
-      <section className="rounded border bg-white p-5 shadow-sm">
+      <section className="rounded border bg-surface p-5 shadow-soft">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-semibold text-gray-700">{t.settings.visionTitle}</h3>
+          <h3 className="text-base font-semibold text-ink-soft">{t.settings.visionTitle}</h3>
           <span className={`rounded px-2 py-0.5 text-xs font-medium ${vsBadge.cls}`}>
             {vsBadge.label}
           </span>
@@ -521,11 +521,11 @@ export default function SettingsPage() {
         <div className="space-y-3">
           {/* Provider */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.provider}</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">{t.settings.provider}</label>
             <select
               value={visionProvider}
               onChange={(e) => setVisionProvider(e.target.value)}
-              className="w-full rounded border border-gray-200 px-2 py-2 text-sm focus:border-blue-400 focus:outline-none"
+              className="w-full rounded border border-line px-2 py-2 text-sm focus:border-accent focus:outline-none"
             >
               <option value="placeholder">{t.settings.providerPlaceholder}</option>
               <option value="openai">{t.settings.providerOpenAI}</option>
@@ -535,7 +535,7 @@ export default function SettingsPage() {
           {/* OpenAI Key (shown only when provider is openai) */}
           {visionProvider === "openai" && (
             <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">
+              <label className="mb-1 block text-xs font-medium text-ink-soft">
                 {t.settings.openaiApiKey}
                 {status?.vision.openai_api_key_masked && (
                   <span className="ml-2 text-green-600 font-normal">
@@ -548,21 +548,21 @@ export default function SettingsPage() {
                 value={openaiKey}
                 onChange={(e) => setOpenaiKey(e.target.value)}
                 placeholder={hasOpenaiKey ? t.settings.keyMasked : t.settings.apiKeyPlaceholder}
-                className={`w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 ${
-                  hasOpenaiKey && !openaiKey ? "bg-green-50 placeholder:text-green-500" : "placeholder:text-gray-400"
+                className={`w-full rounded border border-line px-3 py-2 text-sm focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent ${
+                  hasOpenaiKey && !openaiKey ? "bg-green-50 placeholder:text-green-500" : "placeholder:text-muted"
                 }`}
               />
-              <p className="mt-1 text-xs text-gray-400">{t.settings.openaiApiKeyHint}</p>
+              <p className="mt-1 text-xs text-muted">{t.settings.openaiApiKeyHint}</p>
             </div>
           )}
 
           {/* Model */}
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">{t.settings.openaiVisionModel}</label>
+            <label className="mb-1 block text-xs font-medium text-ink-soft">{t.settings.openaiVisionModel}</label>
             <select
               value={openaiModel}
               onChange={(e) => setOpenaiModel(e.target.value)}
-              className="w-full rounded border border-gray-200 px-2 py-2 text-sm focus:border-blue-400 focus:outline-none"
+              className="w-full rounded border border-line px-2 py-2 text-sm focus:border-accent focus:outline-none"
             >
               <option value="gpt-4o-mini">gpt-4o-mini</option>
               <option value="gpt-4o">gpt-4o</option>
@@ -577,7 +577,7 @@ export default function SettingsPage() {
               onClick={handleTestVision}
               disabled={testingVision}
               className={`rounded px-4 py-2 text-xs font-medium text-white transition ${
-                testingVision ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"
+                testingVision ? "cursor-not-allowed bg-muted" : "bg-ink hover:bg-ink"
               }`}
             >
               {testingVision ? t.settings.testing : t.settings.testVision}
@@ -608,7 +608,7 @@ export default function SettingsPage() {
       <DataManagementSection />
 
       {/* ── Security Notice ──────────────────────────────────────────── */}
-      <section className="rounded border border-blue-200 bg-blue-50 p-4 text-xs text-blue-800">
+      <section className="rounded border border-accent-soft bg-accent-wash p-4 text-xs text-accent">
         <p className="font-medium mb-1">🔒 安全说明</p>
         <p>{t.settings.securityNotice}</p>
       </section>
@@ -620,7 +620,7 @@ export default function SettingsPage() {
           onClick={handleSave}
           disabled={saving}
           className={`rounded px-6 py-2 text-sm font-medium text-white transition ${
-            saving ? "cursor-not-allowed bg-gray-300" : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+            saving ? "cursor-not-allowed bg-muted" : "bg-accent hover:bg-accent-deep active:bg-accent-deep"
           }`}
         >
           {saving ? t.settings.saving : t.settings.save}
@@ -690,20 +690,20 @@ function DataManagementSection() {
   };
 
   return (
-    <section className="rounded border bg-white p-5 shadow-sm">
-      <h3 className="text-base font-semibold text-gray-700 mb-4">数据管理</h3>
+    <section className="rounded border bg-surface p-5 shadow-soft">
+      <h3 className="text-base font-semibold text-ink-soft mb-4">数据管理</h3>
 
       {/* Export */}
       <div className="mb-4 pb-4 border-b">
-        <p className="text-sm text-gray-600 mb-2">导出备份包</p>
-        <p className="text-xs text-gray-400 mb-3">
+        <p className="text-sm text-ink-soft mb-2">导出备份包</p>
+        <p className="text-xs text-muted mb-3">
           导出训练记录、参考案例、上传图片和配置摘要（不含 API Key）。可用于备份或迁移到新电脑。
         </p>
         <button
           onClick={handleExport}
           disabled={exporting}
           className={`rounded px-4 py-2 text-xs font-medium text-white transition ${
-            exporting ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"
+            exporting ? "cursor-not-allowed bg-muted" : "bg-ink hover:bg-ink"
           }`}
         >
           {exporting ? "导出中…" : "导出备份包 (.zip)"}
@@ -712,12 +712,12 @@ function DataManagementSection() {
 
       {/* Import */}
       <div>
-        <p className="text-sm text-gray-600 mb-2">导入备份包</p>
-        <p className="text-xs text-gray-400 mb-3">
+        <p className="text-sm text-ink-soft mb-2">导入备份包</p>
+        <p className="text-xs text-muted mb-3">
           上传之前导出的 .zip 备份包。第一版为「合并导入」，不会清空当前数据。导入的图片和案例 ID 会自动重映射，不会覆盖现有数据。
         </p>
         <label className={`inline-block rounded px-4 py-2 text-xs font-medium text-white transition cursor-pointer ${
-          importing ? "bg-gray-300 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"
+          importing ? "bg-muted cursor-not-allowed" : "bg-ink hover:bg-ink"
         }`}>
           {importing ? "导入中…" : "上传并导入"}
           <input
@@ -751,7 +751,7 @@ function DataManagementSection() {
             )}
           </div>
         )}
-        <p className="mt-2 text-xs text-gray-400">
+        <p className="mt-2 text-xs text-muted">
           导入后，如需语义搜索请前往参考案例库点击「重建语义索引」。
         </p>
       </div>

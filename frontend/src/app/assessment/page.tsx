@@ -69,18 +69,18 @@ function trendLabel(t: string): string {
 function trendColor(t: string): string {
   const m: Record<string, string> = {
     improving: "text-green-600",
-    stable: "text-blue-600",
+    stable: "text-accent",
     worsening: "text-red-600",
-    insufficient_data: "text-gray-400",
+    insufficient_data: "text-muted",
   };
-  return m[t] ?? "text-gray-400";
+  return m[t] ?? "text-muted";
 }
 
 function severityBadge(s: string): string {
   const m: Record<string, string> = {
     high: "bg-red-100 text-red-700",
     medium: "bg-amber-100 text-amber-700",
-    low: "bg-gray-100 text-gray-600",
+    low: "bg-surface-2 text-ink-soft",
   };
   return m[s] ?? m.low;
 }
@@ -96,7 +96,7 @@ function levelBadge(l: string): string {
     medium: "bg-amber-100 text-amber-700",
     weak: "bg-red-100 text-red-700",
   };
-  return m[l] ?? "bg-gray-100 text-gray-500";
+  return m[l] ?? "bg-surface-2 text-muted";
 }
 
 function levelLabel(l: string): string {
@@ -135,11 +135,11 @@ function StatCard({
     return "--";
   })();
   return (
-    <div className="rounded border bg-white p-4 shadow-sm">
-      <p className="text-xs text-gray-500">{label}</p>
+    <div className="rounded border bg-surface p-4 shadow-soft">
+      <p className="text-xs text-muted">{label}</p>
       <p className={`text-2xl font-bold ${color}`}>
         {display}
-        {suffix && <span className="text-sm font-normal text-gray-400 ml-1">{suffix}</span>}
+        {suffix && <span className="text-sm font-normal text-muted ml-1">{suffix}</span>}
       </p>
     </div>
   );
@@ -163,9 +163,9 @@ function RadarChart({ dims }: { dims: DimensionAssessment[] }) {
     .join(" ");
 
   return (
-    <div className="rounded border bg-white p-4 shadow-sm">
-      <h4 className="text-sm font-semibold text-gray-700 mb-1">作品维度评分（雷达图）</h4>
-      <p className="text-xs text-gray-400 mb-1">你训练作品在各维度的平均质量（AI 评分），非你的判断力分数</p>
+    <div className="rounded border bg-surface p-4 shadow-soft">
+      <h4 className="text-sm font-semibold text-ink-soft mb-1">作品维度评分（雷达图）</h4>
+      <p className="text-xs text-muted mb-1">你训练作品在各维度的平均质量（AI 评分），非你的判断力分数</p>
       <svg viewBox="0 0 320 300" className="mx-auto w-full max-w-sm" role="img" aria-label="作品维度评分雷达图">
         {/* Grid rings at 25/50/75/100 */}
         {[0.25, 0.5, 0.75, 1].map((f) => (
@@ -211,20 +211,20 @@ function GapBars({ overview }: { overview: AssessmentOverview }) {
   const max = Math.max(...items.map((it) => it.value), 1);
 
   return (
-    <div className="rounded border bg-white p-4 shadow-sm">
-      <h4 className="text-sm font-semibold text-gray-700 mb-1">判断差距变化</h4>
-      <p className="text-xs text-gray-400 mb-3">自评与 AI 评分的平均差距，越小代表判断越准</p>
+    <div className="rounded border bg-surface p-4 shadow-soft">
+      <h4 className="text-sm font-semibold text-ink-soft mb-1">判断差距变化</h4>
+      <p className="text-xs text-muted mb-3">自评与 AI 评分的平均差距，越小代表判断越准</p>
       <div className="space-y-2">
         {items.map((it) => (
           <div key={it.label} className="flex items-center gap-2 text-xs">
-            <span className="w-24 shrink-0 text-gray-500">{it.label}</span>
-            <div className="h-3 flex-1 rounded bg-gray-100">
+            <span className="w-24 shrink-0 text-muted">{it.label}</span>
+            <div className="h-3 flex-1 rounded bg-surface-2">
               <div
                 className={`h-3 rounded ${it.value <= max * 0.5 ? "bg-green-400" : it.value <= max * 0.8 ? "bg-amber-400" : "bg-red-400"}`}
                 style={{ width: `${Math.max(4, (it.value / max) * 100)}%` }}
               />
             </div>
-            <span className="w-10 text-right font-medium text-gray-700">{it.value.toFixed(1)}</span>
+            <span className="w-10 text-right font-medium text-ink-soft">{it.value.toFixed(1)}</span>
           </div>
         ))}
       </div>
@@ -247,9 +247,9 @@ function QualityTrend({ series }: { series: number[] }) {
   const delta = last - first;
 
   return (
-    <div className="rounded border bg-white p-4 shadow-sm">
-      <h4 className="text-sm font-semibold text-gray-700 mb-1">作品质量趋势</h4>
-      <p className="text-xs text-gray-400 mb-2">
+    <div className="rounded border bg-surface p-4 shadow-soft">
+      <h4 className="text-sm font-semibold text-ink-soft mb-1">作品质量趋势</h4>
+      <p className="text-xs text-muted mb-2">
         最近 {n} 次评分作品的 AI 总分（0-100）·
         <span className={delta >= 0 ? "text-green-600" : "text-red-600"}>
           {" "}{delta >= 0 ? "↑" : "↓"} {Math.abs(delta)}
@@ -330,7 +330,7 @@ export default function AssessmentPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-gray-400">正在分析训练数据…</p>
+        <p className="text-muted">正在分析训练数据…</p>
       </div>
     );
   }
@@ -355,15 +355,15 @@ export default function AssessmentPage() {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">训练效果评估</h2>
-          <p className="text-xs text-gray-500 mt-0.5">基于历史训练记录评估审美判断力进步情况</p>
+          <h2 className="text-lg font-semibold text-ink">训练效果评估</h2>
+          <p className="text-xs text-muted mt-0.5">基于历史训练记录评估审美判断力进步情况</p>
         </div>
         <div className="rounded border bg-amber-50 p-8 text-center">
           <p className="text-amber-600 text-sm font-medium mb-2">训练数据不足</p>
           <p className="text-amber-500 text-xs">
             建议先完成至少 5 次训练（包含自评和 AI 评分），再回来查看评估结果。
           </p>
-          <p className="text-gray-400 text-xs mt-2">
+          <p className="text-muted text-xs mt-2">
             当前共 {overview.total_sessions} 条记录，其中 {overview.valid_scored_sessions ?? 0} 条有效评分
           </p>
         </div>
@@ -377,17 +377,17 @@ export default function AssessmentPage() {
     <div className="space-y-5">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold text-gray-800">训练效果评估</h2>
-        <p className="text-xs text-gray-500 mt-0.5">基于历史训练记录评估审美判断力进步情况</p>
+        <h2 className="text-lg font-semibold text-ink">训练效果评估</h2>
+        <p className="text-xs text-muted mt-0.5">基于历史训练记录评估审美判断力进步情况</p>
       </div>
 
       {/* Summary */}
-      <div className="rounded border bg-blue-50 border-blue-200 p-4">
-        <p className="text-sm text-blue-700">{overview.summary}</p>
+      <div className="rounded border bg-accent-wash border-accent-soft p-4">
+        <p className="text-sm text-accent">{overview.summary}</p>
         {(overview.next_focus ?? []).length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {(overview.next_focus ?? []).map((f, i) => (
-              <span key={i} className="rounded-full bg-blue-200 text-blue-700 px-2 py-0.5 text-xs">
+              <span key={i} className="rounded-full bg-accent-soft text-accent px-2 py-0.5 text-xs">
                 {f}
               </span>
             ))}
@@ -397,15 +397,15 @@ export default function AssessmentPage() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="总训练次数" value={overview.total_sessions} color="text-gray-700" />
-        <StatCard label="最近 7 天" value={overview.sessions_last_7_days} suffix="次" color="text-blue-600" />
-        <StatCard label="最近 30 天" value={overview.sessions_last_30_days} suffix="次" color="text-indigo-600" />
+        <StatCard label="总训练次数" value={overview.total_sessions} color="text-ink-soft" />
+        <StatCard label="最近 7 天" value={overview.sessions_last_7_days} suffix="次" color="text-accent" />
+        <StatCard label="最近 30 天" value={overview.sessions_last_30_days} suffix="次" color="text-ink-soft" />
         <StatCard label="已完成" value={overview.completed_sessions} color="text-green-600" />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <StatCard label="平均自评" value={overview.average_user_score ?? "--"} suffix="分" color="text-purple-600" />
-        <StatCard label="平均 AI 评分" value={overview.average_ai_score ?? "--"} suffix="分" color="text-teal-600" />
+        <StatCard label="平均自评" value={overview.average_user_score ?? "--"} suffix="分" color="text-accent" />
+        <StatCard label="平均 AI 评分" value={overview.average_ai_score ?? "--"} suffix="分" color="text-ink-soft" />
         <StatCard label="平均判断差距" value={overview.average_score_gap ?? "--"} suffix="分" color="text-orange-600" />
         <StatCard label="近 7 天差距" value={overview.average_score_gap_last_7 ?? "--"} suffix="分" color="text-amber-600" />
         <StatCard label="差距趋势" value={trendLabel(overview.score_gap_trend)} color={trendColor(overview.score_gap_trend)} />
@@ -428,8 +428,8 @@ export default function AssessmentPage() {
             onClick={() => setTab(t)}
             className={`px-4 py-2 text-xs font-medium rounded-t transition ${
               tab === t
-                ? "bg-white border border-b-white text-blue-600 -mb-px"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                ? "bg-surface border border-b-white text-accent -mb-px"
+                : "text-muted hover:text-ink-soft hover:bg-surface-2"
             }`}
           >
             {t === "mistakes" ? "常见误判" : t === "dimensions" ? "作品维度" : "周期复盘"}
@@ -440,7 +440,7 @@ export default function AssessmentPage() {
       {/* Tab: Mistakes */}
       {tab === "mistakes" && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted">
             ⚙️ 误判检测基于关键词启发式规则（非语义分析），仅供参考方向，不是精确诊断。
           </p>
           {mistakes.length === 0 ? (
@@ -449,16 +449,16 @@ export default function AssessmentPage() {
             </p>
           ) : (
             mistakes.map((m, i) => (
-              <div key={i} className="rounded border bg-white p-4 shadow-sm">
+              <div key={i} className="rounded border bg-surface p-4 shadow-soft">
                 <div className="flex items-center gap-2 mb-2">
                   <span className={`rounded px-2 py-0.5 text-xs font-medium ${severityBadge(m.severity)}`}>
                     {severityLabel(m.severity)}严重
                   </span>
-                  <h4 className="text-sm font-semibold text-gray-800">{m.mistake_type}</h4>
-                  <span className="text-xs text-gray-400">出现 {m.count} 次</span>
+                  <h4 className="text-sm font-semibold text-ink">{m.mistake_type}</h4>
+                  <span className="text-xs text-muted">出现 {m.count} 次</span>
                 </div>
-                <p className="text-xs text-gray-600 mb-1.5">{m.explanation}</p>
-                <p className="text-xs text-blue-600 bg-blue-50 rounded px-2 py-1">
+                <p className="text-xs text-ink-soft mb-1.5">{m.explanation}</p>
+                <p className="text-xs text-accent bg-accent-wash rounded px-2 py-1">
                   💡 {m.training_suggestion}
                 </p>
               </div>
@@ -470,26 +470,26 @@ export default function AssessmentPage() {
       {/* Tab: Dimensions */}
       {tab === "dimensions" && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-muted">
             这些分数是 AI 对你训练作品在各维度的<b>平均质量评分</b>（0-100），反映你练习作品的水平与趋势，
             而非直接衡量你的判断力。判断力差距见上方「平均判断差距」与差距趋势。
           </p>
           {dimensions.map((d) => (
-            <div key={d.dimension_key} className="rounded border bg-white p-4 shadow-sm">
+            <div key={d.dimension_key} className="rounded border bg-surface p-4 shadow-soft">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold text-gray-800">{d.dimension_name}</h4>
+                  <h4 className="text-sm font-semibold text-ink">{d.dimension_name}</h4>
                   <span className={`rounded px-2 py-0.5 text-xs font-medium ${levelBadge(d.level)}`}>
                     {levelLabel(d.level)}
                   </span>
-                  <span className="text-xs text-gray-400" title={d.trend}>
+                  <span className="text-xs text-muted" title={d.trend}>
                     {dimensionTrendBadge(d.trend)} {d.trend === "insufficient_data" ? "数据不足" : ""}
                   </span>
                 </div>
-                <span className="text-lg font-bold text-gray-700">{d.score}</span>
+                <span className="text-lg font-bold text-ink-soft">{d.score}</span>
               </div>
               {/* Progress bar */}
-              <div className="w-full bg-gray-100 rounded-full h-2 mb-2">
+              <div className="w-full bg-surface-2 rounded-full h-2 mb-2">
                 <div
                   className={`h-2 rounded-full transition-all ${
                     d.score >= 70 ? "bg-green-500" : d.score >= 45 ? "bg-amber-500" : "bg-red-500"
@@ -497,8 +497,8 @@ export default function AssessmentPage() {
                   style={{ width: `${Math.max(5, d.score)}%` }}
                 />
               </div>
-              <p className="text-xs text-gray-500">{d.evidence}</p>
-              <p className="text-xs text-blue-600 mt-1">{d.suggestion}</p>
+              <p className="text-xs text-muted">{d.evidence}</p>
+              <p className="text-xs text-accent mt-1">{d.suggestion}</p>
             </div>
           ))}
         </div>
@@ -509,15 +509,15 @@ export default function AssessmentPage() {
         <div className="space-y-4">
           {/* Day selector */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">复盘周期：</span>
+            <span className="text-xs text-muted">复盘周期：</span>
             {[7, 30].map((d) => (
               <button
                 key={d}
                 onClick={() => setReportDays(d)}
                 className={`rounded px-3 py-1 text-xs font-medium transition ${
                   reportDays === d
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-accent text-white"
+                    : "bg-surface-2 text-ink-soft hover:bg-gray-200"
                 }`}
               >
                 {d} 天
@@ -532,7 +532,7 @@ export default function AssessmentPage() {
             </div>
           )}
           {reportLoading ? (
-            <p className="text-xs text-gray-400 py-4">正在生成复盘报告…</p>
+            <p className="text-xs text-muted py-4">正在生成复盘报告…</p>
           ) : report ? (
             <>
               {/* Progress summary */}
@@ -541,9 +541,9 @@ export default function AssessmentPage() {
               </div>
 
               {/* Score gap */}
-              <div className="rounded border bg-white p-4 shadow-sm">
-                <h4 className="text-sm font-semibold text-gray-700 mb-1">判断准确度</h4>
-                <p className="text-xs text-gray-600">{report.score_gap_summary}</p>
+              <div className="rounded border bg-surface p-4 shadow-soft">
+                <h4 className="text-sm font-semibold text-ink-soft mb-1">判断准确度</h4>
+                <p className="text-xs text-ink-soft">{report.score_gap_summary}</p>
               </div>
 
               {/* Weakest dimensions */}
@@ -582,11 +582,11 @@ export default function AssessmentPage() {
 
               {/* Top mistakes */}
               {(report.top_mistakes ?? []).length > 0 && (
-                <div className="rounded border bg-white p-4 shadow-sm">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">高频误判</h4>
+                <div className="rounded border bg-surface p-4 shadow-soft">
+                  <h4 className="text-sm font-semibold text-ink-soft mb-2">高频误判</h4>
                   <div className="space-y-2">
                     {(report.top_mistakes ?? []).map((m, i) => (
-                      <p key={i} className="text-xs text-gray-600">
+                      <p key={i} className="text-xs text-ink-soft">
                         <span className={`rounded px-1.5 py-0.5 font-medium mr-1 ${severityBadge(m.severity)}`}>
                           {m.mistake_type}
                         </span>
@@ -599,11 +599,11 @@ export default function AssessmentPage() {
 
               {/* Training plan */}
               {(report.next_training_plan ?? []).length > 0 && (
-                <div className="rounded border bg-blue-50 border-blue-200 p-4">
-                  <h4 className="text-sm font-semibold text-blue-700 mb-2">下一步训练计划</h4>
+                <div className="rounded border bg-accent-wash border-accent-soft p-4">
+                  <h4 className="text-sm font-semibold text-accent mb-2">下一步训练计划</h4>
                   <ul className="space-y-1">
                     {(report.next_training_plan ?? []).map((p, i) => (
-                      <li key={i} className="text-xs text-blue-600 flex items-start gap-1.5">
+                      <li key={i} className="text-xs text-accent flex items-start gap-1.5">
                         <span className="mt-0.5 shrink-0">{i + 1}.</span>
                         <span>{p}</span>
                       </li>
@@ -614,11 +614,11 @@ export default function AssessmentPage() {
 
               {/* Recommended themes */}
               {(report.recommended_themes ?? []).length > 0 && (
-                <div className="rounded border bg-white p-4 shadow-sm">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-2">推荐训练主题</h4>
+                <div className="rounded border bg-surface p-4 shadow-soft">
+                  <h4 className="text-sm font-semibold text-ink-soft mb-2">推荐训练主题</h4>
                   <div className="flex flex-wrap gap-2">
                     {(report.recommended_themes ?? []).map((t, i) => (
-                      <span key={i} className="rounded-full bg-indigo-100 text-indigo-700 px-3 py-1 text-xs font-medium">
+                      <span key={i} className="rounded-full bg-surface-2 text-ink-soft px-3 py-1 text-xs font-medium">
                         {t}
                       </span>
                     ))}

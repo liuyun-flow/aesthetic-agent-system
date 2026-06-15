@@ -28,7 +28,7 @@ export default defineConfig({
       env: { DATABASE_URL: "sqlite:///./data/database/e2e.db" },
     },
     {
-      command: "npm run dev -- -p 3000",
+      command: process.env.E2E_FRONTEND_CMD || "npm run dev -- -p 3000",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,

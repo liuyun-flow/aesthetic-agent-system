@@ -1,7 +1,7 @@
-# Project Status — V2.5.0
+# Project Status — V2.6.0
 
 ## Current Version
-**V2.5.0** — 信心（质量与可靠性）：CI + 视觉描述缓存 + 成本/延迟遥测 + 前端组件测试/Playwright E2E + on-release 校准评测
+**V2.6.0** — UI 高级化改版（"Editorial Atelier" 设计系统）：暖纸感底 + 墨黑 + 赤陶强调色 + Fraunces 展示字 + token 化色板/层级/阴影；仅视觉，无功能改动
 
 ---
 
@@ -36,7 +36,28 @@
 | V2.3.0 | 一键收藏+描述补全 | 一键收入案例库（session→draft+等级推导）/ image_id 链接 / Vision 商业推测字段 / 描述完整度进度条 / 引导式补全 |
 | V2.4.0 | 信任度量 | 评测/校准台（backend/evals）/ 存储真实维度分+迁移 / 维度评估聚合 8 维 / critic 扩 8 维 / 可选 Vision 直评 / PROMPT_VERSION |
 | V2.4.1 | 复审收尾 | 诚实表述（作品质量≠判断力）/ 评测台 19 单测 / 作品质量趋势（读 ai_overall_score）/ 评测可复现（temp0+repeat）/ 误判启发式标注 / 代理文档 |
-| **V2.5.0** | **信心** | CI（GitHub Actions）/ 视觉描述缓存 + vision_model / 遥测（llm_usage + wrap_client + /system/usage）/ 前端组件测试（Vitest）/ Playwright E2E / on-release 校准评测（--check 门槛）|
+| V2.5.0 | 信心 | CI（GitHub Actions）/ 视觉描述缓存 + vision_model / 遥测（llm_usage + wrap_client + /system/usage）/ 前端组件测试（Vitest）/ Playwright E2E / on-release 校准评测（--check 门槛）|
+| **V2.6.0** | **UI 高级化改版** | Editorial Atelier 设计系统：暖纸感底+纹理 / 墨黑 + 赤陶强调 / Fraunces 展示字 / token 化（色板·阴影·圆角）/ 精炼页眉 / 全站统一应用（仅视觉）|
+
+---
+
+## V2.6.0 变更（本次）
+
+V2.6.0 是 UI 高级化改版，目标：让「教审美的工具」自身看起来高级。落实其后端 design_knowledge 所讲的高级感信号——克制、系统一致、留白、材质、大胆尺度对比。仅视觉，无功能/接口改动。
+
+| 类别 | 变更 |
+|------|------|
+| 设计 token | `tailwind.config.ts`：paper/surface/ink/ink-soft/muted/line/accent(+deep/soft/wash)/sage/clay 色板；display(Fraunces) 字体；soft/card/lift 阴影；xl2 圆角 |
+| 全局样式 | `globals.css`：暖纸纹背景 + 大气渐变；暖色默认描边；赤陶聚焦环 + 选区；细滚动条；staggered 载入；tnum/rule/font-display 工具类 |
+| 字体 | `layout.tsx` 引入 next/font Fraunces（Latin 展示 + 数字）；中文走精修系统字栈 |
+| 页眉 | 印章式 wordmark（Æ）+ 赤陶激活态导航 + 半透明 backdrop-blur 粘性栏 |
+| 调色板迁移 | 全站把通用 blue/teal/indigo/purple/gray 重映射到 paper/ink/accent 体系（脚本化 + 手调）|
+| 工作台精修 | 任务选择器、主 CTA（赤陶）、折叠区头、AgentProgress、ResultCard（大号 Fraunces 评分数字 + 赤陶标尺标题）|
+| 验证 | 247 后端 + 前端 Vitest(5) + Playwright E2E + 生产 build 全绿；改版不破坏组件测试 |
+| 版本号 | main.py / data_io.py / tests → v2.6.0 |
+
+### 修改的文件（V2.6.0，均为前端 + 版本号）
+`frontend/tailwind.config.ts` · `frontend/src/app/globals.css` · `frontend/src/app/layout.tsx` · `frontend/src/app/page.tsx` · `frontend/src/app/{assessment,audit,help,settings,setup}/page.tsx` · `frontend/src/components/{TaskForm,ResultCard,SessionList,TrainingPanel,ReferencePanel}.tsx` · `frontend/playwright.config.ts`（E2E_FRONTEND_CMD 可覆盖）· 后端 version → 2.6.0
 
 ---
 

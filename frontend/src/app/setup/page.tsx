@@ -104,7 +104,7 @@ export default function SetupPage() {
       <div className="mx-auto max-w-lg text-center py-12">
         <div className="text-4xl mb-4">🎉</div>
         <h2 className="text-xl font-semibold mb-2">{lang === "en" ? "Setup Complete!" : "设置完成！"}</h2>
-        <p className="text-gray-500 mb-6">
+        <p className="text-muted mb-6">
           {lang === "en"
             ? "You're ready to start your aesthetic training journey."
             : "你已经准备好开始审美训练了。"}
@@ -112,13 +112,13 @@ export default function SetupPage() {
         <div className="flex gap-3 justify-center">
           <Link
             href="/"
-            className="rounded bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+            className="rounded bg-accent px-6 py-2 text-sm font-medium text-white hover:bg-accent-deep transition"
           >
             {lang === "en" ? "Go to Workbench" : "进入训练工作台"}
           </Link>
           <Link
             href="/help"
-            className="rounded border border-gray-300 px-6 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+            className="rounded border border-line px-6 py-2 text-sm font-medium text-ink-soft hover:bg-surface-2 transition"
           >
             {lang === "en" ? "View Help" : "查看帮助"}
           </Link>
@@ -128,7 +128,7 @@ export default function SetupPage() {
             setDone(false);
             setStep("welcome");
           }}
-          className="mt-4 text-xs text-gray-400 hover:text-gray-600 underline"
+          className="mt-4 text-xs text-muted hover:text-ink-soft underline"
         >
           {lang === "en" ? "Re-open wizard" : "重新打开向导"}
         </button>
@@ -141,18 +141,18 @@ export default function SetupPage() {
       {/* Progress bar */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-muted">
             {lang === "en" ? "Step" : "步骤"} {currentIndex + 1} / {STEPS.length}
           </span>
           {!skipMode && (
-            <button onClick={handleSkip} className="text-xs text-gray-400 hover:text-gray-600 underline">
+            <button onClick={handleSkip} className="text-xs text-muted hover:text-ink-soft underline">
               {lang === "en" ? "Skip wizard" : "跳过向导"}
             </button>
           )}
         </div>
-        <div className="h-1.5 rounded-full bg-gray-100">
+        <div className="h-1.5 rounded-full bg-surface-2">
           <div
-            className="h-1.5 rounded-full bg-blue-500 transition-all duration-300"
+            className="h-1.5 rounded-full bg-accent transition-all duration-300"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -164,9 +164,9 @@ export default function SetupPage() {
               onClick={() => setStep(s)}
               className={`text-xs transition ${
                 i === currentIndex
-                  ? "font-semibold text-blue-600"
+                  ? "font-semibold text-accent"
                   : i < currentIndex
-                  ? "text-blue-400"
+                  ? "text-accent"
                   : "text-gray-300"
               }`}
             >
@@ -177,7 +177,7 @@ export default function SetupPage() {
       </div>
 
       {/* Step content */}
-      <div className="rounded-xl border bg-white p-6 shadow-sm min-h-[320px]">
+      <div className="rounded-xl border bg-surface p-6 shadow-soft min-h-[320px]">
         {step === "welcome" && <WelcomeStep t={t} lang={lang} />}
         {step === "configure" && (
           <ConfigureStep
@@ -217,7 +217,7 @@ export default function SetupPage() {
           className={`rounded px-4 py-2 text-sm font-medium transition ${
             currentIndex === 0
               ? "cursor-not-allowed text-gray-300"
-              : "text-gray-600 hover:bg-gray-100"
+              : "text-ink-soft hover:bg-surface-2"
           }`}
         >
           ← {lang === "en" ? "Back" : "上一步"}
@@ -225,7 +225,7 @@ export default function SetupPage() {
         {step !== "done" && (
           <button
             onClick={() => next()}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+            className="rounded bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-deep transition"
           >
             {lang === "en" ? "Next" : "下一步"} →
           </button>
@@ -254,7 +254,7 @@ function WelcomeStep({ t, lang }: { t: ReturnType<typeof useT>["t"]; lang: strin
       <h2 className="text-lg font-semibold mb-3">
         {zh ? "欢迎使用审美训练智能体" : "Welcome to Aesthetic Training Agent"}
       </h2>
-      <div className="text-sm text-gray-600 space-y-3">
+      <div className="text-sm text-ink-soft space-y-3">
         <p>
           {zh
             ? "这不是普通的图片分析工具。这是一个帮你训练审美判断力的智能体。"
@@ -312,7 +312,7 @@ function ConfigureStep({
       <h2 className="text-lg font-semibold mb-3">
         {zh ? "配置模型 API Key" : "Configure Model API Keys"}
       </h2>
-      <div className="text-sm text-gray-600 space-y-3">
+      <div className="text-sm text-ink-soft space-y-3">
         <p>
           {zh
             ? "两个模型都需要 API Key 才能工作。所有 Key 保存在你的本地机器上，不会上传到任何地方。"
@@ -322,21 +322,21 @@ function ConfigureStep({
         {/* DeepSeek */}
         <div className="rounded border p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-gray-800">DeepSeek</span>
+            <span className="font-medium text-ink">DeepSeek</span>
             {dsOk !== undefined && (
               <span className={`rounded px-2 py-0.5 text-xs font-medium ${dsOk ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                 {dsOk ? (zh ? "已配置" : "Configured") : (zh ? "未配置" : "Not configured")}
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-muted mb-2">
             {zh
               ? "注册 DeepSeek 获取 API Key：platform.deepseek.com → API Keys → 创建 → 复制 sk- 开头的 Key"
               : "Get a DeepSeek API Key: platform.deepseek.com → API Keys → Create → Copy the key starting with sk-"}
           </p>
           <Link
             href="/settings"
-            className="inline-block text-xs text-blue-600 hover:underline"
+            className="inline-block text-xs text-accent hover:underline"
           >
             {zh ? "去设置页配置 →" : "Go to Settings →"}
           </Link>
@@ -345,7 +345,7 @@ function ConfigureStep({
         {/* Vision */}
         <div className="rounded border p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="font-medium text-gray-800">OpenAI Vision</span>
+            <span className="font-medium text-ink">OpenAI Vision</span>
             {visOk !== undefined && (
               <span
                 className={`rounded px-2 py-0.5 text-xs font-medium ${
@@ -364,25 +364,25 @@ function ConfigureStep({
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-muted mb-2">
             {zh
               ? "注册 OpenAI 获取 API Key：platform.openai.com → API Keys → 创建 → 复制 sk- 开头的 Key。注意：你需要一个有额度的 OpenAI 账号。"
               : "Get an OpenAI API Key: platform.openai.com → API Keys → Create → Copy the key starting with sk-. Note: you need an OpenAI account with credits."}
           </p>
-          <p className="text-xs text-gray-400 mb-2">
+          <p className="text-xs text-muted mb-2">
             {zh
               ? "如果暂时没有 OpenAI Key，可以使用「占位模式」先用固定示例体验流程。图片描述不会匹配你的实际图片。"
               : "If you don't have an OpenAI key yet, you can use 'Placeholder' mode to try the workflow with sample descriptions. Descriptions won't match your actual images."}
           </p>
           <Link
             href="/settings"
-            className="inline-block text-xs text-blue-600 hover:underline"
+            className="inline-block text-xs text-accent hover:underline"
           >
             {zh ? "去设置页配置 →" : "Go to Settings →"}
           </Link>
         </div>
 
-        <div className="rounded bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
+        <div className="rounded bg-accent-wash border border-accent-soft p-3 text-xs text-accent">
           💡{" "}
           {zh
             ? "配置完后点击下一步，我们来测试连接。"
@@ -423,7 +423,7 @@ function TestStep({
       <h2 className="text-lg font-semibold mb-3">
         {zh ? "测试模型连接" : "Test Model Connections"}
       </h2>
-      <div className="text-sm text-gray-600 space-y-4">
+      <div className="text-sm text-ink-soft space-y-4">
         <p>
           {zh
             ? "测试一下两个模型是否能正常连接。如果失败，请检查 API Key 是否正确、网络是否通畅。"
@@ -434,9 +434,9 @@ function TestStep({
         <div className="rounded border p-3">
           <div className="flex items-center justify-between">
             <div>
-              <span className="font-medium text-gray-800 text-sm">DeepSeek</span>
+              <span className="font-medium text-ink text-sm">DeepSeek</span>
               {dsConfigured === false && (
-                <span className="ml-2 text-xs text-gray-400">
+                <span className="ml-2 text-xs text-muted">
                   ({zh ? "未配置 Key" : "No key configured"})
                 </span>
               )}
@@ -453,8 +453,8 @@ function TestStep({
                 disabled={testingDeepSeek || dsConfigured === false}
                 className={`rounded px-3 py-1 text-xs font-medium transition ${
                   testingDeepSeek || dsConfigured === false
-                    ? "cursor-not-allowed bg-gray-200 text-gray-400"
-                    : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                    ? "cursor-not-allowed bg-gray-200 text-muted"
+                    : "bg-accent-wash text-accent hover:bg-accent-soft"
                 }`}
               >
                 {testingDeepSeek ? (zh ? "测试中…" : "Testing…") : (zh ? "测试连接" : "Test")}
@@ -467,9 +467,9 @@ function TestStep({
         <div className="rounded border p-3">
           <div className="flex items-center justify-between">
             <div>
-              <span className="font-medium text-gray-800 text-sm">OpenAI Vision</span>
+              <span className="font-medium text-ink text-sm">OpenAI Vision</span>
               {visConfigured === false && (
-                <span className="ml-2 text-xs text-gray-400">
+                <span className="ml-2 text-xs text-muted">
                   ({zh ? "未配置 Key" : "No key configured"})
                 </span>
               )}
@@ -486,8 +486,8 @@ function TestStep({
                 disabled={testingVision || visConfigured === false}
                 className={`rounded px-3 py-1 text-xs font-medium transition ${
                   testingVision || visConfigured === false
-                    ? "cursor-not-allowed bg-gray-200 text-gray-400"
-                    : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                    ? "cursor-not-allowed bg-gray-200 text-muted"
+                    : "bg-accent-wash text-accent hover:bg-accent-soft"
                 }`}
               >
                 {testingVision ? (zh ? "测试中…" : "Testing…") : (zh ? "测试连接" : "Test")}
@@ -496,7 +496,7 @@ function TestStep({
           </div>
         </div>
 
-        <div className="rounded bg-blue-50 border border-blue-200 p-3 text-xs text-blue-700">
+        <div className="rounded bg-accent-wash border border-accent-soft p-3 text-xs text-accent">
           💡{" "}
           {zh
             ? "即使测试失败也可以继续，之后随时可以在设置页重新配置。"
@@ -514,7 +514,7 @@ function FirstTrainingStep({ t, lang }: { t: ReturnType<typeof useT>["t"]; lang:
       <h2 className="text-lg font-semibold mb-3">
         {zh ? "如何完成第一次审美训练" : "How to Complete Your First Training"}
       </h2>
-      <div className="text-sm text-gray-600 space-y-3">
+      <div className="text-sm text-ink-soft space-y-3">
         <p>
           {zh
             ? "一次完整的审美训练包含以下步骤："
@@ -525,7 +525,7 @@ function FirstTrainingStep({ t, lang }: { t: ReturnType<typeof useT>["t"]; lang:
           <li>
             <b>{zh ? "上传图片" : "Upload an image"}</b>
             <br />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted">
               {zh
                 ? "支持 jpg/png/webp，最大 10MB。上传后点击「自动生成图片描述」，AI 会把图片内容转成文字。"
                 : "Supports jpg/png/webp, max 10MB. After upload, click 'Auto-generate description' to convert the image to text."}
@@ -534,7 +534,7 @@ function FirstTrainingStep({ t, lang }: { t: ReturnType<typeof useT>["t"]; lang:
           <li>
             <b>{zh ? "填写作品描述" : "Write a work description"}</b>
             <br />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted">
               {zh
                 ? "用文字补充描述你的作品：颜色、布局、字体、材质、氛围、目标用户等。至少 10 个字符。"
                 : "Describe your work in words: colors, layout, fonts, materials, mood, target audience, etc. At least 10 characters."}
@@ -543,7 +543,7 @@ function FirstTrainingStep({ t, lang }: { t: ReturnType<typeof useT>["t"]; lang:
           <li>
             <b>{zh ? "先自评（重要！）" : "Self-assess first (important!)"}</b>
             <br />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted">
               {zh
                 ? "点击「+ 填写我的初步判断」，给出你的评分、优缺点、目标用户、价格带。这是训练的核心——你不先判断，就无法知道自己和 AI 的差距在哪里。"
                 : "Click '+ Add my own judgment' and give your score, strengths, weaknesses, target audience, and price band. This is the core of training — if you don't judge first, you can't see where you and AI differ."}
@@ -552,7 +552,7 @@ function FirstTrainingStep({ t, lang }: { t: ReturnType<typeof useT>["t"]; lang:
           <li>
             <b>{zh ? "选择任务类型并运行" : "Choose task type and run"}</b>
             <br />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted">
               {zh
                 ? "分析：9 个美学维度分解 | 评分：结构化打分+问题+修复 | 迭代：3-5 个改版方向。"
                 : "Analyze: 9 aesthetic dimensions | Critique: structured scoring + issues + fixes | Iterate: 3-5 design alternatives."}
@@ -561,7 +561,7 @@ function FirstTrainingStep({ t, lang }: { t: ReturnType<typeof useT>["t"]; lang:
           <li>
             <b>{zh ? "查看判断差异" : "Review the judgment gap"}</b>
             <br />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted">
               {zh
                 ? "对比你和 AI 在评分、问题识别、修复建议上的差异。这是学习的核心——你哪对了？哪漏了？哪误判了？"
                 : "Compare your judgment vs AI on scoring, issues, and fixes. This is where learning happens — what did you get right? What did you miss? What did you misjudge?"}
@@ -595,7 +595,7 @@ function DoneStep({
       <h2 className="text-lg font-semibold mb-3">
         {zh ? "准备就绪！" : "You're Ready!"}
       </h2>
-      <div className="text-sm text-gray-600 space-y-3">
+      <div className="text-sm text-ink-soft space-y-3">
         <p>
           {zh
             ? "你已经了解了这个工具的基本流程。现在可以开始你的第一次审美训练了。"
@@ -619,7 +619,7 @@ function DoneStep({
         </p>
         <button
           onClick={onComplete}
-          className="w-full rounded bg-blue-600 px-4 py-3 text-sm font-medium text-white hover:bg-blue-700 transition mt-2"
+          className="w-full rounded bg-accent px-4 py-3 text-sm font-medium text-white hover:bg-accent-deep transition mt-2"
         >
           {zh ? "完成向导，进入训练工作台" : "Complete Wizard, Enter Workbench"}
         </button>

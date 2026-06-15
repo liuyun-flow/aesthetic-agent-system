@@ -1,6 +1,7 @@
 # Session Handoff — 2026-06-15
 
 ## Last Completed
+- **V2.6.0 UI 高级化改版 — 已发布**。"Editorial Atelier" 设计系统：暖纸感底+纹理 / 墨黑 + 赤陶印章式强调色 / Fraunces 展示字 / token 化（`tailwind.config.ts` 色板·阴影·圆角 + `globals.css`）/ 精炼粘性页眉。全站 blue/teal/indigo/purple/gray → paper/ink/accent 重映射（脚本化+手调）。**仅视觉，无功能/接口/DB 改动。** 247 后端 + 前端 Vitest + E2E + build 全绿。设计自审用 Playwright 截图（已清理）。
 - **V2.5.0 信心 — 已发布**（N1–N6 全部完成）。N1 CI（GitHub Actions：后端 pytest + 前端 Vitest + build + Playwright E2E）· N2 视觉描述缓存（`?refresh=true`，`uploaded_images.vision_model`）+ 遥测（`llm_usage` + `wrap_client` + `GET /system/usage` + 设置页面板）· N3 前端组件测试（Vitest+RTL）· N4 Playwright smoke E2E（启动整栈）· N5 on-release 校准评测（`evals.yml` + `--check` 门槛）· N6 收尾 v2.5.0。后端 **247** + 前端 Vitest + E2E 全绿。
 - **V2.4.1: 信任度量复审收尾 — 239 tests passed**（诚实表述 + 评测台 19 单测 + 作品质量趋势 + 评测可复现 + 误判启发式标注）。
 - V2.4.0: 信任度量（评测台 + 存储真实维度分 + 维度聚合 8 维 + 可选 Vision 直评）

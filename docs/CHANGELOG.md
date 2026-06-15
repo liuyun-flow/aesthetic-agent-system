@@ -1,5 +1,16 @@
 # Changelog
 
+## V2.6.0 (2026-06-15)
+- **全站 UI 高级化改版（"Editorial Atelier" 设计系统）** —— 仅视觉，无功能改动
+- 设计方向：暖色纸感底（含细微纹理，呼应「材质」高级感信号）+ 墨黑文字 + 赤陶色印章式强调色（克制、文化呼应）；细线描边 + 柔和暖阴影 + 克制留白
+- 字体：引入 **Fraunces** 编辑体作展示字（wordmark、评分大数字），中文用精修系统字栈
+- 设计 token 化：`tailwind.config.ts`（paper/surface/ink/accent/line… + display 字体 + soft/card 阴影 + xl2 圆角）；`globals.css`（纸纹背景、暖色默认描边、赤陶聚焦环/选区、细滚动条、staggered 载入）
+- 精炼页眉：印章式 wordmark（Æ）+ 赤陶激活态导航 + backdrop-blur 粘性栏
+- 工作台精修：任务选择器、主 CTA（赤陶）、折叠区头、分阶段进度卡、评分以大号 Fraunces 数字呈现
+- 统一应用到全部页面与组件（工作台 / 设置 / 帮助 / 训练评估 / 案例库体检 / 向导）
+- 版本号同步 v2.5.0 → v2.6.0
+- 247 后端测试 + 前端 Vitest + Playwright E2E + build 全绿
+
 ## V2.5.0 (2026-06-15)
 - 信心（质量与可靠性）—— 在扩大受众前锁住质量，让改动不能悄悄回退
 - **CI**（GitHub Actions `.github/workflows/ci.yml`）：每次 push/PR 跑后端 pytest（mocked）+ 前端 Vitest + build；免费、确定性，不含付费 LLM

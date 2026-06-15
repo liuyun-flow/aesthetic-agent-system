@@ -243,7 +243,7 @@ export default function Home() {
       <TaskForm onSubmit={handleSubmit} loading={loading} prefill={prefill} />
 
       {error && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
-      {canceled && !loading && <div className="rounded border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">{t.progress.canceled}</div>}
+      {canceled && !loading && <div className="rounded border border-line bg-surface-2 px-4 py-3 text-sm text-muted">{t.progress.canceled}</div>}
       {loading && taskType && (
         <AgentProgress
           taskType={taskType}
@@ -265,7 +265,7 @@ export default function Home() {
 
           {/* V1.4 Compare */}
           <button onClick={handleCompare} disabled={comparing}
-            className={`rounded px-4 py-2 text-sm font-medium text-white transition ${comparing ? "cursor-not-allowed bg-gray-300" : "bg-teal-600 hover:bg-teal-700"}`}>
+            className={`rounded px-4 py-2 text-sm font-medium text-white transition ${comparing ? "cursor-not-allowed bg-muted" : "bg-ink hover:bg-ink"}`}>
             {comparing ? t.result.comparing : t.result.compareWithRefs}
           </button>
 
@@ -273,7 +273,7 @@ export default function Home() {
           {lastSessionId && (
             <button onClick={() => handleAddToLibrary(lastSessionId, null)} disabled={addingToLibrary}
               title={t.addToLibrary.hint}
-              className={`ml-2 rounded px-4 py-2 text-sm font-medium text-white transition ${addingToLibrary ? "cursor-not-allowed bg-gray-300" : "bg-rose-600 hover:bg-rose-700"}`}>
+              className={`ml-2 rounded px-4 py-2 text-sm font-medium text-white transition ${addingToLibrary ? "cursor-not-allowed bg-muted" : "bg-rose-600 hover:bg-rose-700"}`}>
               {addingToLibrary ? t.addToLibrary.loading : t.addToLibrary.button}
             </button>
           )}
@@ -297,7 +297,7 @@ export default function Home() {
           {taskType !== "iterate" && (
             <>
               <button onClick={handleGeneratePrompt} disabled={generatingPrompt}
-                className={`rounded px-4 py-2 text-sm font-medium text-white transition ml-2 ${generatingPrompt ? "cursor-not-allowed bg-gray-300" : "bg-indigo-600 hover:bg-indigo-700"}`}>
+                className={`rounded px-4 py-2 text-sm font-medium text-white transition ml-2 ${generatingPrompt ? "cursor-not-allowed bg-muted" : "bg-ink hover:bg-ink"}`}>
                 {generatingPrompt ? t.result.generatingPrompt : t.result.generatePrompt}
               </button>
               {promptError && <div className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{promptError}</div>}
@@ -365,11 +365,15 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={toggle}
-        className="mb-2 flex w-full items-center justify-between rounded border bg-white px-4 py-2.5 shadow-sm hover:bg-gray-50 transition"
+        className="group mb-3 flex w-full items-center justify-between rounded-xl2 border border-line bg-surface px-5 py-3.5 shadow-soft transition hover:border-accent-soft"
       >
-        <span className="text-base font-semibold text-gray-800">{title}</span>
-        <span className="text-xs text-gray-400">
-          {open ? `${t.sections.collapse} ▾` : `${t.sections.expand} ▸`}
+        <span className="flex items-center gap-2.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-accent/70 transition group-hover:scale-125" />
+          <span className="text-[15px] font-semibold tracking-tightish text-ink">{title}</span>
+        </span>
+        <span className="text-xs font-medium text-muted transition group-hover:text-accent">
+          {open ? t.sections.collapse : t.sections.expand}
+          <span className="ml-1 inline-block">{open ? "▾" : "▸"}</span>
         </span>
       </button>
       {open && children}
@@ -401,20 +405,20 @@ function AgentProgress({
   const idx = Math.min(Math.floor(elapsed / 6), stages.length - 1);
 
   return (
-    <div className="rounded border border-blue-200 bg-blue-50 px-4 py-3">
+    <div className="rounded-xl2 border border-accent-soft/70 bg-accent-wash px-5 py-4 shadow-soft">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-blue-700">
-          <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+        <div className="flex items-center gap-2.5 text-sm font-medium text-accent">
+          <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
           <span>{stages[idx]}</span>
         </div>
         <button
           onClick={onCancel}
-          className="rounded border border-blue-300 px-3 py-1 text-xs text-blue-600 hover:bg-blue-100 transition"
+          className="rounded border border-accent-soft px-3 py-1 text-xs text-accent hover:bg-accent-wash transition"
         >
           {t.progress.cancel}
         </button>
       </div>
-      <div className="mt-1.5 flex items-center justify-between text-xs text-blue-400">
+      <div className="mt-1.5 flex items-center justify-between text-xs text-accent">
         <span>{t.progress.hint}</span>
         <span>{t.progress.elapsed} {elapsed}{t.progress.seconds}</span>
       </div>
@@ -423,7 +427,7 @@ function AgentProgress({
           <span
             key={i}
             className={`h-1 flex-1 rounded-full transition ${
-              i <= idx ? "bg-blue-400" : "bg-blue-100"
+              i <= idx ? "bg-accent" : "bg-accent-wash"
             }`}
           />
         ))}
@@ -434,8 +438,8 @@ function AgentProgress({
 
 function CompareResultCard({ data, t }: { data: Record<string, unknown>; t: ReturnType<typeof useT>["t"] }) {
   return (
-    <section className="rounded border border-teal-200 bg-teal-50 p-4">
-      <h3 className="mb-3 text-sm font-semibold text-teal-800">{t.result.refComparison}</h3>
+    <section className="rounded border border-line bg-surface-2 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-ink">{t.result.refComparison}</h3>
       {(data.overall_level_estimate as string) && (
         <p className="mb-2 text-sm">
           <b>{t.result.yourLevel}:</b>{" "}
@@ -444,15 +448,15 @@ function CompareResultCard({ data, t }: { data: Record<string, unknown>; t: Retu
           </span>
         </p>
       )}
-      {(data.training_takeaway as string) && <p className="mb-3 text-sm text-teal-700">{String(data.training_takeaway)}</p>}
+      {(data.training_takeaway as string) && <p className="mb-3 text-sm text-ink-soft">{String(data.training_takeaway)}</p>}
       {(["weaker_than_high_cases", "key_gaps", "priority_fixes", "next_practice"] as const).map((field) => {
         const value = data[field];
         if (!Array.isArray(value) || value.length === 0) return null;
         const labels: Record<string, string> = { weaker_than_high_cases: t.result.gapsVsHigh, key_gaps: t.result.keyGaps, priority_fixes: t.result.priorityFixes, next_practice: t.result.nextPractice };
         return (
           <div key={field} className="mb-2">
-            <h4 className="mb-1 text-xs font-semibold text-teal-600">{labels[field]}</h4>
-            <ul className="list-inside list-disc space-y-0.5">{value.map((item: unknown, i: number) => (<li key={i} className="text-sm text-teal-800">{String(item)}</li>))}</ul>
+            <h4 className="mb-1 text-xs font-semibold text-ink-soft">{labels[field]}</h4>
+            <ul className="list-inside list-disc space-y-0.5">{value.map((item: unknown, i: number) => (<li key={i} className="text-sm text-ink">{String(item)}</li>))}</ul>
           </div>
         );
       })}
@@ -473,7 +477,7 @@ function ConfigStatusBar({
 }) {
   if (loading) {
     return (
-      <div className="rounded border bg-gray-50 px-4 py-2 text-xs text-gray-400">
+      <div className="rounded border bg-surface-2 px-4 py-2 text-xs text-muted">
         {t.status.loading}
       </div>
     );
@@ -522,7 +526,7 @@ function ConfigStatusBar({
       }`}
     >
       <div className="flex items-center flex-wrap gap-x-4 gap-y-1">
-        <span className="text-xs font-medium text-gray-500 mr-1">{t.status.title}:</span>
+        <span className="text-xs font-medium text-muted mr-1">{t.status.title}:</span>
         {items.map((item) => (
           <span
             key={item.label}
@@ -544,13 +548,13 @@ function ConfigStatusBar({
           <span className="inline-flex items-center gap-2 ml-auto">
             <Link
               href="/settings"
-              className="text-xs text-blue-600 hover:underline font-medium"
+              className="text-xs text-accent hover:underline font-medium"
             >
               {t.status.goSettings}
             </Link>
             <Link
               href="/help"
-              className="text-xs text-blue-600 hover:underline font-medium"
+              className="text-xs text-accent hover:underline font-medium"
             >
               {t.status.viewHelp}
             </Link>
@@ -586,12 +590,12 @@ function DirectionPromptResultCard({
   ];
 
   return (
-    <section className="rounded border border-indigo-300 bg-indigo-50/50 p-4">
+    <section className="rounded border border-line bg-surface-2/50 p-4">
       <div className="mb-3 flex items-center gap-2">
-        <span className="text-sm font-semibold text-indigo-800">
+        <span className="text-sm font-semibold text-ink">
           基于「{direction.title}」生成的提示词
         </span>
-        <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs text-indigo-600">
+        <span className="rounded bg-surface-2 px-2 py-0.5 text-xs text-ink-soft">
           {direction.id}
         </span>
       </div>
@@ -603,15 +607,15 @@ function DirectionPromptResultCard({
           return (
             <div key={key}>
               <div className="flex items-center justify-between mb-1">
-                <h4 className="text-xs font-semibold text-indigo-600">{label}</h4>
+                <h4 className="text-xs font-semibold text-ink-soft">{label}</h4>
                 <button
                   onClick={() => onCopy(text, `dir-${key}`)}
-                  className="rounded border border-indigo-300 px-2 py-0.5 text-xs text-indigo-600 hover:bg-indigo-100"
+                  className="rounded border border-line px-2 py-0.5 text-xs text-ink-soft hover:bg-surface-2"
                 >
                   {copiedKey === `dir-${key}` ? t.result.copied : t.result.copy}
                 </button>
               </div>
-              <pre className="whitespace-pre-wrap rounded bg-white p-2 text-xs text-gray-700 border border-indigo-100">
+              <pre className="whitespace-pre-wrap rounded bg-surface p-2 text-xs text-ink-soft border border-line-soft">
                 {text}
               </pre>
             </div>
@@ -633,8 +637,8 @@ function PromptResultCard({ data, t, copiedKey, onCopy }: { data: Record<string,
   ];
 
   return (
-    <section className="rounded border border-indigo-200 bg-indigo-50 p-4">
-      <h3 className="mb-3 text-sm font-semibold text-indigo-800">{t.result.generatePrompt}</h3>
+    <section className="rounded border border-line bg-surface-2 p-4">
+      <h3 className="mb-3 text-sm font-semibold text-ink">{t.result.generatePrompt}</h3>
       <div className="space-y-3">
         {fields.map(([key, label]) => {
           const value = data[key];
@@ -643,13 +647,13 @@ function PromptResultCard({ data, t, copiedKey, onCopy }: { data: Record<string,
           return (
             <div key={key}>
               <div className="flex items-center justify-between mb-1">
-                <h4 className="text-xs font-semibold text-indigo-600">{label}</h4>
+                <h4 className="text-xs font-semibold text-ink-soft">{label}</h4>
                 <button onClick={() => onCopy(text, key)}
-                  className="rounded border border-indigo-300 px-2 py-0.5 text-xs text-indigo-600 hover:bg-indigo-100">
+                  className="rounded border border-line px-2 py-0.5 text-xs text-ink-soft hover:bg-surface-2">
                   {copiedKey === key ? t.result.copied : t.result.copy}
                 </button>
               </div>
-              <pre className="whitespace-pre-wrap rounded bg-white p-2 text-xs text-gray-700 border border-indigo-100">{text}</pre>
+              <pre className="whitespace-pre-wrap rounded bg-surface p-2 text-xs text-ink-soft border border-line-soft">{text}</pre>
             </div>
           );
         })}

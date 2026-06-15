@@ -3,9 +3,17 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Fraunces } from "next/font/google";
 import { I18nProvider, useT } from "@/i18n";
-import type { Lang } from "@/i18n";
 import "./globals.css";
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  variable: "--font-fraunces",
+  display: "swap",
+});
 
 // ── V2.1.2+: Global chunk-load error recovery ───────────────────────────
 
@@ -53,78 +61,61 @@ function attachChunkErrorHandler() {
   });
 }
 
+const NAV = [
+  { href: "/", zh: "工作台", en: "Workbench" },
+  { href: "/assessment", zh: "训练评估", en: "Assessment" },
+  { href: "/audit", zh: "案例库体检", en: "Audit" },
+  { href: "/help", zh: "帮助", en: "Help" },
+  { href: "/settings", zh: "设置", en: "Settings" },
+];
+
 function Header() {
   const { t, lang, setLang } = useT();
   const pathname = usePathname();
-
   const toggle = () => setLang(lang === "en" ? "zh" : "en");
 
   return (
-    <header className="border-b bg-white">
-      <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold tracking-tight">
-            {t.app.title}
-          </h1>
-          <Link
-            href="/"
-            className={`rounded px-2 py-1 text-xs font-medium transition ${
-              pathname === "/"
-                ? "bg-blue-50 text-blue-600"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
+    <header className="sticky top-0 z-40 border-b border-line/70 bg-paper/80 backdrop-blur-md">
+      <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-3">
+        {/* Wordmark — a small ink "seal" + the title */}
+        <Link href="/" className="group flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-[7px] bg-ink text-surface shadow-soft transition-transform group-hover:-rotate-3">
+            <span className="font-display text-[15px] italic leading-none">Æ</span>
+          </span>
+          <span className="flex flex-col leading-tight">
+            <span className="text-[15px] font-semibold tracking-tightish text-ink">{t.app.title}</span>
+            <span className="font-display text-[10px] italic tracking-wide text-muted">Aesthetic Atelier</span>
+          </span>
+        </Link>
+
+        <div className="flex items-center gap-1.5">
+          <nav className="flex items-center gap-0.5">
+            {NAV.map((item) => {
+              const active = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`relative px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
+                    active ? "text-ink" : "text-muted hover:text-ink-soft"
+                  }`}
+                >
+                  {lang === "en" ? item.en : item.zh}
+                  {active && (
+                    <span className="absolute inset-x-2.5 -bottom-px h-[1.5px] rounded-full bg-accent" />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+          <button
+            onClick={toggle}
+            className="ml-1 rounded-full border border-line bg-surface px-3 py-1 text-[11px] font-medium tracking-wide text-ink-soft transition hover:border-accent/40 hover:text-accent"
+            title={lang === "en" ? "切换到中文" : "Switch to English"}
           >
-            {lang === "en" ? "Workbench" : "工作台"}
-          </Link>
-          <Link
-            href="/settings"
-            className={`rounded px-2 py-1 text-xs font-medium transition ${
-              pathname === "/settings"
-                ? "bg-blue-50 text-blue-600"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {lang === "en" ? "Settings" : "设置"}
-          </Link>
-          <Link
-            href="/help"
-            className={`rounded px-2 py-1 text-xs font-medium transition ${
-              pathname === "/help"
-                ? "bg-blue-50 text-blue-600"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {lang === "en" ? "Help" : "帮助"}
-          </Link>
-          <Link
-            href="/audit"
-            className={`rounded px-2 py-1 text-xs font-medium transition ${
-              pathname === "/audit"
-                ? "bg-blue-50 text-blue-600"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {lang === "en" ? "Audit" : "案例库体检"}
-          </Link>
-          <Link
-            href="/assessment"
-            className={`rounded px-2 py-1 text-xs font-medium transition ${
-              pathname === "/assessment"
-                ? "bg-blue-50 text-blue-600"
-                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {lang === "en" ? "Assessment" : "训练评估"}
-          </Link>
+            {lang === "en" ? "中文" : "EN"}
+          </button>
         </div>
-        <button
-          onClick={toggle}
-          className="rounded border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600
-                     hover:bg-gray-100 transition"
-          title={lang === "en" ? "Switch to Chinese" : "切换到英文"}
-        >
-          {lang === "en" ? "中文" : "EN"}
-        </button>
       </div>
     </header>
   );
@@ -138,11 +129,11 @@ export default function RootLayout({
   useEffect(() => { attachChunkErrorHandler(); }, []);
 
   return (
-    <html lang="en">
-      <body className="min-h-screen">
+    <html lang="zh-CN" className={fraunces.variable}>
+      <body className="min-h-screen font-sans">
         <I18nProvider>
           <Header />
-          <main className="mx-auto max-w-4xl px-4 py-6">{children}</main>
+          <main className="reveal mx-auto max-w-4xl px-5 py-9">{children}</main>
         </I18nProvider>
       </body>
     </html>

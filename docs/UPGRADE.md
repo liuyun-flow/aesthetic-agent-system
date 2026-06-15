@@ -1,5 +1,14 @@
 # 升级指南
 
+## 从 V2.5.x 升级到 V2.6.0
+
+V2.6.0 是纯前端 UI 高级化改版，**无数据库变更、无接口变更**，旧数据零影响。
+
+```bash
+git pull origin main
+docker compose up --build -d
+```
+
 ## 从 V2.4.x 升级到 V2.5.0
 
 V2.5.0 是质量与可靠性版（CI / 缓存 / 遥测 / 测试）。新增 `llm_usage` 表 + `uploaded_images.vision_model` 列，经启动时**自动迁移**（`_migrate_v2_5`）添加，旧数据安全，无需手动处理。

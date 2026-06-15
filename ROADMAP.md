@@ -12,6 +12,13 @@
 
 备选方向（未选，见会话记录）：集成优先（Figma/浏览器扩展）、社区网络、垂直深耕、移动端、引擎 API 化。
 
+## ✅ V2.6.0 — UI 高级化改版（Editorial Atelier）
+- 暖色纸感底（含纹理）+ 墨黑 + 赤陶印章式强调色；细线描边 + 柔和暖阴影 + 克制留白
+- Fraunces 编辑体作展示字（wordmark / 评分大数字）；token 化色板·阴影·圆角
+- 精炼粘性页眉（印章 wordmark + 赤陶激活态导航）；全站统一应用
+- 落实 design_knowledge 的高级感信号（克制 / 系统一致 / 留白 / 材质 / 尺度对比）；仅视觉无功能改动
+- 247 后端 + 前端 Vitest + E2E + build 全绿
+
 ## ✅ V2.5.0 — 信心（质量与可靠性）
 - CI（GitHub Actions）：push/PR 跑后端 pytest + 前端 Vitest + build + Playwright E2E
 - 视觉描述缓存（provider+model 复用，`?refresh` 强制；评分不缓存）

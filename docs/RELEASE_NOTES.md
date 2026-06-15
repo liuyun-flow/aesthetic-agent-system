@@ -1,62 +1,52 @@
-# V2.5.0 发布说明
+# V2.6.0 发布说明
 
 ## 关于本版本
 
-V2.5.0 是**信心（质量与可靠性）**版：在扩大受众前先锁住质量，让每次改动都有自动护栏、并能看清成本。无新增训练功能——这是工程与可靠性的一层。
+V2.6.0 是 **UI 高级化改版**。一个「训练审美判断力」的工具，自身也该看起来高级——本版让界面落实它后端 `design_knowledge` 所讲的高级感信号：**克制、系统一致、留白、真实材质、大胆尺度对比**。
 
-完整逐项变更见 [CHANGELOG](CHANGELOG.md)；本文件只讲重点。
+**仅视觉，无功能或接口改动。** 所有训练流程、数据、API 保持不变。
+
+完整逐项变更见 [CHANGELOG](CHANGELOG.md)。
 
 ## 本版本做了什么
 
-### 持续集成（CI）
-- 新增 GitHub Actions（`.github/workflows/ci.yml`）：每次 push/PR 自动跑**后端 pytest（mocked，无需 key）+ 前端 Vitest 组件测试 + 构建 + Playwright E2E**。免费、确定性，不含付费 LLM。
+### 设计语言："Editorial Atelier"
+- **暖色纸感底**：温暖的米白纸色 + 大气渐变 + 细微纸纹（材质感），取代原来的冷灰背景
+- **墨黑文字 + 赤陶印章式强调色**：克制、有文化呼应；通用蓝/紫一律退场
+- **细线描边 + 柔和暖阴影 + 克制留白**：层次靠系统化的阴影与间距，而非重描边
 
-### 视觉描述缓存（省钱省时）
-- 同一张图在 vision provider + model 不变时**复用已存描述**，不再重复调用视觉 API。`POST /images/{id}/describe?refresh=true` 可强制重算。
-- **评分不缓存**——评分的细微差异是训练信号，且缓存会破坏「再练一次」对比。
+### 字体
+- 引入 **Fraunces** 编辑体作展示字（品牌 wordmark、评分大数字）；中文用精修的系统字栈
 
-### 成本 / 延迟遥测
-- 透明计量每次 LLM 调用的 token 与延迟 → `llm_usage` 表；`GET /system/usage` 聚合；**设置页新增「用量统计」面板**（总调用 / 总 token / 平均延迟 / 分模型）。
+### 设计系统（token 化）
+- `tailwind.config.ts`：统一色板（paper / surface / ink / accent…）、展示字体、阴影、圆角
+- `globals.css`：纸纹背景、暖色默认描边、赤陶聚焦环与选区、细滚动条、载入微动效
 
-### 自动化测试
-- 前端组件测试（Vitest + React Testing Library）覆盖关键交互（结果卡片、任务表单）。
-- Playwright E2E 冒烟：启动整栈后核心路由渲染正常，**无需 API key**。
-
-### 发布时校准评测
-- 新增 `.github/workflows/evals.yml`：仅在**发布**（或手动触发）时跑 V2.4 评测台，需仓库 secret `DEEPSEEK_API_KEY`；`--check` 在成对判对率 <0.75 时让该 job 失败，作为发布门槛。**永不 gate PR**（付费 + 非确定性）。
+### 应用范围
+- 精炼的粘性页眉（印章式 wordmark + 赤陶激活态导航）
+- 工作台精修（任务选择器、主按钮、折叠区、进度卡、评分大数字）
+- 统一应用到全部页面：工作台 / 设置 / 帮助 / 训练评估 / 案例库体检 / 向导
 
 ## 发布形态
 
-与既往一致，**本地部署版（Local Release）**：
+与既往一致，**本地部署版（Local Release）**：下载 → Docker 启动 → 配置 API Key → 使用。不是 SaaS / 不做登录 / 不做云端存储。
 
-- ✅ 用户下载 zip → 解压 → Docker Desktop 启动 → 配置 API Key → 使用
-- ❌ 不是 SaaS / 不做登录 / 不做云端存储
-
-## 系统要求
-
-- Docker Desktop（必须）
-- DeepSeek API Key（必须）
-- OpenAI API Key（可选，用于 Vision 自动描述、语义搜索、可选的 Vision 直评）
-
-## 从 V2.4.x 升级
+## 从 V2.5.x 升级
 
 ```bash
 git pull origin main
 docker compose up --build -d
 ```
 
-`llm_usage` 表与 `uploaded_images.vision_model` 列通过启动时自动迁移（`_migrate_v2_5`）添加，旧数据安全。升级前建议先导出备份（设置页 → 数据管理 → 导出）。详见 [升级指南](UPGRADE.md)。
+纯前端改版，**无数据库变更**，旧数据零影响。升级前可照常导出备份。详见 [升级指南](UPGRADE.md)。
 
-## 已知限制
+## 质量
 
-- on-release 评测要有意义，需先给仓库加 `DEEPSEEK_API_KEY` secret，并用真实样本替换 `backend/evals/gold/*.jsonl`（仍为合成脚手架，即 M-1）
-- 维度评分衡量的是「作品质量」而非「判断力」（判断力分维度度量是后续工作）
-- 误判检测基于关键词启发式（非 LLM）
-- 语义搜索需要 OpenAI API Key；导出不含 embeddings；导入为合并模式不做去重
-- Apple Silicon Mac 通过 Docker 理论上支持，但未经真实 Mac 完整测试
+- 247 后端测试 + 前端 Vitest(5) + Playwright E2E + 生产构建全绿
+- 改版不破坏现有组件测试与关键流程（历史弹窗 / 判断差异 / 再练一次）
 
 ## 下一步
 
-- M-1 真实校准基线（加 secret + 替换真实金标准）
 - V2.7 触达：运行时可配 API base URL + 桌面打包
 - ~V3.0 闭环：预置案例库 + top-N grounding + 结构化课程
+- M-1：给仓库加 `DEEPSEEK_API_KEY` secret + 替换真实金标准，启用 on-release 校准评测

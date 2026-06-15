@@ -231,7 +231,7 @@ export default function ReferencePanel({ prefill }: Props) {
   };
 
   const levelBadge = (l: string | null) => {
-    const m: Record<string, string> = { high: "bg-green-100 text-green-700", medium: "bg-amber-100 text-amber-700", low: "bg-red-100 text-red-700", unknown: "bg-gray-100 text-gray-500" };
+    const m: Record<string, string> = { high: "bg-green-100 text-green-700", medium: "bg-amber-100 text-amber-700", low: "bg-red-100 text-red-700", unknown: "bg-surface-2 text-muted" };
     return m[l ?? "unknown"] ?? m.unknown;
   };
   const levelLabel = (l: string | null) => {
@@ -256,10 +256,10 @@ export default function ReferencePanel({ prefill }: Props) {
   const imgSrc = (c: RefCase) => c.image_url ? (c.image_url.startsWith("http") ? c.image_url : `${base}${c.image_url}`) : null;
 
   return (
-    <section className="rounded border bg-white p-4 shadow-sm">
+    <section className="rounded border bg-surface p-4 shadow-soft">
       <div className="flex items-center justify-end mb-3">
         <button onClick={() => { setShowForm(!showForm); if (showForm) resetForm(); }}
-          className="text-xs text-blue-600 hover:text-blue-800 underline">
+          className="text-xs text-accent hover:text-accent underline">
           {showForm ? t.reference.cancel : t.reference.addCase}
         </button>
       </div>
@@ -277,19 +277,19 @@ export default function ReferencePanel({ prefill }: Props) {
             onChange={e => setSemQuery(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleSemSearch()}
             placeholder="语义搜索：输入描述查找相似案例…"
-            className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs focus:border-indigo-400 focus:outline-none"
+            className="flex-1 rounded border border-line px-2 py-1 text-xs focus:border-accent focus:outline-none"
           />
           <button
             onClick={handleSemSearch}
             disabled={semSearching || !semQuery.trim()}
-            className="rounded bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 disabled:bg-gray-300 transition"
+            className="rounded bg-ink px-3 py-1 text-xs font-medium text-white hover:bg-ink disabled:bg-muted transition"
           >
             {semSearching ? "搜索中…" : "语义搜索"}
           </button>
           <button
             onClick={handleReindex}
             disabled={reindexing}
-            className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 transition"
+            className="rounded border border-line px-2 py-1 text-xs text-muted hover:bg-surface-2 disabled:bg-surface-2 transition"
             title="重建语义索引"
           >
             {reindexing ? "索引中…" : "重建索引"}
@@ -307,13 +307,13 @@ export default function ReferencePanel({ prefill }: Props) {
             {semResults.map(r => (
               <div
                 key={r.case_id}
-                className="flex items-center gap-2 px-2 py-1.5 text-xs border-b last:border-b-0 hover:bg-gray-50 cursor-pointer"
+                className="flex items-center gap-2 px-2 py-1.5 text-xs border-b last:border-b-0 hover:bg-surface-2 cursor-pointer"
                 onClick={() => {
                   const c = cases.find(x => x.id === r.case_id);
                   if (c) setDetail(c);
                 }}
               >
-                <span className="text-indigo-600 font-medium w-10 text-right">
+                <span className="text-ink-soft font-medium w-10 text-right">
                   {Math.round(r.similarity * 100)}%
                 </span>
                 {r.is_training_ready && (
@@ -326,7 +326,7 @@ export default function ReferencePanel({ prefill }: Props) {
                   {levelLabel(r.aesthetic_level)}
                 </span>
                 <span className="flex-1 truncate font-medium">{r.title}</span>
-                <span className="text-gray-400">{r.reason}</span>
+                <span className="text-muted">{r.reason}</span>
               </div>
             ))}
           </div>
@@ -334,25 +334,25 @@ export default function ReferencePanel({ prefill }: Props) {
       </div>
 
       {showForm && (
-        <div className="mb-4 space-y-2 rounded border bg-gray-50 p-3 max-h-[70vh] overflow-y-auto">
+        <div className="mb-4 space-y-2 rounded border bg-surface-2 p-3 max-h-[70vh] overflow-y-auto">
           {prefillNotice && (
-            <p className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-600">
+            <p className="rounded border border-accent-soft bg-accent-wash px-2 py-1 text-xs text-accent">
               {t.reference.prefillNotice}
             </p>
           )}
           <input value={f.title} onChange={e => setF(p => ({...p, title: e.target.value}))} placeholder={t.reference.titleField} className="w-full rounded border px-2 py-1 text-sm" />
 
           {/* Image upload */}
-          <div className="rounded border bg-white p-2">
-            <p className="text-xs text-gray-500 mb-1">案例图片</p>
+          <div className="rounded border bg-surface p-2">
+            <p className="text-xs text-muted mb-1">案例图片</p>
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleUpload} className="text-xs" />
-            {uploading && <p className="text-xs text-blue-500">上传中…</p>}
+            {uploading && <p className="text-xs text-accent">上传中…</p>}
             {uploadError && <p className="text-xs text-red-500">{uploadError}</p>}
             {imageUrl && (
               <div className="mt-1">
                 <img src={imageUrl} alt="Preview" className="max-h-32 rounded border" />
                 <button type="button" onClick={handleAutoDescribe} disabled={describing}
-                  className="mt-1 rounded bg-purple-600 px-2 py-0.5 text-xs text-white disabled:bg-gray-300">
+                  className="mt-1 rounded bg-accent px-2 py-0.5 text-xs text-white disabled:bg-muted">
                   {describing ? "生成中…" : "自动生成图片描述"}
                 </button>
               </div>
@@ -380,18 +380,18 @@ export default function ReferencePanel({ prefill }: Props) {
           <textarea rows={1} value={f.avoidCopying} onChange={e => setF(p => ({...p, avoidCopying: e.target.value}))} placeholder="不能误学什么…" className="w-full rounded border px-2 py-1 text-sm" />
           <textarea rows={2} value={f.notes} onChange={e => setF(p => ({...p, notes: e.target.value}))} placeholder={t.reference.notes} className="w-full rounded border px-2 py-1 text-sm" />
           <button onClick={handleCreate} disabled={saving || !f.title.trim()}
-            className="rounded bg-blue-600 px-4 py-1 text-xs text-white hover:bg-blue-700 disabled:bg-gray-300">
+            className="rounded bg-accent px-4 py-1 text-xs text-white hover:bg-accent-deep disabled:bg-muted">
             {saving ? t.reference.saving : t.reference.save}
           </button>
         </div>
       )}
 
-      {loading ? <p className="text-xs text-gray-400">{t.reference.loading}</p>
-      : cases.length === 0 ? <p className="text-xs text-gray-400">{t.reference.empty}</p>
+      {loading ? <p className="text-xs text-muted">{t.reference.loading}</p>
+      : cases.length === 0 ? <p className="text-xs text-muted">{t.reference.empty}</p>
       : (
         <div className="space-y-2 max-h-[50vh] overflow-y-auto">
           {cases.map(c => (
-            <div key={c.id} className="flex items-center gap-2 rounded border px-2 py-1 text-xs cursor-pointer hover:bg-gray-50"
+            <div key={c.id} className="flex items-center gap-2 rounded border px-2 py-1 text-xs cursor-pointer hover:bg-surface-2"
               onClick={() => setDetail(c)}>
               {imgSrc(c) && <img src={imgSrc(c)!} alt="" className="h-10 w-10 rounded object-cover" />}
               <span className={`rounded px-1 py-0.5 font-medium ${levelBadge(c.aesthetic_level)}`}>{levelLabel(c.aesthetic_level)}</span>
@@ -402,9 +402,9 @@ export default function ReferencePanel({ prefill }: Props) {
                 {c.completeness_score ?? "?"}
               </span>
               <span className="flex-1 truncate font-medium">{c.title}</span>
-              {c.category && <span className="text-gray-400">{c.category}</span>}
-              {c.score != null && <span className="text-gray-400">{c.score}</span>}
-              <span className="text-blue-400">详情</span>
+              {c.category && <span className="text-muted">{c.category}</span>}
+              {c.score != null && <span className="text-muted">{c.score}</span>}
+              <span className="text-accent">详情</span>
             </div>
           ))}
         </div>
@@ -413,16 +413,16 @@ export default function ReferencePanel({ prefill }: Props) {
       {/* Detail modal */}
       {detail && (
         <div className="fixed inset-0 z-50 flex items-start justify-center pt-10 bg-black/40" onClick={() => setDetail(null)}>
-          <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setDetail(null)} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 text-xl">✕</button>
+          <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg bg-surface p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setDetail(null)} className="absolute right-4 top-4 text-muted hover:text-ink-soft text-xl">✕</button>
             <div className="space-y-3 text-sm">
               {imgSrc(detail) && <img src={imgSrc(detail)!} alt="" className="w-full max-h-64 rounded object-cover" />}
               <h3 className="text-lg font-semibold">{detail.title}</h3>
               <div className="flex gap-2 text-xs">
                 <span className={`rounded px-2 py-0.5 font-medium ${levelBadge(detail.aesthetic_level)}`}>{levelLabel(detail.aesthetic_level)}</span>
-                {detail.category && <span className="text-gray-500">{detail.category}</span>}
-                {detail.price_band && <span className="text-gray-500">{detail.price_band}</span>}
-                {detail.score != null && <span className="text-gray-500">评分 {detail.score}</span>}
+                {detail.category && <span className="text-muted">{detail.category}</span>}
+                {detail.price_band && <span className="text-muted">{detail.price_band}</span>}
+                {detail.score != null && <span className="text-muted">评分 {detail.score}</span>}
               </div>
               <KV label="风格标签" value={detail.style_tags} />
               <KV label="目标用户" value={detail.target_audience} />
@@ -434,12 +434,12 @@ export default function ReferencePanel({ prefill }: Props) {
               <KV label="备注" value={detail.notes} />
               {/* V1.9: Quality analysis */}
               <div className="border-t pt-3 mt-3">
-                <p className="text-xs font-medium text-gray-500 mb-2">案例质量分析</p>
+                <p className="text-xs font-medium text-muted mb-2">案例质量分析</p>
                 <div className="flex items-center gap-3 mb-2">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${completenessBadge(detail.completeness_score)}`}>
                     完整度 {detail.completeness_score ?? 0}/100
                   </span>
-                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${detail.is_training_ready ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  <span className={`rounded px-2 py-0.5 text-xs font-medium ${detail.is_training_ready ? "bg-green-100 text-green-700" : "bg-surface-2 text-muted"}`}>
                     {detail.is_training_ready ? "✓ 可用于训练" : "✗ 未达到训练标准"}
                   </span>
                 </div>
@@ -470,8 +470,8 @@ function KV({ label, value }: { label: string; value: string | null | undefined 
   const display = value && value.trim() ? value : "暂无";
   return (
     <div>
-      <span className="text-xs font-medium text-gray-500">{label}</span>
-      <p className={`text-gray-700 whitespace-pre-wrap ${!value?.trim() ? "italic text-gray-400" : ""}`}>{display}</p>
+      <span className="text-xs font-medium text-muted">{label}</span>
+      <p className={`text-ink-soft whitespace-pre-wrap ${!value?.trim() ? "italic text-muted" : ""}`}>{display}</p>
     </div>
   );
 }

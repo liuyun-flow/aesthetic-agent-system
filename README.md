@@ -135,6 +135,7 @@ npm run dev                      # http://127.0.0.1:3000
 | V2.4 | Evaluation integrity: calibration/eval harness, stored AI dimension scores, aggregated 8-dimension assessment, optional vision-direct scoring |
 | V2.4.1 | Review follow-ups: honest dimension labeling (work-quality, not ability), eval-metric unit tests, work-quality trend line, deterministic eval runs |
 | V2.5 | Confidence: CI (GitHub Actions), vision-description caching, cost/latency telemetry, Vitest component tests, Playwright E2E, on-release calibration evals |
+| V2.6 | Premium UI redesign ("Editorial Atelier" design system): warm paper ground, ink + terracotta accent, Fraunces display type, tokenized palette/depth — visual only |
 
 ### API Endpoints
 
@@ -466,6 +467,7 @@ chmod +x scripts/start.sh
 | V2.4 | 信任度量：评测/校准台、存储真实维度分、聚合 8 维评估、可选 Vision 直评 |
 | V2.4.1 | 复审收尾：诚实表述（作品质量≠判断力）、评测台单测、作品质量趋势、评测可复现 |
 | V2.5 | 信心：CI（GitHub Actions）、视觉描述缓存、成本/延迟遥测、Vitest 组件测试、Playwright E2E、on-release 校准评测 |
+| V2.6 | UI 高级化改版（Editorial Atelier 设计系统）：暖纸感底 + 墨黑 + 赤陶强调色 + Fraunces 展示字 + token 化色板/层级（仅视觉）|
 
 ### API 端点
 

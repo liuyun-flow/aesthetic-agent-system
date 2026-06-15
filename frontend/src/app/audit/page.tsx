@@ -34,14 +34,14 @@ interface AuditData {
 }
 
 function completenessColor(score: number | null | undefined): string {
-  if (score == null || Number.isNaN(score)) return "text-gray-400";
+  if (score == null || Number.isNaN(score)) return "text-muted";
   if (score >= 75) return "text-green-600";
   if (score >= 50) return "text-amber-600";
   return "text-red-600";
 }
 
 function completenessBg(score: number | null | undefined): string {
-  if (score == null || Number.isNaN(score)) return "bg-gray-100";
+  if (score == null || Number.isNaN(score)) return "bg-surface-2";
   if (score >= 75) return "bg-green-100";
   if (score >= 50) return "bg-amber-100";
   return "bg-red-100";
@@ -59,15 +59,15 @@ function IssueList({
   const safeItems = items ?? [];
   if (safeItems.length === 0) {
     return (
-      <div className="rounded border bg-gray-50 p-4">
-        <h4 className="text-sm font-medium text-gray-700 mb-1">{title}</h4>
+      <div className="rounded border bg-surface-2 p-4">
+        <h4 className="text-sm font-medium text-ink-soft mb-1">{title}</h4>
         <p className="text-xs text-green-600">{emptyMessage}</p>
       </div>
     );
   }
   return (
-    <div className="rounded border bg-gray-50 p-4">
-      <h4 className="text-sm font-medium text-gray-700 mb-2">
+    <div className="rounded border bg-surface-2 p-4">
+      <h4 className="text-sm font-medium text-ink-soft mb-2">
         {title}
         <span className="ml-1 text-xs text-red-500 font-normal">
           ({safeItems.length} 个)
@@ -77,7 +77,7 @@ function IssueList({
         {safeItems.map((item) => (
           <div
             key={item.id}
-            className="flex items-center gap-2 text-xs bg-white rounded border px-2 py-1"
+            className="flex items-center gap-2 text-xs bg-surface rounded border px-2 py-1"
             title={item.reason || undefined}
           >
             <span
@@ -92,11 +92,11 @@ function IssueList({
             )}
             <span className="flex-1 truncate font-medium">{item.title}</span>
             {item.reason && (
-              <span className="text-gray-400 text-xs truncate max-w-[200px]" title={item.reason}>
+              <span className="text-muted text-xs truncate max-w-[200px]" title={item.reason}>
                 {item.reason}
               </span>
             )}
-            <span className="text-gray-400 text-xs shrink-0">
+            <span className="text-muted text-xs shrink-0">
               缺：{(item.missing_fields ?? []).slice(0, 3).join("、") || "无"}
               {(item.missing_fields ?? []).length > 3
                 ? `等${item.missing_fields.length}项`
@@ -141,7 +141,7 @@ export default function AuditPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <p className="text-gray-400">正在分析案例库质量…</p>
+        <p className="text-muted">正在分析案例库质量…</p>
       </div>
     );
   }
@@ -172,12 +172,12 @@ export default function AuditPage() {
     return (
       <div className="space-y-5">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">案例库体检报告</h2>
-          <p className="text-xs text-gray-500 mt-0.5">评估参考案例库的数据质量和训练可用性</p>
+          <h2 className="text-lg font-semibold text-ink">案例库体检报告</h2>
+          <p className="text-xs text-muted mt-0.5">评估参考案例库的数据质量和训练可用性</p>
         </div>
-        <div className="rounded border bg-gray-50 p-12 text-center">
-          <p className="text-gray-400 text-sm mb-2">案例库为空</p>
-          <p className="text-gray-400 text-xs">
+        <div className="rounded border bg-surface-2 p-12 text-center">
+          <p className="text-muted text-sm mb-2">案例库为空</p>
+          <p className="text-muted text-xs">
             请先在训练工作台的参考案例库中添加案例，然后再查看体检报告。
           </p>
         </div>
@@ -190,16 +190,16 @@ export default function AuditPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">
+          <h2 className="text-lg font-semibold text-ink">
             案例库体检报告
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-muted mt-0.5">
             评估参考案例库的数据质量和训练可用性
           </p>
         </div>
         <button
           onClick={fetchAudit}
-          className="rounded border border-gray-200 px-3 py-1 text-xs text-gray-500 hover:bg-gray-50 transition"
+          className="rounded border border-line px-3 py-1 text-xs text-muted hover:bg-surface-2 transition"
         >
           刷新报告
         </button>
@@ -210,7 +210,7 @@ export default function AuditPage() {
         <StatCard
           label="总案例数"
           value={data.total_cases}
-          color="text-gray-700"
+          color="text-ink-soft"
         />
         <StatCard
           label="训练可用"
@@ -239,11 +239,11 @@ export default function AuditPage() {
 
       {/* Recommendations */}
       {(data.recommendations ?? []).length > 0 && (
-        <div className="rounded border border-blue-200 bg-blue-50 p-4">
-          <h3 className="text-sm font-medium text-blue-700 mb-2">建议操作</h3>
+        <div className="rounded border border-accent-soft bg-accent-wash p-4">
+          <h3 className="text-sm font-medium text-accent mb-2">建议操作</h3>
           <ul className="space-y-1">
             {(data.recommendations ?? []).map((rec, i) => (
-              <li key={`rec-${i}`} className="text-xs text-blue-600 flex items-start gap-1.5">
+              <li key={`rec-${i}`} className="text-xs text-accent flex items-start gap-1.5">
                 <span className="mt-0.5 shrink-0">•</span>
                 <span>{rec}</span>
               </li>
@@ -304,9 +304,9 @@ export default function AuditPage() {
             {(data.possible_duplicates ?? []).map((group, gi) => (
               <div
                 key={`dup-${gi}`}
-                className="rounded border border-amber-300 bg-white p-3"
+                className="rounded border border-amber-300 bg-surface p-3"
               >
-                <p className="text-xs text-gray-500 mb-1.5">
+                <p className="text-xs text-muted mb-1.5">
                   检测方式：
                   {group.method === "embedding_similarity"
                     ? "语义相似度"
@@ -326,7 +326,7 @@ export default function AuditPage() {
                         {c.completeness_score ?? "?"}
                       </span>
                       <span className="flex-1 truncate">{c.title}</span>
-                      <span className="text-gray-400">
+                      <span className="text-muted">
                         #{c.id}
                       </span>
                     </div>
@@ -339,7 +339,7 @@ export default function AuditPage() {
       )}
 
       {(data.possible_duplicates ?? []).length === 0 && data.total_cases >= 2 && (
-        <div className="rounded border bg-gray-50 p-4 text-center">
+        <div className="rounded border bg-surface-2 p-4 text-center">
           <p className="text-xs text-green-600">未发现疑似重复案例</p>
         </div>
       )}
@@ -365,12 +365,12 @@ function StatCard({
     ? safe.toFixed(1)
     : String(Math.max(0, safe));
   return (
-    <div className="rounded border bg-white p-4 shadow-sm">
-      <p className="text-xs text-gray-500">{label}</p>
+    <div className="rounded border bg-surface p-4 shadow-soft">
+      <p className="text-xs text-muted">{label}</p>
       <p className={`text-2xl font-bold ${color}`}>
         {display}
         {suffix && (
-          <span className="text-sm font-normal text-gray-400 ml-1">
+          <span className="text-sm font-normal text-muted ml-1">
             {suffix}
           </span>
         )}

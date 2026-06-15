@@ -247,23 +247,23 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <fieldset>
-        <legend className="mb-2 text-sm font-medium text-gray-600">
+        <legend className="mb-2 text-sm font-medium text-ink-soft">
           {t.form.taskType}
         </legend>
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           {TASK_KEYS.map((k) => (
             <label
               key={k}
-              className={`flex-1 cursor-pointer rounded border px-3 py-2 text-sm transition ${
+              className={`flex-1 cursor-pointer rounded-lg border px-3.5 py-2.5 text-sm transition ${
                 taskType === k
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-gray-200 bg-white hover:border-gray-300"
+                  ? "border-accent/60 bg-accent-wash text-accent shadow-soft"
+                  : "border-line bg-surface text-ink-soft hover:border-accent-soft hover:bg-surface-2"
               }`}
             >
               <input type="radio" name="taskType" value={k} checked={taskType === k}
                 onChange={() => setTaskType(k)} className="sr-only" />
               <span className="block font-medium">{t.tasks[k].label}</span>
-              <span className="block text-xs text-gray-500">{t.tasks[k].desc}</span>
+              <span className="block text-xs text-muted">{t.tasks[k].desc}</span>
             </label>
           ))}
         </div>
@@ -272,13 +272,13 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
       {/* V1.2 Image upload */}
       <div
         className={`rounded border p-3 transition ${
-          dragActive ? "border-blue-400 bg-blue-50" : "bg-gray-50"
+          dragActive ? "border-accent bg-accent-wash" : "bg-surface-2"
         }`}
         onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
       >
-        <p className="mb-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
+        <p className="mb-2 text-xs font-medium text-muted uppercase tracking-wide">
           {t.form.imageSection}
           {visionStatus && (
             <span className={`ml-2 rounded px-2 py-0.5 text-xs ${
@@ -308,11 +308,11 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
           onChange={handleUpload}
           className="text-sm"
         />
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-muted">
           {dragActive ? t.form.dropActive : t.form.dropHint}
         </p>
         {uploading && (
-          <p className="mt-1 text-xs text-blue-500">{t.form.uploading}</p>
+          <p className="mt-1 text-xs text-accent">{t.form.uploading}</p>
         )}
         {uploadError && (
           <p className="mt-1 text-xs text-red-500">{uploadError}</p>
@@ -328,8 +328,8 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
                 disabled={describing}
                 className={`rounded px-3 py-1 text-xs font-medium text-white transition ${
                   describing
-                    ? "cursor-not-allowed bg-gray-300"
-                    : "bg-purple-600 hover:bg-purple-700"
+                    ? "cursor-not-allowed bg-muted"
+                    : "bg-accent hover:bg-accent-deep"
                 }`}
               >
                 {describing ? t.form.describing : t.form.autoDescribe}
@@ -339,30 +339,30 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
               <p className="mt-1 text-xs text-red-500">{describeError}</p>
             )}
             {visionSummary && (
-              <div className="mt-2 rounded border border-purple-100 bg-purple-50 p-2 text-xs">
+              <div className="mt-2 rounded border border-accent-soft bg-accent-wash p-2 text-xs">
                 {Array.isArray(visionSummary.style_keywords) &&
                   visionSummary.style_keywords.length > 0 && (
-                    <p className="text-purple-700">
+                    <p className="text-accent">
                       <b>{t.form.visionStyle}:</b>{" "}
                       {(visionSummary.style_keywords as string[]).join(", ")}
                     </p>
                   )}
                 {Array.isArray(visionSummary.colors) &&
                   visionSummary.colors.length > 0 && (
-                    <p className="text-purple-700">
+                    <p className="text-accent">
                       <b>{t.form.visionColors}:</b>{" "}
                       {(visionSummary.colors as string[]).join(", ")}
                     </p>
                   )}
                 {(visionSummary.composition as string) && (
-                  <p className="text-purple-700">
+                  <p className="text-accent">
                     <b>{t.form.visionComposition}:</b>{" "}
                     {String(visionSummary.composition).slice(0, 120)}
                   </p>
                 )}
                 {Array.isArray(visionSummary.potential_issues) &&
                   visionSummary.potential_issues.length > 0 && (
-                    <p className="mt-1 text-purple-600">
+                    <p className="mt-1 text-accent">
                       <b>{t.form.visionIssues}:</b>{" "}
                       {(visionSummary.potential_issues as string[]).slice(0, 3).join("; ")}
                     </p>
@@ -376,17 +376,17 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
           value={imageDesc}
           onChange={(e) => setImageDesc(e.target.value)}
           placeholder={t.form.imagePlaceholder}
-          className="mt-2 w-full rounded border border-gray-200 px-2 py-1 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none"
+          className="mt-2 w-full rounded border border-line px-2 py-1 text-sm placeholder:text-muted focus:border-accent focus:outline-none"
         />
       </div>
 
       {/* Description */}
       <div>
-        <label htmlFor="description" className="mb-1 block text-sm font-medium text-gray-600">
+        <label htmlFor="description" className="mb-1 block text-sm font-medium text-ink-soft">
           {t.form.workDescription}
         </label>
         {prefillNotice && (
-          <p className="mb-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-600">
+          <p className="mb-1 rounded border border-accent-soft bg-accent-wash px-2 py-1 text-xs text-accent">
             {t.form.prefillLoaded}
           </p>
         )}
@@ -399,122 +399,122 @@ export default function TaskForm({ onSubmit, loading, prefill }: Props) {
             }
           }}
           placeholder={t.form.descriptionPlaceholder}
-          className="w-full rounded border border-gray-200 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="w-full rounded border border-line px-3 py-2 text-sm placeholder:text-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
         />
-        <p className="mt-1 text-xs text-gray-400">
+        <p className="mt-1 text-xs text-muted">
           {description.length} {t.form.chars} ({t.form.minChars}) · {t.form.ctrlEnterHint}
         </p>
 
         {/* V2.3: completeness meter */}
         <div className="mt-2">
-          <div className="flex items-center justify-between text-xs text-gray-500">
+          <div className="flex items-center justify-between text-xs text-muted">
             <span>{t.form.completeness} {completenessPct}%</span>
             {missingLabels.length > 0 && (
               <span className="text-amber-600">{t.form.missingLabel}：{missingLabels.join("、")}</span>
             )}
           </div>
-          <div className="mt-1 h-1.5 w-full rounded-full bg-gray-100">
+          <div className="mt-1 h-1.5 w-full rounded-full bg-surface-2">
             <div className={`h-1.5 rounded-full transition-all ${completenessColor}`} style={{ width: `${Math.max(4, completenessPct)}%` }} />
           </div>
         </div>
 
         {/* V2.3: guided context fields */}
-        <div className="mt-3 rounded border border-gray-200 bg-gray-50 p-3">
-          <p className="text-xs font-medium text-gray-600">{t.form.guidedTitle}</p>
-          <p className="mt-0.5 text-xs text-gray-400">{t.form.guidedHint}</p>
+        <div className="mt-3 rounded border border-line bg-surface-2 p-3">
+          <p className="text-xs font-medium text-ink-soft">{t.form.guidedTitle}</p>
+          <p className="mt-0.5 text-xs text-muted">{t.form.guidedHint}</p>
           {guesses.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {guesses.map((g, i) => (
                 <button key={i} type="button" onClick={g.apply}
-                  className="inline-flex items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-2 py-0.5 text-xs text-purple-700 hover:bg-purple-100">
-                  <span className="rounded bg-purple-200 px-1 text-[10px]">{t.form.visionGuessTag}</span>
+                  className="inline-flex items-center gap-1 rounded-full border border-accent-soft bg-accent-wash px-2 py-0.5 text-xs text-accent hover:bg-accent-wash">
+                  <span className="rounded bg-accent-soft px-1 text-[10px]">{t.form.visionGuessTag}</span>
                   {g.value}
-                  <span className="text-purple-400">· {t.form.applyGuess}</span>
+                  <span className="text-accent">· {t.form.applyGuess}</span>
                 </button>
               ))}
             </div>
           )}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <input value={gCategory} onChange={(e) => setGCategory(e.target.value)} placeholder={t.form.fieldCategory}
-              className="rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none" />
+              className="rounded border border-line px-2 py-1 text-sm focus:border-accent focus:outline-none" />
             <input value={gAudience} onChange={(e) => setGAudience(e.target.value)} placeholder={t.form.fieldAudience}
-              className="rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none" />
+              className="rounded border border-line px-2 py-1 text-sm focus:border-accent focus:outline-none" />
             <input value={gPriceBand} onChange={(e) => setGPriceBand(e.target.value)} placeholder={t.form.fieldPriceBand}
-              className="rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none" />
+              className="rounded border border-line px-2 py-1 text-sm focus:border-accent focus:outline-none" />
             <input value={gUseCase} onChange={(e) => setGUseCase(e.target.value)} placeholder={t.form.fieldUseCase}
-              className="rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none" />
+              className="rounded border border-line px-2 py-1 text-sm focus:border-accent focus:outline-none" />
           </div>
         </div>
       </div>
 
       <button type="button" onClick={() => setShowJudgment(!showJudgment)}
-        className="text-sm text-blue-600 hover:text-blue-800 underline">
+        className="text-sm text-accent hover:text-accent underline">
         {showJudgment ? t.form.toggleJudgmentHide : t.form.toggleJudgment}
       </button>
 
       {showJudgment && (
-        <div className="space-y-3 rounded border bg-gray-50 p-4">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+        <div className="space-y-3 rounded border bg-surface-2 p-4">
+          <p className="text-xs font-medium text-muted uppercase tracking-wide">
             {t.form.judgmentTitle}
           </p>
           <div>
-            <label className="mb-1 block text-xs text-gray-600">{t.form.score}</label>
+            <label className="mb-1 block text-xs text-ink-soft">{t.form.score}</label>
             <input type="number" min={0} max={100} value={judgeScore}
               onChange={(e) => setJudgeScore(e.target.value)} placeholder="70"
-              className="w-24 rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+              className="w-24 rounded border border-line px-2 py-1 text-sm focus:border-accent focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-gray-600">{t.form.strengths}</label>
+            <label className="mb-1 block text-xs text-ink-soft">{t.form.strengths}</label>
             <textarea rows={2} value={judgeStrengths}
               onChange={(e) => setJudgeStrengths(e.target.value)}
-              className="w-full rounded border border-gray-200 px-2 py-1 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none"
+              className="w-full rounded border border-line px-2 py-1 text-sm placeholder:text-muted focus:border-accent focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-gray-600">{t.form.weaknesses}</label>
+            <label className="mb-1 block text-xs text-ink-soft">{t.form.weaknesses}</label>
             <textarea rows={2} value={judgeWeaknesses}
               onChange={(e) => setJudgeWeaknesses(e.target.value)}
-              className="w-full rounded border border-gray-200 px-2 py-1 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none"
+              className="w-full rounded border border-line px-2 py-1 text-sm placeholder:text-muted focus:border-accent focus:outline-none"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-gray-600">{t.form.priorityFixes}</label>
+            <label className="mb-1 block text-xs text-ink-soft">{t.form.priorityFixes}</label>
             <textarea rows={2} value={judgeFixes}
               onChange={(e) => setJudgeFixes(e.target.value)}
-              className="w-full rounded border border-gray-200 px-2 py-1 text-sm placeholder:text-gray-400 focus:border-blue-400 focus:outline-none"
+              className="w-full rounded border border-line px-2 py-1 text-sm placeholder:text-muted focus:border-accent focus:outline-none"
             />
           </div>
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-gray-600">{t.form.targetAudience}</label>
+              <label className="mb-1 block text-xs text-ink-soft">{t.form.targetAudience}</label>
               <input type="text" value={judgeAudience}
                 onChange={(e) => setJudgeAudience(e.target.value)}
-                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+                className="w-full rounded border border-line px-2 py-1 text-sm focus:border-accent focus:outline-none"
               />
             </div>
             <div className="flex-1">
-              <label className="mb-1 block text-xs text-gray-600">{t.form.priceBand}</label>
+              <label className="mb-1 block text-xs text-ink-soft">{t.form.priceBand}</label>
               <input type="text" value={judgePriceBand}
                 onChange={(e) => setJudgePriceBand(e.target.value)}
-                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+                className="w-full rounded border border-line px-2 py-1 text-sm focus:border-accent focus:outline-none"
               />
             </div>
           </div>
         </div>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pt-1">
         <button type="submit" disabled={disabled}
-          className={`rounded px-6 py-2 text-sm font-medium text-white transition ${
+          className={`rounded-lg px-7 py-2.5 text-sm font-medium tracking-tightish text-white transition ${
             disabled
-              ? "cursor-not-allowed bg-gray-300"
-              : "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+              ? "cursor-not-allowed bg-muted/70"
+              : "bg-accent shadow-soft hover:bg-accent-deep active:scale-[0.99]"
           }`}>
           {loading ? t.form.running : `${t.form.run} ${t.tasks[taskType].label}`}
         </button>
         {tooShort && !loading && (
-          <span className="text-xs text-amber-600">{t.form.tooShortHint}</span>
+          <span className="text-xs text-clay">{t.form.tooShortHint}</span>
         )}
       </div>
     </form>

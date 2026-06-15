@@ -144,19 +144,19 @@ export default function HelpPage() {
       <div className="flex flex-wrap gap-2 mb-8">
         <Link
           href="/setup"
-          className="rounded bg-blue-100 px-3 py-2 text-xs font-medium text-blue-700 hover:bg-blue-200 transition"
+          className="rounded bg-accent-wash px-3 py-2 text-xs font-medium text-accent hover:bg-accent-soft transition"
         >
           {zh ? "🪄 打开首次使用向导" : "🪄 Open Setup Wizard"}
         </Link>
         <Link
           href="/settings"
-          className="rounded border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition"
+          className="rounded border border-line px-3 py-2 text-xs font-medium text-ink-soft hover:bg-surface-2 transition"
         >
           {zh ? "⚙️ 去设置页面" : "⚙️ Go to Settings"}
         </Link>
         <Link
           href="/"
-          className="rounded border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600 hover:bg-gray-50 transition"
+          className="rounded border border-line px-3 py-2 text-xs font-medium text-ink-soft hover:bg-surface-2 transition"
         >
           {zh ? "🏋️ 去训练工作台" : "🏋️ Go to Workbench"}
         </Link>
@@ -169,7 +169,7 @@ export default function HelpPage() {
           title={zh ? "快速开始" : "Quick Start"}
           icon="🚀"
         >
-          <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+          <ol className="list-decimal list-inside space-y-2 text-sm text-ink-soft">
             <li>
               {zh
                 ? "配置 API Key：打开设置页面，填入 DeepSeek 和 OpenAI 的 API Key，点击测试确认连接成功。"
@@ -208,7 +208,7 @@ export default function HelpPage() {
           title={zh ? "快捷操作" : "Shortcuts & Conveniences"}
           icon="⚡"
         >
-          <ul className="list-disc list-inside space-y-2 text-sm text-gray-600">
+          <ul className="list-disc list-inside space-y-2 text-sm text-ink-soft">
             <li>
               {zh
                 ? "粘贴截图：在工作台任意位置按 Ctrl+V，可直接上传剪贴板中的截图；也可以把图片文件拖拽到图片区域。"
@@ -247,7 +247,7 @@ export default function HelpPage() {
           title={zh ? "如何配置 API Key" : "How to Configure API Keys"}
           icon="🔑"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "前往「设置」页面，填写以下信息："
@@ -267,7 +267,7 @@ export default function HelpPage() {
                   : "Register at platform.openai.com and create an API Key (starts with sk-, requires credits). Fill in under Vision config. If you don't have one, select 'Placeholder' provider to skip."}
               </li>
             </ul>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted">
               {zh
                 ? "所有 Key 保存在 backend/data/config/app_config.json，不会上传到任何服务器。"
                 : "All keys are stored in backend/data/config/app_config.json and never uploaded to any server."}
@@ -280,7 +280,7 @@ export default function HelpPage() {
           title={zh ? "如何完成一次训练" : "How to Complete a Training"}
           icon="🏋️"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "一次完整的训练包含以下环节："
@@ -317,7 +317,7 @@ export default function HelpPage() {
           title={zh ? "如何建立参考案例库" : "How to Build a Reference Library"}
           icon="📚"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "参考案例库是你审美训练的「标尺」。建议收集以下三种等级的案例："
@@ -347,7 +347,7 @@ export default function HelpPage() {
           title={zh ? "语义搜索与 Embedding" : "Semantic Search & Embedding"}
           icon="🔍"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "案例库支持两种搜索方式：普通筛选和语义搜索。"
@@ -361,7 +361,7 @@ export default function HelpPage() {
                 <b>{zh ? "语义搜索" : "Semantic search"}</b>: {zh ? "用自然语言描述你想找的风格，系统按含义匹配。例如输入「高考直播封面，年轻有冲击力但不要廉价」" : "Describe the style you're looking for in natural language — the system matches by meaning"}
               </li>
             </ul>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted">
               {zh
                 ? "语义搜索需要配置 Embedding（设置页或 .env 中 EMBEDDING_PROVIDER=openai，需要 OpenAI API Key）。配置后在参考案例面板点击「重建索引」。未配置时语义搜索自动降级为普通筛选，不会报错。"
                 : "Semantic search requires Embedding (configure EMBEDDING_PROVIDER=openai in Settings or .env, requires OpenAI API Key). After configuring, click 'Rebuild Index' in the Reference Case panel. Falls back to regular filters gracefully when not configured."}
@@ -374,7 +374,7 @@ export default function HelpPage() {
           title={zh ? "训练效果评估" : "Training Assessment"}
           icon="📊"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "训练评估页面（/assessment）基于历史训练记录进行分析（不依赖 AI，纯规则计算），帮助你了解："
@@ -387,7 +387,7 @@ export default function HelpPage() {
               <li>{zh ? "7 个审美能力维度的强弱评估" : "7 aesthetic dimension strengths/weaknesses"}</li>
               <li>{zh ? "7/30 天周期复盘与训练建议" : "7/30 day review with training recommendations"}</li>
             </ul>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted">
               {zh
                 ? "需要至少 5 次包含自评和 AI 评分的训练记录才能生成评估。评估结果是辅助指标，不是绝对评价。"
                 : "Requires at least 5 training sessions with both self-scores and AI scores. Results are training aids, not absolute ratings."}
@@ -400,7 +400,7 @@ export default function HelpPage() {
           title={zh ? "系统诊断" : "System Diagnostics"}
           icon="🩺"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "设置页顶部的「系统诊断」面板显示 DeepSeek、Vision、Embedding、数据库、上传目录的状态。绿色 ✅ 表示正常，红色 ❌ 表示需要关注。"
@@ -419,7 +419,7 @@ export default function HelpPage() {
           title={zh ? "数据导入/导出" : "Data Import/Export"}
           icon="📦"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "设置页的数据管理区支持导出和导入备份包（.zip）。"
@@ -429,7 +429,7 @@ export default function HelpPage() {
               <li><b>{zh ? "导出" : "Export"}</b>: {zh ? "包含参考案例、训练记录、提示词历史、上传的图片、配置摘要。不包含 API Key。" : "Includes reference cases, training records, prompt history, uploaded images, config summary. Does NOT include API keys."}</li>
               <li><b>{zh ? "导入" : "Import"}</b>: {zh ? "合并导入，不会清空或覆盖当前数据。图片和案例 ID 自动重映射。" : "Merge import — never clears or overwrites existing data. Image and case IDs are auto-remapped."}</li>
             </ul>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted">
               {zh
                 ? "升级前务必导出备份！备份包妥善保存，不要分享给他人。"
                 : "Always export a backup before upgrading! Keep the backup file safe and don't share it."}
@@ -442,7 +442,7 @@ export default function HelpPage() {
           title={zh ? "如何使用迭代与提示词" : "How to Use Iteration & Prompts"}
           icon="🔄"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "「迭代」任务会让 AI 生成 3-5 个具体的设计改版方向，每个方向包含具体建议和预期影响。这适合在你已经分析过一个作品后，想探索不同的改进可能性。"
@@ -461,7 +461,7 @@ export default function HelpPage() {
           title={zh ? "如何查看历史记录" : "How to View History"}
           icon="📋"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "训练工作台底部的「最近训练记录」列出了你的所有历史训练会话。点击任意一条可以查看完整详情，包括：你的自评、AI 的分析/评分/迭代结果、判断差异对比。"
@@ -480,7 +480,7 @@ export default function HelpPage() {
           title={zh ? "如何备份数据" : "How to Back Up Data"}
           icon="💾"
         >
-          <div className="text-sm text-gray-600 space-y-2">
+          <div className="text-sm text-ink-soft space-y-2">
             <p>
               {zh
                 ? "所有数据都在 backend/data/ 目录中。备份方法："
@@ -508,7 +508,7 @@ export default function HelpPage() {
                   : "The config/ subdirectory contains API key configuration (keep secure when backing up)"}
               </li>
             </ul>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted">
               {zh
                 ? "建议定期备份。如果使用 Docker，可以在 docker-compose.yml 中挂载 data/ 目录到宿主机。"
                 : "Regular backups are recommended. If using Docker, mount the data/ directory to the host in docker-compose.yml."}
@@ -526,15 +526,15 @@ export default function HelpPage() {
               <div key={i} className="rounded border">
                 <button
                   onClick={() => toggleFaq(i)}
-                  className="w-full px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-50 flex justify-between items-center"
+                  className="w-full px-4 py-3 text-left text-sm font-medium text-ink-soft hover:bg-surface-2 flex justify-between items-center"
                 >
                   <span>{zh ? item.q.zh : item.q.en}</span>
-                  <span className={`text-gray-400 transition-transform ${openFaq === i ? "rotate-180" : ""}`}>
+                  <span className={`text-muted transition-transform ${openFaq === i ? "rotate-180" : ""}`}>
                     ▼
                   </span>
                 </button>
                 {openFaq === i && (
-                  <div className="px-4 pb-3 text-sm text-gray-600 border-t pt-3">
+                  <div className="px-4 pb-3 text-sm text-ink-soft border-t pt-3">
                     {zh ? item.a.zh : item.a.en}
                   </div>
                 )}
@@ -545,7 +545,7 @@ export default function HelpPage() {
       </div>
 
       {/* Footer */}
-      <div className="mt-8 pt-4 border-t text-center text-xs text-gray-400">
+      <div className="mt-8 pt-4 border-t text-center text-xs text-muted">
         {zh
           ? "还有问题？可以重新运行首次使用向导，或检查设置页的连接状态。"
           : "Still have questions? Re-run the setup wizard or check connection status on the Settings page."}
