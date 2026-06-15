@@ -76,7 +76,8 @@ class OpenAIVisionAdapter(VisionAdapter):
             raise ValueError(
                 "未配置 OPENAI_API_KEY，请配置后再使用自动图片描述，或改用手动图片描述。"
             )
-        self.client = OpenAI(api_key=key)
+        from app.llm.tracked_client import wrap_client
+        self.client = wrap_client(OpenAI(api_key=key), provider="openai-vision")
         self.model = model or OPENAI_VISION_MODEL
 
     def describe_image(self, image_path: str, hint: str | None = None) -> str:

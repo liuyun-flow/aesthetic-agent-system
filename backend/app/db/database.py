@@ -46,6 +46,26 @@ def init_db() -> None:
     _migrate_v1_8()
     _migrate_v2_3()
     _migrate_v2_4()
+    _migrate_v2_5()
+
+
+def _migrate_v2_5() -> None:
+    """V2.5: vision_model column (description cache key) + llm_usage table (telemetry).
+
+    Additive + idempotent (safe on existing DBs).
+    """
+    with engine.connect() as conn:
+        try:
+            conn.exec_driver_sql(
+                "ALTER TABLE uploaded_images ADD COLUMN vision_model VARCHAR(100)"
+            )
+        except Exception:
+            pass  # Column already exists — safe to skip
+        conn.commit()
+    try:
+        Base.metadata.create_all(bind=engine, tables=[Base.metadata.tables["llm_usage"]])
+    except Exception:
+        pass  # Table already exists
 
 
 def _migrate_v2_4() -> None:

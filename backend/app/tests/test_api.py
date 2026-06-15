@@ -1067,6 +1067,24 @@ class TestImageDescribeEndpoint:
         resp = client.post("/images/99999/describe")
         assert resp.status_code == 404
 
+    def test_describe_caches_second_call_and_refresh_forces(self, client):
+        """V2.5: a repeat describe reuses the stored description (cached=True);
+        ?refresh=true forces a fresh call (cached=False)."""
+        from app.vision.placeholder_adapter import PlaceholderAdapter
+        app.dependency_overrides[get_vision_adapter] = lambda: PlaceholderAdapter()
+
+        fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
+        image_id = client.post(
+            "/upload", files={"file": ("cache.png", fake_img, "image/png")}
+        ).json()["image_id"]
+
+        r1 = client.post(f"/images/{image_id}/describe")
+        assert r1.status_code == 200 and r1.json()["cached"] is False
+        r2 = client.post(f"/images/{image_id}/describe")
+        assert r2.status_code == 200 and r2.json()["cached"] is True
+        r3 = client.post(f"/images/{image_id}/describe?refresh=true")
+        assert r3.status_code == 200 and r3.json()["cached"] is False
+
     def test_describe_json_parse_error_returns_safe_message(self, client):
         fake_img = io.BytesIO(b"\x89PNG\r\n\x1a\n" + b"\x00" * 16)
         upload_resp = client.post(
@@ -1139,6 +1157,50 @@ class TestImageDescribeEndpoint:
             },
         )
         assert resp.status_code == 200
+
+
+class TestTelemetry:
+    """V2.5: LLM usage telemetry aggregation + endpoint."""
+
+    def test_usage_summary_aggregates(self):
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from app.db.database import Base
+        from app.db.models import LlmUsage
+        from app.services.telemetry import get_usage_summary
+
+        eng = create_engine("sqlite:///:memory:")
+        Base.metadata.create_all(eng)
+        db = sessionmaker(bind=eng)()
+        try:
+            db.add_all([
+                LlmUsage(provider="deepseek", model="m1", prompt_tokens=100,
+                         completion_tokens=50, total_tokens=150, latency_ms=200),
+                LlmUsage(provider="deepseek", model="m1", prompt_tokens=200,
+                         completion_tokens=100, total_tokens=300, latency_ms=400),
+                LlmUsage(provider="openai-vision", model="m2", prompt_tokens=10,
+                         completion_tokens=5, total_tokens=15, latency_ms=100),
+            ])
+            db.commit()
+            s = get_usage_summary(db)
+            assert s["total_calls"] == 3
+            assert s["total_tokens"] == 465
+            assert s["total_prompt_tokens"] == 310
+            assert s["total_completion_tokens"] == 155
+            assert s["avg_latency_ms"] == round((200 + 400 + 100) / 3, 1)
+            by = {m["model"]: m for m in s["by_model"]}
+            assert by["m1"]["calls"] == 2 and by["m1"]["total_tokens"] == 450
+            assert by["m2"]["calls"] == 1
+        finally:
+            db.close()
+
+    def test_usage_endpoint_empty(self, client):
+        resp = client.get("/system/usage")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_calls"] == 0
+        assert data["total_tokens"] == 0
+        assert data["by_model"] == []
 
 
 class TestPlaceholderAdapter:

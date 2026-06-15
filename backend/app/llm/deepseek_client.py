@@ -48,12 +48,15 @@ def get_deepseek_client(api_key: str | None = None) -> OpenAI:
         get_value("deepseek", "base_url", env_var="DEEPSEEK_BASE_URL")
         or DEFAULT_BASE_URL
     )
-    return OpenAI(
+    from app.llm.tracked_client import wrap_client
+
+    client = OpenAI(
         api_key=key,
         base_url=base_url,
         timeout=_get_timeout(),
         max_retries=DEFAULT_MAX_RETRIES,
     )
+    return wrap_client(client, provider="deepseek")
 
 
 def get_default_model() -> str:

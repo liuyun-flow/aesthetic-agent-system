@@ -66,6 +66,7 @@ from app.schemas.responses import (
     TRAINING_THEMES,
     TrainingStatsResponse,
     UploadResponse,
+    UsageSummary,
     VisionDescription,
     VisionStatusResponse,
     WeeklyReviewResponse,
@@ -492,6 +493,22 @@ def analyze(
     return result
 
 
+def _current_vision_signature() -> tuple[str, str]:
+    """V2.5: (provider, model) for the configured vision adapter, used as the
+    description cache key. A stored description is reused only when both match."""
+    provider = (
+        get_value("vision", "provider", env_var="VISION_PROVIDER") or "placeholder"
+    ).strip().lower()
+    if provider == "openai":
+        model = (
+            get_value("vision", "openai_vision_model", env_var="OPENAI_VISION_MODEL")
+            or "gpt-4o-mini"
+        ).strip()
+    else:
+        model = provider
+    return provider, model
+
+
 def _resolve_image_description(
     request: WorkDescriptionRequest,
     vision: VisionAdapter,
@@ -513,13 +530,33 @@ def _resolve_image_description(
         if manual_description:
             return manual_description
 
+    # V2.5 cache: reuse the stored description when provider + model match.
+    provider, model = _current_vision_signature()
+    if (
+        uploaded.ai_description
+        and uploaded.vision_provider == provider
+        and uploaded.vision_model == model
+    ):
+        return uploaded.ai_description
+
     try:
-        return vision.describe_image(
-            uploaded.file_path,
-            hint=request.image_description,
-        )
+        text = vision.describe_image(uploaded.file_path, hint=request.image_description)
     except Exception as exc:
         raise _vision_http_exception(exc) from exc
+
+    # Persist for reuse (best-effort; keep any existing structured JSON).
+    try:
+        session_service.update_image_description(
+            db,
+            image_id=uploaded.id,
+            ai_description=text,
+            vision_provider=provider,
+            vision_description_json=uploaded.vision_description_json,
+            vision_model=model,
+        )
+    except Exception:
+        pass
+    return text
 
 
 @app.post("/critique", response_model=CritiqueResponse)
@@ -768,46 +805,63 @@ def upload_image(
 )
 def describe_image(
     image_id: int,
+    refresh: bool = False,
     vision: VisionAdapter = Depends(get_vision_adapter),
     db: Session = Depends(get_db),
 ) -> ImageDescribeResponse:
     """Auto-generate a structured description for a previously uploaded image.
 
-    Calls the configured ``VisionAdapter.describe_image_structured()``.
-    The result is saved to the image record so it can be reused.
+    V2.5: if the image already has a description for the current provider + model,
+    it is reused (no LLM call) unless ``refresh=true`` is passed.
     """
+    import json as _json
+
     uploaded = session_service.get_image_by_id(db, image_id)
     if uploaded is None:
         raise HTTPException(status_code=404, detail=f"Image id={image_id} not found.")
 
+    provider, model = _current_vision_signature()
+    is_placeholder = provider == "placeholder"
+    warning = (
+        "当前使用占位视觉描述，未调用真实视觉模型。返回的描述为示例数据，不匹配实际图片。"
+        if is_placeholder
+        else None
+    )
+
+    # ── Cache hit: reuse the stored description for matching provider+model ──
+    if (
+        not refresh
+        and uploaded.vision_description_json
+        and uploaded.vision_provider == provider
+        and uploaded.vision_model == model
+    ):
+        try:
+            cached = VisionDescription.model_validate_json(uploaded.vision_description_json)
+            return ImageDescribeResponse(
+                image_id=image_id, description=cached, vision_provider=provider,
+                is_placeholder=is_placeholder, warning=warning, cached=True,
+            )
+        except Exception:
+            pass  # parse failure → fall through and re-describe
+
+    # ── Cache miss: call the vision adapter and persist ─────────────────────
     try:
         desc = vision.describe_image_structured(uploaded.file_path)
     except Exception as exc:
         raise _vision_http_exception(exc) from exc
 
-    # Persist the description on the image record
-    import json as _json
-    provider = get_value("vision", "provider", env_var="VISION_PROVIDER") or "placeholder"
     session_service.update_image_description(
         db,
         image_id=image_id,
         ai_description=desc.suggested_prompt_text,
         vision_provider=provider,
         vision_description_json=_json.dumps(desc.model_dump(), ensure_ascii=False),
+        vision_model=model,
     )
 
-    is_placeholder = provider not in ("openai", "claude", "gemini") or provider == "placeholder"
-    warning = (
-        "当前使用占位视觉描述，未调用真实视觉模型。返回的描述为示例数据，不匹配实际图片。"
-        if is_placeholder
-        else None
-    )
     return ImageDescribeResponse(
-        image_id=image_id,
-        description=desc,
-        vision_provider=provider,
-        is_placeholder=is_placeholder,
-        warning=warning,
+        image_id=image_id, description=desc, vision_provider=provider,
+        is_placeholder=is_placeholder, warning=warning, cached=False,
     )
 
 
@@ -1497,6 +1551,13 @@ def model_status() -> dict:
 
 
 # ── V1.7.1: System status (combined health/model/vision/db/uploads) ─────
+
+@app.get("/system/usage", response_model=UsageSummary)
+def system_usage(db: Session = Depends(get_db)) -> UsageSummary:
+    """V2.5: aggregate LLM token/latency telemetry for the settings page."""
+    from app.services.telemetry import get_usage_summary
+    return UsageSummary.model_validate(get_usage_summary(db))
+
 
 @app.get("/system/status")
 def system_status(db: Session = Depends(get_db)) -> dict:

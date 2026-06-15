@@ -86,6 +86,9 @@ class UploadedImage(Base):
     vision_provider = Column(String(50), nullable=True)
     vision_description_json = Column(Text, nullable=True)
     described_at = Column(DateTime, nullable=True)
+    # V2.5: vision model used, for cache-key matching (reuse description when
+    # provider + model match instead of re-calling the vision API).
+    vision_model = Column(String(100), nullable=True)
 
     def __repr__(self) -> str:
         return f"<UploadedImage id={self.id} filename={self.stored_filename}>"
@@ -118,6 +121,24 @@ class ReferenceCase(Base):
 
     def __repr__(self) -> str:
         return f"<ReferenceCase id={self.id} title={self.title} level={self.aesthetic_level}>"
+
+
+class LlmUsage(Base):
+    """V2.5: per-call LLM telemetry — tokens + latency, for cost/latency visibility."""
+
+    __tablename__ = "llm_usage"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String(50), nullable=True)   # "deepseek" | "openai-vision" | ...
+    model = Column(String(100), nullable=True)
+    prompt_tokens = Column(Integer, nullable=True)
+    completion_tokens = Column(Integer, nullable=True)
+    total_tokens = Column(Integer, nullable=True)
+    latency_ms = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def __repr__(self) -> str:
+        return f"<LlmUsage id={self.id} model={self.model} total_tokens={self.total_tokens}>"
 
 
 class ReferenceCaseEmbedding(Base):

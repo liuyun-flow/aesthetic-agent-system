@@ -189,6 +189,7 @@ class ImageDescribeResponse(BaseModel):
     vision_provider: str = "placeholder"
     is_placeholder: bool = True
     warning: str | None = None
+    cached: bool = False  # V2.5: True when reused from a prior description (no LLM call)
 
 
 # ── V1.4.3: Vision status ────────────────────────────────────────────
@@ -359,6 +360,23 @@ class AssessmentOverview(BaseModel):
     # V2.4 follow-up: chronological AI work-quality scores (0-100) from stored
     # ai_overall_score on critique records — powers a trend line on /assessment.
     recent_quality_series: list[int] = Field(default_factory=list)
+
+
+class ModelUsage(BaseModel):
+    """Per-model LLM usage rollup."""
+    model: str = ""
+    calls: int = 0
+    total_tokens: int = 0
+
+
+class UsageSummary(BaseModel):
+    """V2.5: aggregate LLM cost/latency telemetry."""
+    total_calls: int = 0
+    total_tokens: int = 0
+    total_prompt_tokens: int = 0
+    total_completion_tokens: int = 0
+    avg_latency_ms: float | None = None
+    by_model: list[ModelUsage] = Field(default_factory=list)
 
 
 class MistakePattern(BaseModel):

@@ -214,8 +214,13 @@ def update_image_description(
     ai_description: str | None = None,
     vision_provider: str | None = None,
     vision_description_json: str | None = None,
+    vision_model: str | None = None,
 ) -> UploadedImage | None:
-    """Update an image record with AI-generated description (V1.3)."""
+    """Update an image record with AI-generated description (V1.3).
+
+    V2.5: also stores vision_model so a later request can reuse the description
+    when provider + model match (instead of re-calling the vision API).
+    """
     from datetime import datetime as dt
 
     image = db.query(UploadedImage).filter(UploadedImage.id == image_id).first()
@@ -224,6 +229,7 @@ def update_image_description(
     image.ai_description = ai_description
     image.vision_provider = vision_provider
     image.vision_description_json = vision_description_json
+    image.vision_model = vision_model
     image.described_at = dt.utcnow()
     try:
         db.commit()

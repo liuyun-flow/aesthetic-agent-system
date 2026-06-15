@@ -39,6 +39,81 @@ interface PreflightData {
 
 function statusIcon(ok: boolean): string { return ok ? "✅" : "❌"; }
 
+/* ── V2.5: LLM usage telemetry ─────────────────────────────────────── */
+
+interface UsageData {
+  total_calls: number;
+  total_tokens: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  avg_latency_ms: number | null;
+  by_model: { model: string; calls: number; total_tokens: number }[];
+}
+
+function UsageStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded border bg-gray-50 px-3 py-2">
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className="text-sm font-semibold text-gray-800">{value}</p>
+    </div>
+  );
+}
+
+function UsagePanel() {
+  const [data, setData] = useState<UsageData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${BASE}/system/usage`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <section className="rounded border bg-white p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-gray-700 mb-3">用量统计（LLM）</h3>
+      {loading ? (
+        <p className="text-xs text-gray-400">加载中…</p>
+      ) : !data || data.total_calls === 0 ? (
+        <p className="text-xs text-gray-400">
+          暂无调用记录。运行分析 / 评分 / 迭代后，这里会显示累计 token 与平均延迟。
+        </p>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+            <UsageStat label="总调用次数" value={data.total_calls} />
+            <UsageStat label="总 token" value={data.total_tokens.toLocaleString()} />
+            <UsageStat
+              label="输入 / 输出 token"
+              value={`${data.total_prompt_tokens.toLocaleString()} / ${data.total_completion_tokens.toLocaleString()}`}
+            />
+            <UsageStat
+              label="平均延迟"
+              value={data.avg_latency_ms != null ? `${data.avg_latency_ms} ms` : "--"}
+            />
+          </div>
+          <div className="space-y-1">
+            {data.by_model.map((m) => (
+              <div key={m.model} className="flex items-center gap-2 text-xs">
+                <span className="flex-1 truncate font-medium text-gray-700">{m.model || "?"}</span>
+                <span className="text-gray-500">{m.calls} 次</span>
+                <span className="w-28 text-right text-gray-500">
+                  {m.total_tokens.toLocaleString()} token
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-gray-400">
+            token 来自各次调用返回的 usage；成本请按你所用模型的计价自行估算。
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 function DiagnosticsPanel() {
   const [data, setData] = useState<PreflightData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -323,6 +398,9 @@ export default function SettingsPage() {
 
       {/* ── V2.1: System Diagnostics ───────────────────────────────── */}
       <DiagnosticsPanel />
+
+      {/* ── V2.5: LLM usage telemetry ──────────────────────────────── */}
+      <UsagePanel />
 
       {/* ── DeepSeek Section ────────────────────────────────────────── */}
       <section className="rounded border bg-white p-5 shadow-sm">
