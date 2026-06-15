@@ -133,6 +133,7 @@ npm run dev                      # http://127.0.0.1:3000
 | V2.2.1 | Agent aesthetic core: shared design-knowledge base, calibrated scoring rubric, evidence rules |
 | V2.3 | One-click add-to-library (prefill + confirm), description completeness meter + guided fill, vision commercial inference |
 | V2.4 | Evaluation integrity: calibration/eval harness, stored AI dimension scores, aggregated 8-dimension assessment, optional vision-direct scoring |
+| V2.4.1 | Review follow-ups: honest dimension labeling (work-quality, not ability), eval-metric unit tests, work-quality trend line, deterministic eval runs |
 
 ### API Endpoints
 
@@ -462,6 +463,7 @@ chmod +x scripts/start.sh
 | V2.2.1 | Agent 审美内核：共享设计知识库、评分锚点+反通胀、证据规则 |
 | V2.3 | 一键收入案例库（预填+确认）、描述完整度进度条+引导式补全、Vision 商业推测 |
 | V2.4 | 信任度量：评测/校准台、存储真实维度分、聚合 8 维评估、可选 Vision 直评 |
+| V2.4.1 | 复审收尾：诚实表述（作品质量≠判断力）、评测台单测、作品质量趋势、评测可复现 |
 
 ### API 端点
 
