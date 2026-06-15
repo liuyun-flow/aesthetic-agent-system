@@ -159,9 +159,22 @@ def _predict_better(score_a: float, score_b: float) -> str:
     return "tie"
 
 
+def _passes_thresholds(win_rate: float | None, spearman: float | None) -> bool:
+    """True unless a *measured* metric is below its threshold.
+
+    None means "not measured" (no data / no key) and does not fail — only a
+    measured metric below threshold fails. Used by --check to gate a release.
+    """
+    if win_rate is not None and win_rate < PAIR_WIN_RATE_THRESHOLD:
+        return False
+    if spearman is not None and spearman < ITEM_SPEARMAN_THRESHOLD:
+        return False
+    return True
+
+
 # ── Eval run ───────────────────────────────────────────────────────────────
 
-def run(dry_run: bool = False, limit: int | None = None, repeat: int = 1) -> int:
+def run(dry_run: bool = False, limit: int | None = None, repeat: int = 1, check: bool = False) -> int:
     items = _load_jsonl(_GOLD_DIR / "items.jsonl")
     pairs = _load_jsonl(_GOLD_DIR / "pairs.jsonl")
 
@@ -294,6 +307,11 @@ def run(dry_run: bool = False, limit: int | None = None, repeat: int = 1) -> int
         print(f"  item spearman {'PASS' if spearman >= ITEM_SPEARMAN_THRESHOLD else 'WARN'} "
               f"(threshold {ITEM_SPEARMAN_THRESHOLD})")
     print(f"report written : {out}")
+
+    # --check gates a release: fail (exit 1) if a measured metric is below threshold.
+    if check and not _passes_thresholds(win_rate, spearman):
+        print("CHECK FAILED: a measured metric is below threshold.")
+        return 1
     return 0
 
 
@@ -305,8 +323,10 @@ def main() -> int:
                     help="Score only the first N items and pairs (cheap smoke run)")
     ap.add_argument("--repeat", type=int, default=1,
                     help="Average each score over N runs to damp residual noise")
+    ap.add_argument("--check", action="store_true",
+                    help="Exit non-zero if a measured metric is below threshold (release gate)")
     args = ap.parse_args()
-    return run(dry_run=args.dry_run, limit=args.limit, repeat=args.repeat)
+    return run(dry_run=args.dry_run, limit=args.limit, repeat=args.repeat, check=args.check)
 
 
 if __name__ == "__main__":

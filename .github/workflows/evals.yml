@@ -1,0 +1,44 @@
+name: Calibration evals (on-release)
+
+# V2.5 N5: productionize the V2.4 eval harness. Paid + non-deterministic, so it
+# runs ONLY on a published release (or manual dispatch) — never on PRs.
+# Gates the release: --check exits non-zero if a measured metric is below
+# threshold (pair win-rate >= 0.75, item Spearman >= 0.5).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}
+
+jobs:
+  calibration:
+    name: Critic calibration (real key)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Run calibration evals
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "::warning::DEEPSEEK_API_KEY secret not set — skipping calibration evals."
+            exit 0
+          fi
+          python -m evals.run_eval --repeat 3 --check
+      - name: Upload eval report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: backend/evals/reports/
+          if-no-files-found: ignore

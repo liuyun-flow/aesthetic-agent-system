@@ -96,7 +96,7 @@
 - [ ] **健康检查版本正确** — `/health` 和 `/system/status` 返回本次发布版本（形如 `vX.Y.Z`）
 - [ ] **预检版本正确** — `/system/preflight` 返回本次发布版本
 - [ ] **导出包版本正确** — 导出包中 version 字段为本次发布版本
-- [ ] **评测台校准（如配置了 key，建议）** — `cd backend && python -m evals.run_eval`：成对判对率 ≥ 0.75；改过 prompt/知识库后必跑。非 PR gate，手动/发布前执行
+- [ ] **评测台校准** — 发布后 `evals.yml` 自动跑（需仓库 secret `DEEPSEEK_API_KEY`；`--check` 在成对判对率 <0.75 时让该 job 失败）。本地手动：`cd backend && python -m evals.run_eval --repeat 3 --check`。改过 prompt/知识库后必跑；金标准仍为合成脚手架时需先替换真实样本（M-1）
 
 ---
 

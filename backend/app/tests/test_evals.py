@@ -8,6 +8,7 @@ import pytest
 
 from evals.run_eval import (
     _fractional_ranks,
+    _passes_thresholds,
     _pearson,
     _predict_better,
     _spearman,
@@ -62,6 +63,25 @@ class TestSpearman:
 class TestPearson:
     def test_perfect_correlation(self):
         assert _pearson([1, 2, 3], [2, 4, 6]) == pytest.approx(1.0)
+
+
+class TestThresholdGate:
+    def test_both_above_passes(self):
+        assert _passes_thresholds(0.8, 0.6) is True
+
+    def test_at_threshold_passes(self):
+        assert _passes_thresholds(0.75, 0.5) is True
+
+    def test_low_win_rate_fails(self):
+        assert _passes_thresholds(0.7, 0.6) is False
+
+    def test_low_spearman_fails(self):
+        assert _passes_thresholds(0.8, 0.4) is False
+
+    def test_unmeasured_metrics_pass(self):
+        # None = not measured (no data / no key) — does not fail the gate.
+        assert _passes_thresholds(None, None) is True
+        assert _passes_thresholds(None, 0.6) is True
 
 
 class TestGoldValidators:
