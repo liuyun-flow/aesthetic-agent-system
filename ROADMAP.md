@@ -5,7 +5,7 @@
 > 主轴：**先让度量可信，再锁住质量，再做功能**。Stage 1（V2.4 信任度量）已完成。
 > 按用户优先级：**信心（质量与可靠性）提前为 V2.5**；原 V2.5 的闭环功能（种子/grounding/课程）**顺延至 ~V3.0**。
 
-- **V2.5 信心（质量与可靠性）— 下一站**，详见 [docs/V2.5_PLAN.md](docs/V2.5_PLAN.md)
+- **V2.5 信心（质量与可靠性）— 进行中（N1–N3 done，N4 next）**，详见 [docs/V2.5_PLAN.md](docs/V2.5_PLAN.md)
   - CI（GitHub Actions）：mocked 测试 gate PR；付费评测**仅 on-release**
   - 前端测试（Vitest+RTL）+ Playwright E2E；缓存（只缓存视觉描述，不缓存评分）；成本/延迟遥测（DB+设置页）
   - 先做便宜切片：N1 CI + N2 缓存/遥测，再前端测试/E2E

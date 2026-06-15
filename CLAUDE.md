@@ -42,8 +42,10 @@ cd backend && python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 # 测试（本机裸 python 缺 fastapi，依赖装在 Python311 里）
 cd backend && C:/Users/Dream/AppData/Local/Programs/Python/Python311/python.exe -m pytest app/tests/ -q
 
-# 前端 build 检查（本机无全局 node，用 Docker 构建验证）
-docker compose build frontend
+# 前端（本机已装 Node v24）：组件测试 + 构建
+cd frontend && npm run test && npm run build
+
+# CI：push/PR 自动跑后端 pytest + 前端 Vitest + build（.github/workflows/ci.yml），保持绿
 ```
 
 ## Dev Constraints

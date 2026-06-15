@@ -102,6 +102,8 @@
 
 ## 七、前端检查
 
+- [ ] **CI 绿** — 最新 push 的 GitHub Actions（后端 pytest + 前端 Vitest + build）全部通过
+- [ ] **npm run test 通过** — 前端 Vitest 组件测试
 - [ ] **npm run build 通过** — 无 TypeScript 错误，无构建警告
 - [ ] **所有路由可访问** — /, /settings, /help, /setup, /audit, /assessment 无 404
 - [ ] **ChunkLoadError 恢复** — 前端全局 unhandledrejection 监听存在且正常

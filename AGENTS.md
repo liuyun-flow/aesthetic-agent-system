@@ -29,7 +29,8 @@ aesthetic-agent-system/
 - Python 3.11+, TypeScript strict
 - Backend: 127.0.0.1 (not localhost) for all internal calls
 - Frontend: Chinese UI only; i18n keys sync en.ts ⇔ zh.ts
-- Tests: 239 pytest (mock agents, no API key needed for tests)
+- Tests: 242 pytest (mock agents, no API key needed) + frontend Vitest component tests
+- CI: GitHub Actions (`.github/workflows/ci.yml`) runs backend pytest + frontend Vitest + build on push/PR — keep green
 - DB: SQLite, auto-migration on startup, delete aesthetic.db to reset
 - Dev proxy (push/release only; never in repo, end users need none): git uses the
   global proxy config. The port floats with the proxy client — pin it to a fixed
@@ -46,13 +47,14 @@ aesthetic-agent-system/
 
 ## Test Commands
 ```bash
-cd backend && pytest app/tests/test_api.py -v   # 85+ pass
-cd frontend && npm run build                     # must pass
+cd backend && pytest app/tests/ -q     # 242 mocked, no key (use Python311 interp locally)
+cd frontend && npm run test            # Vitest component tests
+cd frontend && npm run build           # must pass
 ```
 
 ## PR Checklist
-- [ ] Backend tests pass
-- [ ] Frontend `npm run build` passes
+- [ ] CI green (backend pytest + frontend Vitest + build)
+- [ ] Backend tests pass; Frontend Vitest + `npm run build` pass
 - [ ] Chinese UI not broken
 - [ ] Session detail modal works
 - [ ] analyze / critique / iterate not broken
