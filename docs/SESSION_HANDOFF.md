@@ -116,9 +116,10 @@ V2.3.0 发布后，本会话主要是**文档同步 + 演进路线规划**，无
 - 修复本机 git 代理（见已知问题 #1）
 - **确认演进路线 V2.4 → V2.7**（详见 [ROADMAP.md](../ROADMAP.md) 顶部「计划中」）
 
-## Next Session — V2.4.x 已完成，下一站 V2.5（已批准，待启动）
-- **先做的事**：用真实 key 跑一次评测台基线 `cd backend && python -m evals.run_eval`（现已 temp0 可复现，可加 `--repeat 3`），记录 baseline 报告；用真实样本替换 `backend/evals/gold/*.jsonl` 的合成脚手架。这就是复审 **M-1**。
-- **复审遗留（需相应环境）**：R-1 前端测试套件+E2E（需 Node 环境）· R-4 Vision 直评校准（需 key）· R-6 运行时 API base URL（需全栈运行时验证；散落 ~6 组件，盲改风险高）· R-7 成本/延迟遥测（需真实调用验证）。
-- **V2.5 闭环**：①首次运行预置案例库（版权/来源注意，考虑纯文本种子，须过 V1.9 完整度门槛）；②top-N 案例注入 analyze/critique grounding（**会改变评分，改前后必跑评测台对比**）；③结构化课程替代静态主题 + assessment 推荐连向下一练习。
-- 之后：V2.6 质量（前端测试/评测进 CI/缓存/遥测） · V2.7 触达（运行时 API URL / 桌面打包；**API key 才是触达真门槛**）。
+## Next Session — V2.4.x 已完成；版号 2026-06-15 重排
+- **重排**：用户优先「信心（质量/可靠性）」→ 提前为 **V2.5**（[docs/V2.5_PLAN.md](V2.5_PLAN.md)，决策已定）；原 V2.5 闭环（种子/grounding/课程）顺延至 **~V3.0**（[docs/V3.0_PLAN.md](V3.0_PLAN.md)）。
+- **环境变化**：本机已装 **Node v24.16.0**，`npm run build` 已验证；前端测试不再受阻。
+- **V2.5 下一步（已选 N1+N2 切片先做）**：N1 CI 脚手架（GitHub Actions：mocked pytest + 前端 build/lint）→ N2 缓存（只缓存视觉描述）+ 遥测（DB+设置页）→ N3 前端组件测试 → N4 E2E → N5 评测进 on-release CI → N6 收尾 v2.5.0。
+- **独立待办（需 key）**：M-1 真实校准基线 `cd backend && python -m evals.run_eval --repeat 3` + 替换 `backend/evals/gold/*.jsonl` 真实样本；R-4 Vision 直评校准。
+- **之后**：V2.7 触达（运行时 API URL / 桌面打包；**API key 才是触达真门槛**） · **~V3.0 闭环**（预置案例库 + top-N grounding[改评分须配评测护栏] + 结构化课程；详见 [V3.0_PLAN.md](V3.0_PLAN.md)）。
 - 关键坑（已走查）：grounding 会使校准失效需重跑评测台；种子案例版权；Python 桌面打包工程量大。

@@ -61,5 +61,6 @@ docker compose up --build -d
 ## 下一步
 
 - 用真实样本与 key 跑评测台基线，确认 critic 校准
-- V2.5 闭环：预置案例库 + top-N 案例注入 grounding + 结构化课程
+- V2.5 信心：CI + 前端测试/E2E + 缓存 + 成本/延迟遥测
+- ~V3.0 闭环：预置案例库 + top-N grounding + 结构化课程
 - 判断力分维度度量（收集用户分维度自评）

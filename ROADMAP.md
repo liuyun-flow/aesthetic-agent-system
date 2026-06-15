@@ -1,16 +1,18 @@
 # Roadmap
 
-## 🔜 计划中 — V2.5 → V2.7（方向已与用户确认）
+## 🔜 计划中（2026-06-15 重排版号）
 
-> 选定路线主轴：**先让度量可信，再做大**。Stage 1（V2.4）已完成；Stage 2（V2.5）已批准、待启动。
-> 评测/校准台（V2.4 已建）是骨干：V2.5 grounding 的前置、V2.6 进 CI。
+> 主轴：**先让度量可信，再锁住质量，再做功能**。Stage 1（V2.4 信任度量）已完成。
+> 按用户优先级：**信心（质量与可靠性）提前为 V2.5**；原 V2.5 的闭环功能（种子/grounding/课程）**顺延至 ~V3.0**。
 
-- **V2.5 闭环（curriculum + grounding）**
-  - 首次运行预置案例库（注意版权/来源；考虑纯文本种子）；种子须过 V1.9 完整度门槛
-  - top-N 案例注入 analyze/critique grounding（V2.2.1 起规划的 Phase 2）——**会改变评分，必须在评测台就位后做**
-  - 结构化课程替代静态主题；assessment 推荐结构化并连向下一练习
-- **V2.6 质量**：前端测试 + Playwright E2E + agent 输出评测进 CI（付费/非确定性评测走 nightly，不 gate PR）；真实 vision 集成测试；缓存（视觉描述可缓存、评分不缓存）；成本/延迟遥测
-- **V2.7 触达**：运行时可配 API base URL（Next.js rewrite，解决 known issue #5）；桌面打包（Tauri/Electron，Python 后端打包是最大工程量）或托管 demo；**真正的门槛是 API key 而非打包**
+- **V2.5 信心（质量与可靠性）— 下一站**，详见 [docs/V2.5_PLAN.md](docs/V2.5_PLAN.md)
+  - CI（GitHub Actions）：mocked 测试 gate PR；付费评测**仅 on-release**
+  - 前端测试（Vitest+RTL）+ Playwright E2E；缓存（只缓存视觉描述，不缓存评分）；成本/延迟遥测（DB+设置页）
+  - 先做便宜切片：N1 CI + N2 缓存/遥测，再前端测试/E2E
+- **V2.7 触达**：运行时可配 API base URL（Next.js rewrite，解决 known issue #5）；桌面打包或托管 demo；**真正的门槛是 API key 而非打包**
+- **~V3.0 闭环（curriculum + grounding）**，详见 [docs/V3.0_PLAN.md](docs/V3.0_PLAN.md)
+  - 首次运行预置案例库（纯文本种子，规避版权）；top-N 案例注入 grounding（**改评分，须在评测护栏后做**）；结构化课程 + assessment 推荐连向练习
+  - 也含更远期：多人/社区共享案例库
 
 备选方向（未选，见会话记录）：集成优先（Figma/浏览器扩展）、社区网络、垂直深耕、移动端、引擎 API 化。
 
