@@ -1,7 +1,7 @@
 # Session Handoff — 2026-06-15
 
 ## Last Completed
-- **V2.5 信心（进行中，N1–N3 done）**：N1 CI（GitHub Actions：后端 pytest + 前端 Vitest + build，每次 push 自动跑）· N2 缓存（视觉描述，`?refresh=true` 强制；新增 `uploaded_images.vision_model`）+ 遥测（`llm_usage` 表 + `GET /system/usage` + 设置页用量面板；`wrap_client` 透明计量 DeepSeek/vision 调用）· N3 前端组件测试（Vitest+RTL，5 测）。后端 **242** + 前端 Vitest + CI 全绿。下一站 **N4 E2E**。
+- **V2.5.0 信心 — 已发布**（N1–N6 全部完成）。N1 CI（GitHub Actions：后端 pytest + 前端 Vitest + build + Playwright E2E）· N2 视觉描述缓存（`?refresh=true`，`uploaded_images.vision_model`）+ 遥测（`llm_usage` + `wrap_client` + `GET /system/usage` + 设置页面板）· N3 前端组件测试（Vitest+RTL）· N4 Playwright smoke E2E（启动整栈）· N5 on-release 校准评测（`evals.yml` + `--check` 门槛）· N6 收尾 v2.5.0。后端 **247** + 前端 Vitest + E2E 全绿。
 - **V2.4.1: 信任度量复审收尾 — 239 tests passed**（诚实表述 + 评测台 19 单测 + 作品质量趋势 + 评测可复现 + 误判启发式标注）。
 - V2.4.0: 信任度量（评测台 + 存储真实维度分 + 维度聚合 8 维 + 可选 Vision 直评）
 - V2.3.0: 一键收入案例库 + 描述质量优化（已发布 Release v2.3.0）
@@ -117,10 +117,9 @@ V2.3.0 发布后，本会话主要是**文档同步 + 演进路线规划**，无
 - 修复本机 git 代理（见已知问题 #1）
 - **确认演进路线 V2.4 → V2.7**（详见 [ROADMAP.md](../ROADMAP.md) 顶部「计划中」）
 
-## Next Session — V2.5 信心进行中（N1–N3 done，下一站 N4）
-- **已完成（本会话）**：N1 CI（`.github/workflows/ci.yml`）· N2 缓存（视觉描述）+ 遥测 · N3 前端组件测试（Vitest+RTL）。后端 242 + 前端 Vitest + CI 全绿。
-- **N4 Playwright E2E（下一站，最重）**：需装 Playwright + 浏览器二进制，编排整栈（后端 + 前端 + 预置 DB）跑一条关键流程。可先做 thin smoke E2E 控范围。
-- 之后：**N5** 评测进 on-release CI（扩 backend/evals 质量启发式，key 放 CI secrets，仅发布跑）· **N6** 收尾 v2.5.0（版本同步 + docs + checklist）。
-- **独立待办（需 key）**：M-1 真实校准基线 `cd backend && python -m evals.run_eval --repeat 3` + 替换 `backend/evals/gold/*.jsonl` 真实样本；R-4 Vision 直评校准。
-- 之后版本：**V2.7 触达** · **~V3.0 闭环**（[V3.0_PLAN.md](V3.0_PLAN.md)：预置案例库 + grounding + 课程）。
+## Next Session — V2.5.0 已发布；下一站 V2.7 或 ~V3.0
+- **先做（需 key，让 N5 有意义）= M-1**：GitHub 仓库 Settings → Secrets 加 `DEEPSEEK_API_KEY`；用真实「公认强/弱」样本替换 `backend/evals/gold/*.jsonl`（现为合成脚手架）；跑一次 `python -m evals.run_eval --repeat 3 --check` 记录基线。
+- **V2.7 触达**：运行时可配 API base URL（Next.js rewrite，解决 known issue #5）；桌面打包（Tauri/Electron，Python 后端打包最重）或托管 demo；**API key 才是真门槛**。
+- **~V3.0 闭环**（[V3.0_PLAN.md](V3.0_PLAN.md)）：预置案例库（纯文本种子）+ top-N grounding（**改评分，须在评测护栏内做**）+ 结构化课程。
+- 其他独立待办：R-4 Vision 直评校准（需 key）· R-6 运行时 API URL（散落多组件，需全栈运行时验证）。
 - 关键坑：grounding 会使校准失效需重跑评测台；种子案例版权；Python 桌面打包工程量大。

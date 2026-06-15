@@ -1,5 +1,17 @@
 # Changelog
 
+## V2.5.0 (2026-06-15)
+- 信心（质量与可靠性）—— 在扩大受众前锁住质量，让改动不能悄悄回退
+- **CI**（GitHub Actions `.github/workflows/ci.yml`）：每次 push/PR 跑后端 pytest（mocked）+ 前端 Vitest + build；免费、确定性，不含付费 LLM
+- **视觉描述缓存**：相同图片在 provider+model 不变时复用已存描述，不再重复调用视觉 API（`uploaded_images.vision_model` 作 key，`POST /images/{id}/describe?refresh=true` 强制重算）；**评分不缓存**（保「再练一次」语义）
+- **成本/延迟遥测**：透明 `wrap_client` 计量每次 LLM 调用的 token + 延迟 → `llm_usage` 表；`GET /system/usage` + 设置页用量面板
+- **前端组件测试**（Vitest + React Testing Library）：ResultCard / TaskForm 关键交互
+- **E2E**（Playwright smoke）：启动整栈后核心路由渲染冒烟，无需 key；进 CI
+- **on-release 校准评测**（`.github/workflows/evals.yml`）：仅在发布时跑 V2.4 评测台（需 `DEEPSEEK_API_KEY` secret），`--check` 在成对判对率 <0.75 时让 job 失败；不 gate PR
+- 迁移 `_migrate_v2_5`：+`uploaded_images.vision_model`，+`llm_usage` 表（自动加列建表，旧数据安全）
+- 版本号同步 v2.4.1 → v2.5.0
+- 247 后端测试 + 前端 Vitest + E2E
+
 ## V2.4.1 (2026-06-14)
 - 信任度量收尾 —— 来自 V2.4.0 后的全面复审（必做 + 建议项）
 - **诚实表述（必做）**：`/assessment` 维度评分明确标注为"作品质量评分"而非"判断力分数"——重命名标签（作品维度）、雷达图标题+说明、维度/误判两个 Tab 加澄清注释

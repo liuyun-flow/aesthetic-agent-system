@@ -5,16 +5,20 @@
 > 主轴：**先让度量可信，再锁住质量，再做功能**。Stage 1（V2.4 信任度量）已完成。
 > 按用户优先级：**信心（质量与可靠性）提前为 V2.5**；原 V2.5 的闭环功能（种子/grounding/课程）**顺延至 ~V3.0**。
 
-- **V2.5 信心（质量与可靠性）— 进行中（N1–N3 done，N4 next）**，详见 [docs/V2.5_PLAN.md](docs/V2.5_PLAN.md)
-  - CI（GitHub Actions）：mocked 测试 gate PR；付费评测**仅 on-release**
-  - 前端测试（Vitest+RTL）+ Playwright E2E；缓存（只缓存视觉描述，不缓存评分）；成本/延迟遥测（DB+设置页）
-  - 先做便宜切片：N1 CI + N2 缓存/遥测，再前端测试/E2E
 - **V2.7 触达**：运行时可配 API base URL（Next.js rewrite，解决 known issue #5）；桌面打包或托管 demo；**真正的门槛是 API key 而非打包**
 - **~V3.0 闭环（curriculum + grounding）**，详见 [docs/V3.0_PLAN.md](docs/V3.0_PLAN.md)
   - 首次运行预置案例库（纯文本种子，规避版权）；top-N 案例注入 grounding（**改评分，须在评测护栏后做**）；结构化课程 + assessment 推荐连向练习
   - 也含更远期：多人/社区共享案例库
 
 备选方向（未选，见会话记录）：集成优先（Figma/浏览器扩展）、社区网络、垂直深耕、移动端、引擎 API 化。
+
+## ✅ V2.5.0 — 信心（质量与可靠性）
+- CI（GitHub Actions）：push/PR 跑后端 pytest + 前端 Vitest + build + Playwright E2E
+- 视觉描述缓存（provider+model 复用，`?refresh` 强制；评分不缓存）
+- 成本/延迟遥测：`llm_usage` + 透明 `wrap_client` + `/system/usage` + 设置页面板
+- 前端组件测试（Vitest+RTL）+ Playwright smoke E2E
+- on-release 校准评测（`evals.yml`，`--check` 门槛 gate 发布；不 gate PR）
+- 247 后端测试 + 前端 Vitest + E2E
 
 ## ✅ V2.4.1 — 信任度量复审收尾
 - 诚实表述：`/assessment` 维度评分标注为「作品质量」而非「判断力」

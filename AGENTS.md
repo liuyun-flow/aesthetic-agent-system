@@ -29,7 +29,7 @@ aesthetic-agent-system/
 - Python 3.11+, TypeScript strict
 - Backend: 127.0.0.1 (not localhost) for all internal calls
 - Frontend: Chinese UI only; i18n keys sync en.ts ⇔ zh.ts
-- Tests: 242 pytest (mock agents, no API key needed) + frontend Vitest component tests
+- Tests: 247 pytest (mock agents, no API key needed) + frontend Vitest component tests + Playwright E2E smoke
 - CI: GitHub Actions (`.github/workflows/ci.yml`) runs backend pytest + frontend Vitest + build on push/PR — keep green
 - DB: SQLite, auto-migration on startup, delete aesthetic.db to reset
 - Dev proxy (push/release only; never in repo, end users need none): git uses the

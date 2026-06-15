@@ -1,5 +1,18 @@
 # 升级指南
 
+## 从 V2.4.x 升级到 V2.5.0
+
+V2.5.0 是质量与可靠性版（CI / 缓存 / 遥测 / 测试）。新增 `llm_usage` 表 + `uploaded_images.vision_model` 列，经启动时**自动迁移**（`_migrate_v2_5`）添加，旧数据安全，无需手动处理。
+
+**升级前务必先导出备份**（设置页 → 数据管理 → 导出）。
+
+```bash
+git pull origin main
+docker compose up --build -d
+```
+
+> 可选：发布时校准评测（`evals.yml`）需在 GitHub 仓库 Settings → Secrets 添加 `DEEPSEEK_API_KEY` 才会真正运行。
+
 ## 从 V2.2.x 升级到 V2.3.0
 
 V2.3.0 新增一键收入案例库和描述质量优化。训练记录新增 `image_id` 列，通过启动时**自动迁移**添加，旧数据安全，无需手动处理。
