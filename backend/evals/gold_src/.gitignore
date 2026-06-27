@@ -1,0 +1,7 @@
+# Source screenshots are NOT committed (copyright + size).
+# Only structure, skeletons, README, and the describe cache key list stay tracked.
+*.png
+*.jpg
+*.jpeg
+*.webp
+.describe_cache.json

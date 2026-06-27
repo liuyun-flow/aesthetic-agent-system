@@ -1,7 +1,13 @@
 # Eval / Calibration Harness (dev-only)
 
+> **Strategy note (2026-06-26):** this is a **minimal internal critic
+> sanity-check**, not a developer "gold standard." Aesthetic taste is per-user;
+> the eval only checks "is the critic broken / did it regress" on a few *clean,
+> real fundamentals contrasts.* See [STRATEGY.md](STRATEGY.md). The per-user
+> sample library is a separate, product-facing thing.
+
 Answers one question: **is the critic's aesthetic score trustworthy?** — by
-checking it against a human-labeled gold set, and pinning the prompt version so
+checking it against a small human-labeled set, and pinning the prompt version so
 scoring regressions are traceable.
 
 This is the "ruler" the rest of V2.4 (and V2.5 grounding) leans on. It is **not**
